@@ -1,0 +1,6 @@
+-r test.txt
+
+# For making documentation
+pandoc-eqnos
+pandoc-fignos
+pandoc-tablenos
