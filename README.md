@@ -31,4 +31,5 @@ TODO...
 
 ## How to develop
 
-TODO...
+- Pylint must be used as the linter for this project. A linting configuration can be found in .pylintrc
+- Before committing any files, `black` must be run with the default settings in order perform autoformatting on the project
