@@ -1,21 +1,41 @@
+""" BaseFilter classes and exception handling """
+
 import copy
-from typing import Tuple, List
+from typing import List
 from abc import ABC, abstractmethod
 
 
-class FilterInputKeyError(Exception):
+class BaseFilterException(Exception):
+    """ Exceptions for this modules """
+
     def __init__(self, msg: str):
-        super().__init__(str)
+        """ :param msg: The message to display """
+        super().__init__()
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
+
+
+class FilterInputKeyError(Exception):
+    """ Used to show an error with a filter's input keys
+    e.g. multiple values have been assigned to the same input """
 
 
 class FilterInputValidationError(Exception):
-    def __init__(self, msg: str):
-        super().__init__(str)
+    """ Used to show an error when running the validation on the filter's inputs
+    i.e. when running _validate_inputs() """
 
 
 class FilterLoopError(Exception):
+    """ Used when a loop is detected in the filter chain """
+
     def __init__(self):
         super().__init__("A loop has been detected in the filters")
+
+
+FILTER = "filter"
+IO_MAP = "io_map"
 
 
 class BaseFilter(ABC):
@@ -31,8 +51,8 @@ class BaseFilter(ABC):
         # A placeholder for inputs before they are bound
         self._i = {}
 
-        # Parent filters (a list of dict {"filter": Filter, "io_map": dict/None})
-        self.parents = []  # type: List[Dict]
+        # Parent filters (a list of dict {FILTER: Filter, IO_MAP: dict/None})
+        self.parent_dict_list = []  # type: List[Dict]
 
         # Needs to be run (inputs have changed)
         self.needs_run = False
@@ -70,8 +90,8 @@ class BaseFilter(ABC):
             "output_key2":"input_key2",
             ...
             }
-        will map the input of this filter with a key of "input_key1" to the
-        output of the parent filter with a key of "output_key1", etc.
+        will map the output of the parent filter with a key of "output_key1" to the
+        input of this filter with a key of "input_key1" etc.
         If `io_map` is defined ONLY those keys which are explicitly listed are mapped
         (the others are ignored)
         """
@@ -79,14 +99,14 @@ class BaseFilter(ABC):
         self.needs_run = True
 
         # Search the parents to see if this parent already exists. If so, update it.
-        parent_dict = {"filter": parent, "io_map": io_map}
-        for i, p in enumerate(self.parents):
-            if p["filter"] == parent:
-                self.parents[i] = parent_dict
+        new_parent_dict = {FILTER: parent, IO_MAP: io_map}
+        for i, old_parent_dict in enumerate(self.parent_dict_list):
+            if old_parent_dict[FILTER] == parent:
+                self.parent_dict_list[i] = new_parent_dict
                 return
 
         # Otherwise, add parent as a new parent
-        self.parents.append(parent_dict)
+        self.parent_dict_list.append(new_parent_dict)
 
     def run(self, history=None):
         """
@@ -108,9 +128,10 @@ class BaseFilter(ABC):
         history.append(self)
 
         # Run all of the parent filters
-        for p in self.parents:
-            p["filter"].run(history=history)
+        for parent_dict in self.parent_dict_list:
+            parent_dict[FILTER].run(history=history)
 
+        print(f"Running filter {self}")
         # Populate all of the inputs to this filter
         self.inputs = {}
 
@@ -118,18 +139,18 @@ class BaseFilter(ABC):
         self.inputs = copy.copy(self._i)
 
         # Map all inputs from parent filters
-        for p in self.parents:
+        for parent_dict in self.parent_dict_list:
 
-            for output_key in p["filter"].outputs:
-                if p["io_map"] is None:
+            for output_key in parent_dict[FILTER].outputs:
+                if parent_dict[IO_MAP] is None:
                     # Directly map the parent outputs to inputs
                     input_key = output_key
                 else:
                     # Use the io_map lookup to check the output_key exists
-                    if output_key not in p["io_map"]:
+                    if output_key not in parent_dict[IO_MAP]:
                         input_key = None
 
-                    input_key = p["io_map"][output_key]
+                    input_key = parent_dict[IO_MAP][output_key]
 
                 if input_key is not None:
                     # We have a mapping from output to input
@@ -137,13 +158,13 @@ class BaseFilter(ABC):
                     if input_key in self.inputs:
                         raise FilterInputKeyError(
                             f"A mapping is defined: "
-                            f"from filter \"{p['filter']}\" "
+                            f"from filter \"{parent_dict['filter']}\" "
                             f'with output key "{output_key}" '
                             f'to filter "{self}" '
                             f'with input key "{input_key}". '
                             "However, this input has already been defined."
                         )
-                    self.inputs[input_key] = p["filter"].outputs[output_key]
+                    self.inputs[input_key] = parent_dict[FILTER].outputs[output_key]
 
         # Validate the inputs to this filter
         self._validate_inputs()
@@ -160,7 +181,6 @@ class BaseFilter(ABC):
         Takes all of the inputs and creates the outputs.
         THIS SHOULD BE OVERWRITTEN IN THE SUBCLASS
         """
-        pass
 
     @abstractmethod
     def _validate_inputs(self):
@@ -169,4 +189,3 @@ class BaseFilter(ABC):
         if the validation is not passed.
         THIS SHOULD BE OVERWRITTEN IN THE SUBCLASS
         """
-        pass
