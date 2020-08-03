@@ -1,0 +1,5 @@
+{
+  "properties": ["CBF", "ATT", "T1", "T2", "T2STAR", "M0", "SEG"],
+  "segmentation": { "CSF": 3, "Grey Matter": 1, "White Matter": 2 }
+}
+"White Matter":2}}

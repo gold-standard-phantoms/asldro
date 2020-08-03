@@ -10,7 +10,7 @@ import numpy as np
 import nibabel as nib
 
 
-UNITS_METERS = "meters"
+UNITS_METERS = "meter"
 UNITS_MILLIMETERS = "mm"
 UNITS_MICRONS = "micron"
 UNITS_SECONDS = "sec"
@@ -63,15 +63,15 @@ class BaseImageContainer(ABC):
         pass
 
     @abstractproperty
-    def voxel_size_mm(self):
+    def voxel_size_mm(self) -> np.ndarray:
         """ Returns the voxel size in mm """
 
     @abstractproperty
-    def time_step_seconds(self):
+    def time_step_seconds(self) -> float:
         """ Return the time step in seconds """
 
     @abstractproperty
-    def shape(self):
+    def shape(self) -> Tuple[int]:
         """ Returns the shape of the image [x, y, z, t, etc] """
 
     @staticmethod
@@ -122,7 +122,7 @@ class NumpyImageContainer(BaseImageContainer):
         affine: np.ndarray = np.eye(4),
         space_units: str = UNITS_MILLIMETERS,
         time_units: str = UNITS_SECONDS,
-        voxel_size=(1.0, 1.0, 1.0),
+        voxel_size=np.array([1.0, 1.0, 1.0]),
         time_step=1.0,
     ):
         """ Creates an image container from a numpy array. May
@@ -138,7 +138,7 @@ class NumpyImageContainer(BaseImageContainer):
         self._affine: np.ndarray = affine
         self._space_units: str = space_units
         self._time_units: str = time_units
-        self._voxel_size: Tuple[float] = voxel_size
+        self._voxel_size: np.array = np.array(voxel_size)
         self._time_step: float = time_step
 
     @property
