@@ -1,7 +1,8 @@
+""" NIFTI file loader filter """
 import os
 import nibabel as nib
 
-from asldro.containers.image import ImageContainer
+from asldro.containers.image import NiftiImageContainer
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
@@ -22,7 +23,7 @@ class NiftiLoaderFilter(BaseFilter):
         a Image container from it. Put this in the output named
         `image`. """
 
-        self.outputs["image"] = ImageContainer(
+        self.outputs["image"] = NiftiImageContainer(
             nifti_img=nib.load(self.inputs["filename"])
         )
 
