@@ -2,11 +2,11 @@
 
 
 ## Master
-[![Build status](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/master/build.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/commits/master)
+[![Build status](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/master/pipeline.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/commits/master)
 Coverage [![Overall test coverage](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/master/coverage.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/pipelines)
 
 ## Develop
-[![Build status](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/develop/build.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/commits/develop)
+[![Build status](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/develop/pipeline.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/commits/develop)
 Coverage [![Overall test coverage](https://git.goldstandardphantoms.com/GSP/software/asldro/badges/develop/coverage.svg)](https://git.goldstandardphantoms.com/GSP/software/asldro/pipelines)
 
 
