@@ -18,7 +18,9 @@ class JsonLoaderFilter(BaseFilter):
     key,value pairs in the JSON filter. For example:
     { "foo": 1, "bar": "test"} will create two outputs named
     "foo" and "bar" with integer and string values respectively.
-    The outputs may also be nested i.e. object or arrays
+    The outputs may also be nested i.e. object or arrays.
+    However - it will only load JSON file matching the validation schema
+    in asldro.validators.ground_truth_json
     """
 
     def __init__(self):

@@ -218,14 +218,22 @@ class NiftiImageContainer(BaseImageContainer):
         self._nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
 
     @property
+    def nifti_type(self):
+        """ Return the type of NIFTI data contained here (nib.Nifti1Image or nib.Nifti2Image) """
+        return type(self._nifti_image)
+
+    @property
     def has_nifti(self):
         """ Returns True if the image has an associated nifti container """
         return True
 
     @property
     def image(self):
-        """ Return the image data as a numpy array """
-        return self._nifti_image.get_fdata()
+        """ Return the image data as a numpy array.
+        Returns data in the type it is created (i.e. won't convert to float64 as
+        .get_fdata() will)"""
+        return np.asanyarray(self._nifti_image.dataobj)
+        # return self._nifti_image.get_fdata()
 
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
