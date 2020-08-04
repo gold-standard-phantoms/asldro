@@ -1,6 +1,6 @@
 """ Fourier Transform filter """
 import numpy as np
-#from asldro.containers.image import NumpyImageContainer, NiftiImageContainer
+from asldro.containers.image import NumpyImageContainer, NiftiImageContainer
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
@@ -21,9 +21,9 @@ class FftFilter(BaseFilter):
     def _validate_inputs(self):
         """" Input must be a numpy array"""
         input_value = self.inputs["image"]
-        if not isinstance(input_value, np.ndarray):
+        if not isinstance(input_value, NumpyImageContainer, NiftiImageContainer):
             raise FilterInputValidationError(
-                f"Input image is not a ndarray (is {type(input_value)})"
+                f"Input image is not a NumpyImageContainer or NiftiImageContainer (is {type(input_value)})"
                 )
 
 class IfftFilter(BaseFilter):
@@ -43,7 +43,7 @@ class IfftFilter(BaseFilter):
     def _validate_inputs(self):
         """" Input must be a numpy array"""
         input_value = self.inputs["kdata"]
-        if not isinstance(input_value, np.ndarray):
+        if not isinstance(input_value, NumpyImageContainer, NiftiImageContainer):
             raise FilterInputValidationError(
-                f"Input kdata is not a ndarray (is {type(input_value)})"
+                f"Input kdata is not a NumpyImageContainer or NiftiImageContainer (is {type(input_value)})"
                 )
