@@ -17,10 +17,28 @@ UNITS_SECONDS = "sec"
 UNITS_MILLISECONDS = "msec"
 UNITS_MICROSECONDS = "usec"
 
+SPATIAL_DOMAIN = "SPATIAL_DOMAIN"
+INVERSE_DOMAIN = "INVERSE_DOMAIN"
+
 
 class BaseImageContainer(ABC):
-    """ An abstract (interface) for an ND image. Defines
-    a set of accessors """
+    """
+    An abstract (interface) for an ND image. Defines
+    a set of accessors
+    :param data_domain: defines the data domain as SPATIAL_DOMAIN or
+    INVERSE_DOMAIN (default is SPATIAL_DOMAIN)
+    """
+
+    def __init__(self, data_domain: str = SPATIAL_DOMAIN, **kwargs):
+        if data_domain not in [SPATIAL_DOMAIN, INVERSE_DOMAIN]:
+            raise ValueError(
+                f"data_domain is not of of SPATIAL_DOMAIN or INVERSE_DOMAIN"
+            )
+        self.data_domain = data_domain
+        if len(kwargs) != 0:
+            raise TypeError(
+                f"BaseImageContainer received unexpected arguments {kwargs}"
+            )
 
     @abstractproperty
     def has_nifti(self):
@@ -124,6 +142,7 @@ class NumpyImageContainer(BaseImageContainer):
         time_units: str = UNITS_SECONDS,
         voxel_size=np.array([1.0, 1.0, 1.0]),
         time_step=1.0,
+        **kwargs,
     ):
         """ Creates an image container from a numpy array. May
         provide one or more additional arguments.
@@ -133,7 +152,9 @@ class NumpyImageContainer(BaseImageContainer):
         :param time_units: the units across the time dimension
         :param voxel_size: a tuple containing the voxel size (in units of space_units)
         :param time_step: the time step (in units of time_units)
+        :param **kwargs: any additional arguments accepted by BaseImageContainer
         """
+        super().__init__(**kwargs)
         self._image: np.ndarray = image
         self._affine: np.ndarray = affine
         self._space_units: str = space_units
@@ -214,7 +235,14 @@ class NiftiImageContainer(BaseImageContainer):
     """ A container for an ND image. Must be initialised with
     a nibabel Nifti1Image or Nifti2Image """
 
-    def __init__(self, nifti_img: Union[nib.Nifti1Image, nib.Nifti2Image] = None):
+    def __init__(
+        self, nifti_img: Union[nib.Nifti1Image, nib.Nifti2Image] = None, **kwargs
+    ):
+        """
+        :param nifti_img: A nibabel Nifti1Image or Nifti2Image
+        :param **kwargs: any additional arguments accepted by BaseImageContainer
+        """
+        super().__init__(**kwargs)
         self._nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
 
     @property
