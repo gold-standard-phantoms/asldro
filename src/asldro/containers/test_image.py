@@ -341,7 +341,7 @@ def test_image_container_unexpected_arguments():
 
 
 def test_image_container_spatial_domain_initialisation():
-    """ Check that passing a string not in SPATIAL_DOMAIN or INVERSE_DOMAIN to 
+    """ Check that passing a string not in SPATIAL_DOMAIN or INVERSE_DOMAIN to
     data_domain raises an exception ( and vice versa )"""
     with pytest.raises(ValueError):
         NumpyImageContainer(image=np.zeros((3, 3, 3)), data_domain="foobar")
@@ -355,4 +355,3 @@ def test_image_container_spatial_domain_initialisation():
         image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
     )  # OK
     assert image_container.data_domain == INVERSE_DOMAIN
-
