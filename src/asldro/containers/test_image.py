@@ -19,6 +19,8 @@ from asldro.containers.image import (
     UNITS_MILLIMETERS,
     UNITS_MILLISECONDS,
     UNITS_MICROSECONDS,
+    SPATIAL_DOMAIN,
+    INVERSE_DOMAIN,
 )
 
 
@@ -326,3 +328,30 @@ def test_numpy_image_container_has_nifti(numpy_image_container: NumpyImageContai
     """ Test that a nifty is not returned from a NumpyImageContainer """
 
     assert not numpy_image_container.has_nifti
+
+
+def test_image_container_unexpected_arguments():
+    """ Check that passing unexpected arguments raises an error """
+    with pytest.raises(TypeError):
+        NumpyImageContainer(image=np.zeros((3, 3, 3)), unexpected="test")
+    with pytest.raises(TypeError):
+        NiftiImageContainer(
+            nib.Nifti1Pair(np.zeros((3, 3, 3)), affine=np.eye(4)), unexpected="test"
+        )
+
+
+def test_image_container_spatial_domain_initialisation():
+    """ Check that passing a string not in SPATIAL_DOMAIN or INVERSE_DOMAIN to
+    data_domain raises an exception ( and vice versa )"""
+    with pytest.raises(ValueError):
+        NumpyImageContainer(image=np.zeros((3, 3, 3)), data_domain="foobar")
+
+    image_container = NumpyImageContainer(
+        image=np.zeros((3, 3, 3)), data_domain=SPATIAL_DOMAIN
+    )  # OK
+    assert image_container.data_domain == SPATIAL_DOMAIN
+
+    image_container = NumpyImageContainer(
+        image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
+    )  # OK
+    assert image_container.data_domain == INVERSE_DOMAIN

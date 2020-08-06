@@ -18,16 +18,19 @@ ASL Digital Reference Object
 ## Set up
 
 Set up the python `virtualenv` and install requirements
-
+```
     virtualenv env -p python3 --clear
     source env/bin/activate
     pip install -r requirements/dev.txt --upgrade
-
+```
 
 ## How to run
 
-TODO...
-
+To run the example pipeline - source the virtualenv (see above) then run
+```
+    cd src
+    python -m asldro.examples
+```
 
 ## How to develop
 

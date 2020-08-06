@@ -1,9 +1,12 @@
 """ Examples of filter chains """
 import pprint
 
+import numpy as np
+
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
+from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -33,6 +36,12 @@ def run_full_pipeline():
     print(
         f"GroundTruthLoaderFilter outputs:\n{pprint.pformat(ground_truth_filter.outputs)}"
     )
+
+    # Create an image container in the INVERSE_DOMAIN
+    image_container = NumpyImageContainer(
+        image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
+    )
+    print(f"NumpyImageContainer:\n{pprint.pformat(image_container)}")
 
 
 if __name__ == "__main__":
