@@ -1,7 +1,0 @@
-{
-    "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true,
-    "python.pythonPath": "C:\\Users\\aaron\\.conda\\envs\\asldro\\python.exe",
-    "python.jediEnable": false,
-    "python.languageServer": "Microsoft"
-}
