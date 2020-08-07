@@ -110,6 +110,6 @@ ENV/
 coverage_html_report
 
 #Visual Studio Code
-/.vscode
+.vscode/
 
 
