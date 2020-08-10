@@ -279,16 +279,12 @@ class NiftiImageContainer(BaseImageContainer):
 
     @image.setter
     def image(self, new_image: np.ndarray):
-        """ Sets the image data - must be the same data type """
-        if new_image.dtype != self.image.dtype:
-            raise ValueError(
-                "New image data must be of the same type as "
-                "first used in the NiftiImageContainer"
-            )
+        """ Sets the image data """
         self._nifti_image = self.nifti_type(
             dataobj=new_image, affine=self.affine, header=self.header
         )
         # Make sure the header matches the new image data
+        self._nifti_image.set_data_dtype(new_image.dtype)
         self._nifti_image.update_header()
 
     @property
