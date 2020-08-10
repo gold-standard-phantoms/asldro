@@ -361,6 +361,7 @@ def test_image_container_spatial_domain_initialisation():
 
 # Clone tests
 
+
 def general_image_container_clone_tests(
     image_container: BaseImageContainer, cloned_image_container: BaseImageContainer
 ):
@@ -423,6 +424,8 @@ def test_nifti_image_container_clone(
         assert not id(image_container.header) == id(cloned_image_container.header)
 
         assert image_container.header == cloned_image_container.header
+
+
 # Image setter tests
 
 
@@ -457,9 +460,41 @@ def test_nifti_image_container_image_set_different_dtype(
     nifti_image_containers_a: List[NiftiImageContainer]
 ):
     """ Check that setting a nifti image container's image data
-    using a different dtype to the original raises an exception """
+    using a different dtype to the original updates the nifti header correctly """
 
     for image_container in nifti_image_containers_a:
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.int8)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 256
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.uint8)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 2
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.int16)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 4
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.uint16)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 512
+
         new_image = np.ones(shape=(4, 4, 4), dtype=np.int32)
-        with pytest.raises(ValueError):
-            image_container.image = new_image
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 8
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.uint32)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 768
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.float32)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 16
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.complex)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 1792  # double pair
+
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.float64)
+        image_container.image = new_image
+        assert image_container.header["datatype"] == 64
