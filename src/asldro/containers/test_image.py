@@ -361,7 +361,6 @@ def test_image_container_spatial_domain_initialisation():
 
 # Clone tests
 
-
 def general_image_container_clone_tests(
     image_container: BaseImageContainer, cloned_image_container: BaseImageContainer
 ):
@@ -424,3 +423,43 @@ def test_nifti_image_container_clone(
         assert not id(image_container.header) == id(cloned_image_container.header)
 
         assert image_container.header == cloned_image_container.header
+# Image setter tests
+
+
+def test_numpy_image_container_image_properties(
+    numpy_image_container: NumpyImageContainer
+):
+    """ Test the numpy image container image setter/getter """
+    new_image = np.ones(shape=(4, 4, 4)) * 10
+    numpy_image_container.image = new_image
+    numpy.testing.assert_array_equal(numpy_image_container.image, new_image)
+
+    assert numpy_image_container.image.shape == (4, 4, 4)
+
+
+def test_nifti_image_container_image_properties(
+    nifti_image_containers_a: List[NiftiImageContainer]
+):
+    """ Test the nifti image containers image setter/getter """
+    for image_container in nifti_image_containers_a:
+        new_image = np.ones(shape=(4, 4, 4)) * 10
+        image_container.image = new_image
+        numpy.testing.assert_array_equal(image_container.image, new_image)
+        assert image_container.image.shape == (4, 4, 4)
+
+        # Also, check the header has been updated correctly
+        np.testing.assert_array_equal(
+            image_container.header["dim"], [3, 4, 4, 4, 1, 1, 1, 1]
+        )
+
+
+def test_nifti_image_container_image_set_different_dtype(
+    nifti_image_containers_a: List[NiftiImageContainer]
+):
+    """ Check that setting a nifti image container's image data
+    using a different dtype to the original raises an exception """
+
+    for image_container in nifti_image_containers_a:
+        new_image = np.ones(shape=(4, 4, 4), dtype=np.int32)
+        with pytest.raises(ValueError):
+            image_container.image = new_image

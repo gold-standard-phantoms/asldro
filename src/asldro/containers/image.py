@@ -4,7 +4,7 @@ be instantiated with either NIFTI files or using numpy arrays """
 
 from copy import deepcopy
 from abc import ABC, abstractproperty
-from typing import Union, Tuple
+from typing import Union, Tuple, Type
 
 
 import numpy as np
@@ -52,6 +52,10 @@ class BaseImageContainer(ABC):
     @abstractproperty
     def image(self):
         """ Return the image data as a numpy array """
+
+    @image.setter
+    def image(self, new_image: np.ndarray):
+        """ Sets the image data """
 
     @abstractproperty
     def affine(self) -> np.ndarray:
@@ -177,6 +181,11 @@ class NumpyImageContainer(BaseImageContainer):
         """ Return the image data as a numpy array """
         return self._image
 
+    @image.setter
+    def image(self, new_image: np.ndarray):
+        """ Sets the image data - does not copy it! """
+        self._image = new_image
+
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
         """ Returns the NIFTI header if initialised from a NIFTI file,
@@ -251,7 +260,7 @@ class NiftiImageContainer(BaseImageContainer):
         self._nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
 
     @property
-    def nifti_type(self):
+    def nifti_type(self) -> Type[Union[nib.Nifti1Image, nib.Nifti2Image]]:
         """ Return the type of NIFTI data contained here (nib.Nifti1Image or nib.Nifti2Image) """
         return type(self._nifti_image)
 
@@ -267,6 +276,20 @@ class NiftiImageContainer(BaseImageContainer):
         .get_fdata() will)"""
         return np.asanyarray(self._nifti_image.dataobj)
         # return self._nifti_image.get_fdata()
+
+    @image.setter
+    def image(self, new_image: np.ndarray):
+        """ Sets the image data - must be the same data type """
+        if new_image.dtype != self.image.dtype:
+            raise ValueError(
+                "New image data must be of the same type as "
+                "first used in the NiftiImageContainer"
+            )
+        self._nifti_image = self.nifti_type(
+            dataobj=new_image, affine=self.affine, header=self.header
+        )
+        # Make sure the header matches the new image data
+        self._nifti_image.update_header()
 
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
