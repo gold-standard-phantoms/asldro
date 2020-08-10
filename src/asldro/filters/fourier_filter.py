@@ -1,12 +1,7 @@
 """ Fourier Transform filter """
 import numpy as np
 
-from asldro.containers.image import (
-    NumpyImageContainer,
-    NiftiImageContainer,
-    SPATIAL_DOMAIN,
-    INVERSE_DOMAIN,
-)
+from asldro.containers.image import BaseImageContainer, SPATIAL_DOMAIN, INVERSE_DOMAIN
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
@@ -24,37 +19,21 @@ class FftFilter(BaseFilter):
         to the input.  The input image must have data_domain == SPATIAL_DOMAIN, and
         the output image (k-space data) will have data_domain == INVERSE_DOMAIN
         """
-
-        if isinstance(self.inputs["image"], NumpyImageContainer):
-            image_container: NumpyImageContainer = self.inputs["image"]
-            self.outputs["image"] = NumpyImageContainer(
-                image=np.fft.fftn(image_container.image),
-                affine=image_container.affine,
-                space_units=image_container.space_units,
-                time_units=image_container.time_units,
-                voxel_size=image_container.voxel_size_mm,
-                time_step=image_container.time_step_seconds,
-                data_domain=INVERSE_DOMAIN,
-            )
-        elif isinstance(self.inputs["image"], NiftiImageContainer):
-            image_container: NiftiImageContainer = self.inputs["image"]
-            nifti_image_type = image_container.nifti_type
-            self.outputs["image"] = NiftiImageContainer(
-                nifti_img=nifti_image_type(
-                    dataobj=np.fft.fftn(image_container.image),
-                    affine=image_container.affine,
-                    header=image_container.header,
-                ),
-                data_domain=INVERSE_DOMAIN,
-            )
+        image_container: BaseImageContainer = self.inputs["image"].clone()
+        image_container.image = np.fft.fftn(image_container.image)
+        image_container.data_domain = INVERSE_DOMAIN
+        self.outputs["image"] = image_container
 
     def _validate_inputs(self):
-        """"  Input must be a NumpyImageContainer or NiftiImageContainer,
+        """" Input must be derived from BaseImageContainer
         and data_domain should be SPATIAL_DOMAIN"""
+        if "image" not in self.inputs:
+            raise FilterInputValidationError(f"{self} does not defined `image`")
+
         input_value = self.inputs["image"]
-        if not isinstance(input_value, (NumpyImageContainer, NiftiImageContainer)):
+        if not isinstance(input_value, BaseImageContainer):
             raise FilterInputValidationError(
-                f"Input image is not a NumpyImageContainer or NiftiImageContainer (is {type(input_value)})"
+                f"Input image is not a BaseImageContainer (is {type(input_value)})"
             )
         if input_value.data_domain != SPATIAL_DOMAIN:
             raise FilterInputValidationError(
@@ -76,38 +55,22 @@ class IfftFilter(BaseFilter):
         to the input.  The input image (k-space data) must have data_domain == INVERSE_DOMAIN, and
         the output image will have data_domain == SPATIAL_DOMAIN
         """
-        if isinstance(self.inputs["image"], NumpyImageContainer):
-            image_container: NumpyImageContainer = self.inputs["image"]
-            self.outputs["image"] = NumpyImageContainer(
-                image=np.fft.ifftn(image_container.image),
-                affine=image_container.affine,
-                space_units=image_container.space_units,
-                time_units=image_container.time_units,
-                voxel_size=image_container.voxel_size_mm,
-                time_step=image_container.time_step_seconds,
-                data_domain=SPATIAL_DOMAIN,
-            )
-        elif isinstance(self.inputs["image"], NiftiImageContainer):
-            image_container: NiftiImageContainer = self.inputs["image"]
-            nifti_image_type = image_container.nifti_type
-            self.outputs["image"] = NiftiImageContainer(
-                nifti_img=nifti_image_type(
-                    dataobj=np.fft.ifftn(image_container.image),
-                    affine=image_container.affine,
-                    header=image_container.header,
-                ),
-                data_domain=SPATIAL_DOMAIN,
-            )
+        image_container: BaseImageContainer = self.inputs["image"].clone()
+        image_container.image = np.fft.ifftn(image_container.image)
+        image_container.data_domain = SPATIAL_DOMAIN
+        self.outputs["image"] = image_container
 
     def _validate_inputs(self):
-        """" Input must be a NumpyImageContainer or NiftiImageContainer,
+        """" Input must be derived from BaseImageContainer
         and data_domain should be INVERSE_DOMAIN"""
+        if "image" not in self.inputs:
+            raise FilterInputValidationError(f"{self} does not defined `image`")
         input_value = self.inputs["image"]
-        if not isinstance(input_value, (NumpyImageContainer, NiftiImageContainer)):
+        if not isinstance(input_value, BaseImageContainer):
             raise FilterInputValidationError(
-                f"Input image is not a NumpyImageContainer or NiftiImageContainer (is {type(input_value)})"
+                f"Input image is not a BaseImageContainer (is {type(input_value)})"
             )
         if input_value.data_domain != INVERSE_DOMAIN:
             raise FilterInputValidationError(
-                f"Input image is not in the spatial domain (is {input_value.data_domain}"
+                f"Input image is not in the inverse domain (is {input_value.data_domain}"
             )
