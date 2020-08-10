@@ -2,6 +2,7 @@
 Used to create a standard interface for ND images which can
 be instantiated with either NIFTI files or using numpy arrays """
 
+from copy import deepcopy
 from abc import ABC, abstractproperty
 from typing import Union, Tuple
 
@@ -32,13 +33,17 @@ class BaseImageContainer(ABC):
     def __init__(self, data_domain: str = SPATIAL_DOMAIN, **kwargs):
         if data_domain not in [SPATIAL_DOMAIN, INVERSE_DOMAIN]:
             raise ValueError(
-                f"data_domain is not of of SPATIAL_DOMAIN or INVERSE_DOMAIN"
+                "data_domain is not of of SPATIAL_DOMAIN or INVERSE_DOMAIN"
             )
         self.data_domain = data_domain
         if len(kwargs) != 0:
             raise TypeError(
                 f"BaseImageContainer received unexpected arguments {kwargs}"
             )
+
+    def clone(self) -> "BaseImageContainer":
+        """ Makes a deep copy of all member variables in a new ImageContainer """
+        return deepcopy(self)
 
     @abstractproperty
     def has_nifti(self):
