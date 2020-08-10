@@ -7,10 +7,12 @@ from typing import List
 
 import nibabel as nib
 import numpy as np
+import numpy.testing
 import pytest
 
 from asldro import definitions
 from asldro.containers.image import (
+    BaseImageContainer,
     NiftiImageContainer,
     NumpyImageContainer,
     UNITS_METERS,
@@ -355,3 +357,70 @@ def test_image_container_spatial_domain_initialisation():
         image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
     )  # OK
     assert image_container.data_domain == INVERSE_DOMAIN
+
+
+# Clone tests
+
+
+def general_image_container_clone_tests(
+    image_container: BaseImageContainer, cloned_image_container: BaseImageContainer
+):
+    """ Check that the image container is cloned correctly """
+    assert image_container.data_domain == cloned_image_container.data_domain
+    # Check images are equal, but not the same object
+    numpy.testing.assert_array_equal(
+        image_container.image, cloned_image_container.image
+    )
+    assert not id(image_container.affine) == id(cloned_image_container.affine)
+
+    # Check affines are equal, but not the same object
+    numpy.testing.assert_array_equal(
+        image_container.affine, cloned_image_container.affine
+    )
+    assert not id(image_container.affine) == id(cloned_image_container.affine)
+
+    assert image_container.space_units == cloned_image_container.space_units
+    assert image_container.time_units == cloned_image_container.time_units
+
+    # Check voxel sizes are equal, but not the same object
+    numpy.testing.assert_array_equal(
+        image_container.voxel_size_mm, cloned_image_container.voxel_size_mm
+    )
+    assert not id(image_container.voxel_size_mm) == id(
+        cloned_image_container.voxel_size_mm
+    )
+
+    assert image_container.time_step_seconds == cloned_image_container.time_step_seconds
+
+
+def test_numpy_image_container_clone():
+    """ Check that the numpy image container is cloned correctly """
+    # Use none of the default parameters
+    image_container = NumpyImageContainer(
+        image=np.ones(shape=(3, 4, 5)),
+        affine=np.eye(4) * 2,
+        space_units=UNITS_METERS,
+        time_units=UNITS_MICROSECONDS,
+        voxel_size=np.array([1, 2, 3]),
+        time_step=0.5,
+        data_domain=INVERSE_DOMAIN,
+    )
+
+    cloned_image_container = image_container.clone()
+    general_image_container_clone_tests(image_container, cloned_image_container)
+
+
+def test_nifti_image_container_clone(
+    nifti_image_containers_a: List[NiftiImageContainer]
+):
+    """ Check that the NIFTI image container is cloned correctly """
+
+    for image_container in nifti_image_containers_a:
+
+        cloned_image_container = image_container.clone()
+        general_image_container_clone_tests(image_container, cloned_image_container)
+
+        # Also, check the headers are cloned correctly
+        assert not id(image_container.header) == id(cloned_image_container.header)
+
+        assert image_container.header == cloned_image_container.header
