@@ -3,7 +3,7 @@ Used to create a standard interface for ND images which can
 be instantiated with either NIFTI files or using numpy arrays """
 
 from copy import deepcopy
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 from typing import Union, Tuple, Type
 
 
@@ -45,23 +45,28 @@ class BaseImageContainer(ABC):
         """ Makes a deep copy of all member variables in a new ImageContainer """
         return deepcopy(self)
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def has_nifti(self):
         """ Returns True if the image has an associated nifti container """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def image(self):
         """ Return the image data as a numpy array """
 
     @image.setter
+    @abstractmethod
     def image(self, new_image: np.ndarray):
         """ Sets the image data """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def affine(self) -> np.ndarray:
         """ Return a 4x4 numpy array with the image affine transformation """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def space_units(self):
         """
         Uses the NIFTI header xyzt_units to extract the space units.
@@ -71,7 +76,8 @@ class BaseImageContainer(ABC):
         'micron'
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def time_units(self):
         """
         Uses the NIFTI header xyzt_units to extract the time units.
@@ -82,22 +88,27 @@ class BaseImageContainer(ABC):
         """
 
     @time_units.setter
+    @abstractmethod
     def time_units(self, units: str):
         pass
 
     @space_units.setter
+    @abstractmethod
     def space_units(self, units: str):
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def voxel_size_mm(self) -> np.ndarray:
         """ Returns the voxel size in mm """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def time_step_seconds(self) -> float:
         """ Return the time step in seconds """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def shape(self) -> Tuple[int]:
         """ Returns the shape of the image [x, y, z, t, etc] """
 
