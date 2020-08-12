@@ -9,19 +9,18 @@ from asldro.filters.fourier_filter import FftFilter, IfftFilter
 class AddComplexNoiseFilter(BaseFilter):
     """ A filter that simulates adds random noise to the real and imaginary
     channels of the fourier transform of the input image.\\
-    Inputs are:\\
-        -An input image, derived from BaseImageContainer\\
-        -signal-to-noise ratio\\
-        -reference image (optional)\\
-        -random number generator seed (optional)\\
+    Inputs:\\
+        -'image', type = BaseImageContainer: An input image which noise will be added to\\
+        -'snr', type = float: the desired signal-to-noise ratio\\
+        -'reference_image', type = BaseImageContainer: The reference image (optional)\\
     \\
     The reference image is used to calculate the amplitude of the random noise
     to add to the image.  If no reference image is supplied, the input image
     will be used.\\
-    The random number generator seed allows the random noise to be added
-    deterministically by supplying the same seed each time.  If this is not
-    supplied then the noise will be random.\\
-    The output is a BaseImageContainer
+    The noise is added pseud-randomly based on the state of numpy.random. This should be\\
+    appropriately controlled prior to running the filter\\
+    Output:\\
+        'image', type = BaseImageContainer: The input image with complex noise added. 
     """
 
     def __init__(self):
@@ -36,16 +35,16 @@ class AddComplexNoiseFilter(BaseFilter):
         image_fft_filter = FftFilter()
         image_fft_filter.add_input("image", input_image)
         image_fft_filter.run()
-        ft_image: BaseImageContainer = image_fft_filter.outputs["image"].clone()
+        ft_image: BaseImageContainer = image_fft_filter.outputs["image"]
 
         snr: float = self.inputs["snr"]
 
-        # If present load the reference image and take its fourier transform, if not
-        # copy the transformed input_image
+        # If present load the reference image, if not
+        # copy the input_image
         if "reference_image" in self.inputs:
             reference_image: BaseImageContainer = self.inputs["reference_image"]
         else:
-            reference_image: BaseImageContainer = input_image.clone()
+            reference_image: BaseImageContainer = input_image
 
         # Calculate the noise amplitude (i.e. its standard deviation)
         noise_amplitude = (
@@ -53,13 +52,6 @@ class AddComplexNoiseFilter(BaseFilter):
             * np.mean(reference_image.image[reference_image.image.nonzero()])
             / (snr)
         )
-
-        # Initialise the random number generator
-        if "seed" in self.inputs:
-            seed: int = self.inputs["seed"]
-        else:
-            seed = None
-        np.random.seed(seed)
 
         k_space_image = ft_image.image
 
@@ -114,12 +106,4 @@ class AddComplexNoiseFilter(BaseFilter):
                 raise FilterInputValidationError(
                     f"Input 'reference_image' is not a BaseImageContainer"
                     f"(is {type(input_reference_image)})"
-                )
-
-        if "seed" in self.inputs:
-            input_seed = self.inputs["seed"]
-            if not isinstance(input_seed, int):
-                raise FilterInputValidationError(
-                    f"Input 'reference_image' is not a BaseImageContainer"
-                    f"(is {type(input_seed)})"
                 )

@@ -32,7 +32,6 @@ def test_add_complex_noise_filter_wrong_input_type_error():
     with pytest.raises(FilterInputValidationError):
         noise_filter.run()  # image wrong type
 
-    del noise_filter  # remove filter variable to start again
     noise_filter = AddComplexNoiseFilter()
     noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
     with pytest.raises(FilterInputValidationError):
@@ -41,7 +40,6 @@ def test_add_complex_noise_filter_wrong_input_type_error():
     with pytest.raises(FilterInputValidationError):
         noise_filter.run()  # snr wrong type
 
-    del noise_filter  # remove filter variable to start again
     noise_filter = AddComplexNoiseFilter()
     noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
     noise_filter.add_input("snr", 1)
@@ -49,20 +47,16 @@ def test_add_complex_noise_filter_wrong_input_type_error():
     with pytest.raises(FilterInputValidationError):
         noise_filter.run()  # reference_image wrong type
 
-    del noise_filter  # remove filter variable to start again
     noise_filter = AddComplexNoiseFilter()
     noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
     noise_filter.add_input("snr", 1)
     noise_filter.add_input(
         "reference_image", NumpyImageContainer(image=np.zeros((32, 32, 32)))
     )
-    noise_filter.add_input("seed", "str")
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # seed wrong type
 
 
 def add_complex_noise_function(
-    image: np.ndarray, reference_image: np.ndarray, snr: float, seed: int
+    image: np.ndarray, reference_image: np.ndarray, snr: float
 ):
     """
     Helper function for manually adding complex noise to an input array
@@ -79,7 +73,6 @@ def add_complex_noise_function(
         / snr
     )
 
-    np.random.seed(seed)
     noise_array_real = np.random.normal(0, noise_amplitude, ft_image.shape)
     noise_array_imag = np.random.normal(0, noise_amplitude, ft_image.shape)
 
@@ -120,10 +113,12 @@ def test_add_complex_noise_filter_with_mock_data():
     signal_level = 100.0
     snr = 1000.0
     seed = 1234
+    np.random.seed(seed)
     image = np.random.normal(signal_level, 10, (128, 128, 128))
     reference_image = image
 
-    image_with_noise = add_complex_noise_function(image, reference_image, snr, seed)
+    np.random.seed(seed)
+    image_with_noise = add_complex_noise_function(image, reference_image, snr)
 
     image_container = NumpyImageContainer(image=image)
     reference_container = NumpyImageContainer(image=reference_image)
@@ -131,16 +126,20 @@ def test_add_complex_noise_filter_with_mock_data():
     noise_filter_1.add_input("image", image_container)
     noise_filter_1.add_input("snr", snr)
 
-    # noise filter 2 with seed provided
+    # noise filter 2, copy of noise_filter_1
     noise_filter_2 = deepcopy(noise_filter_1)
-    noise_filter_2.add_input("seed", seed)
 
-    # noise filter 3 with reference and seed
+    # noise filter 3 with reference
     noise_filter_3 = deepcopy(noise_filter_2)
     noise_filter_3.add_input("reference_image", reference_container)
 
     noise_filter_1.run()
+    # reset RNG
+    np.random.seed(seed)
     noise_filter_2.run()
+
+    # reset RNG
+    np.random.seed(seed)
     noise_filter_3.run()
 
     # Compare output of noise_filter_1 with image_with_noise
@@ -190,15 +189,17 @@ def test_add_complex_noise_filter_with_test_data():
     snr = 100.0
     seed = 1234
 
+    np.random.seed(seed)
     image_with_noise = add_complex_noise_function(
-        image_container.image, reference_container.image, snr, seed
+        image_container.image, reference_container.image, snr
     )
     noise_filter_1 = AddComplexNoiseFilter()
     noise_filter_1.add_input("image", image_container)
     noise_filter_1.add_input("snr", snr)
     noise_filter_1.add_input("reference_image", reference_container)
-    noise_filter_1.add_input("seed", seed)
 
+    # reset RNG
+    np.random.seed(seed)
     noise_filter_1.run()
 
     # Compare the output of noise filter 1 with image_with_noise, should be identical
@@ -216,6 +217,6 @@ def test_add_complex_noise_filter_with_test_data():
 
 
 if __name__ == "__main__":
-    test_add_complex_noise_filter_wrong_input_type_error()
+    # test_add_complex_noise_filter_wrong_input_type_error()
     # test_add_complex_noise_filter_with_mock_data()
-    # test_add_complex_noise_filter_with_test_data()
+    test_add_complex_noise_filter_with_test_data()
