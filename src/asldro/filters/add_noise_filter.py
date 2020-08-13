@@ -1,17 +1,13 @@
-""" Add complex noise filter block """
+""" Add noise filter """
 import numpy as np
 
 from asldro.containers.image import BaseImageContainer
-from asldro.filters.basefilter import FilterInputValidationError
-from asldro.filters.filter_block import FilterBlock
-from asldro.filters.fourier_filter import FftFilter, IfftFilter
-from asldro.filters.add_noise_filter import AddNoiseFilter
+from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
-class AddComplexNoiseFilter(FilterBlock):
+class AddNoiseFilter(BaseFilter):
     """
-    A filter that simulates adds random noise to the real and imaginary
-    channels of the fourier transform of the input image.
+    A filter that simulates adds random noise to an input image.
     Inputs:
         -'image', type = BaseImageContainer: An input image which noise will be added to
         -'snr', type = float: the desired signal-to-noise ratio
@@ -22,44 +18,58 @@ class AddComplexNoiseFilter(FilterBlock):
     The noise is added pseudo-randomly based on the state of numpy.random. This should be
     appropriately controlled prior to running the filter
     Output:
-        'image', type = BaseImageContainer: The input image with complex noise added.
+        'image', type = BaseImageContainer: The input image with noise added.
     """
 
     def __init__(self):
-        super().__init__(name="add complex noise")
+        super().__init__(name="add noise")
 
-    def _create_filter_block(self):
-        """ Fourier transforms the input and reference images, calculates
-        the noise amplitude, adds this to the FT of the input image, then
-        inverse fourier transforms to obtain the output image """
+    def _run(self):
+        """ Calculate the noise amplitude, adds input image, and
+        return the result"""
 
         input_image: BaseImageContainer = self.inputs["image"]
-        # Fourier transform the input image
-        image_fft_filter = FftFilter()
-        image_fft_filter.add_input("image", input_image)
+        snr: float = self.inputs["snr"]
 
-        # Create the noise filter
-        add_noise_filter = AddNoiseFilter()
-        add_noise_filter.add_parent_filter(image_fft_filter)
-        add_noise_filter.add_input("snr", self.inputs["snr"])
-
-        # If present load the reference image, if not, copy the input_image
+        # If present load the reference image, if not
+        # copy the input_image
         if "reference_image" in self.inputs:
-            add_noise_filter.add_input(
-                "reference_image", self.inputs["reference_image"]
+            reference_image: BaseImageContainer = self.inputs["reference_image"]
+        else:
+            reference_image: BaseImageContainer = input_image
+
+        # Calculate the noise amplitude (i.e. its standard deviation)
+        noise_amplitude = (
+            np.sqrt(reference_image.image.size)
+            * np.mean(reference_image.image[reference_image.image.nonzero()])
+            / (snr)
+        )
+
+        # Make an image container for the image with noise
+        image_with_noise: BaseImageContainer = input_image.clone()
+
+        # Create noise arrays with mean=0, sd=noise_amplitude, and same dimensions
+        # as the input image.
+        if input_image.image.dtype in [np.complex128, np.complex64]:
+            # Data are complex, create the real and imaginary components separately
+            image_with_noise.image = (
+                np.real(input_image.image)
+                + np.random.normal(0, noise_amplitude, input_image.shape)
+            ) + 1j * (
+                np.imag(input_image.image)
+                + np.random.normal(0, noise_amplitude, input_image.shape)
             )
         else:
-            add_noise_filter.add_input("reference_image", self.inputs["image"])
+            # Data are not complex
+            image_with_noise.image = np.imag(input_image.image) + np.random.normal(
+                0, noise_amplitude, input_image.shape
+            )
 
-        # Inverse Fourier Transform and set the output
-        ifft_filter = IfftFilter()
-        ifft_filter.add_parent_filter(add_noise_filter)
-        return ifft_filter
+        self.outputs["image"] = image_with_noise
 
     def _validate_inputs(self):
         """
-        'image' must be derived from BaseImageContainer. The image type should not
-        be complex.
+        'image' must be derived from BaseImageContainer
         'snr' must be a float
         'reference_image' if present must be derived from BaseImageContainer
         """
@@ -69,15 +79,10 @@ class AddComplexNoiseFilter(FilterBlock):
         if "snr" not in self.inputs:
             raise FilterInputValidationError(f"{self} does not have defined `snr`")
 
-        input_image: BaseImageContainer = self.inputs["image"]
+        input_image = self.inputs["image"]
         if not isinstance(input_image, BaseImageContainer):
             raise FilterInputValidationError(
                 f"Input 'image' is not a BaseImageContainer (is {type(input_image)})"
-            )
-        if input_image.image.dtype in [np.complex64, np.complex128]:
-            raise FilterInputValidationError(
-                f"{self} should not have input 'image' as complex data type "
-                f"(is {type(input_image.image.dtype)})"
             )
 
         input_snr = self.inputs["snr"]

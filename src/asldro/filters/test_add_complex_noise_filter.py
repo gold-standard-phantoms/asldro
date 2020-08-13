@@ -32,6 +32,14 @@ def test_add_complex_noise_filter_wrong_input_type_error():
     with pytest.raises(FilterInputValidationError):
         noise_filter.run()  # image wrong type
 
+    # Complex input image type
+    noise_filter = AddComplexNoiseFilter()
+    noise_filter.add_input(
+        "image", NumpyImageContainer(image=np.zeros((32, 32, 32), dtype=np.complex128))
+    )
+    with pytest.raises(FilterInputValidationError):
+        noise_filter.run()  # image image wrong dtype
+
     noise_filter = AddComplexNoiseFilter()
     noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
     with pytest.raises(FilterInputValidationError):
