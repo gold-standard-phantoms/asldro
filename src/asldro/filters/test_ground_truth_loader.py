@@ -95,6 +95,9 @@ def test_ground_truth_loader_filter_with_mock_data():
             ground_truth_filter.outputs["seg_label"].image,
             np.ones((3, 3, 3), dtype=np.uint16) * 6,
         )
+        del img
+        del nifti_image_container
+        del ground_truth_filter
 
 
 def test_ground_truth_loader_filter_with_test_data():
