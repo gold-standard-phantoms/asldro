@@ -21,6 +21,12 @@ UNITS_MICROSECONDS = "usec"
 SPATIAL_DOMAIN = "SPATIAL_DOMAIN"
 INVERSE_DOMAIN = "INVERSE_DOMAIN"
 
+REAL_IMAGE_TYPE = "REAL_IMAGE_TYPE"
+IMAGINARY_IMAGE_TYPE = "IMAGINARY_IMAGE_TYPE"
+MAGNITUDE_IMAGE_TYPE = "MAGNITUDE_IMAGE_TYPE"
+PHASE_IMAGE_TYPE = "PHASE_IMAGE_TYPE"
+COMPLEX_IMAGE_TYPE = "COMPLEX_IMAGE_TYPE"
+
 
 class BaseImageContainer(ABC):
     """
@@ -28,14 +34,57 @@ class BaseImageContainer(ABC):
     a set of accessors
     :param data_domain: defines the data domain as SPATIAL_DOMAIN or
     INVERSE_DOMAIN (default is SPATIAL_DOMAIN)
+    :param image_type: the image type. Must be one of:
+    - REAL_IMAGE_TYPE
+    - IMAGINARY_IMAGE_TYPE
+    - MAGNITUDE_IMAGE_TYPE
+    - PHASE_IMAGE_TYPE
+    - COMPLEX_IMAGE_TYPE
+    if this is not specified, it will be set to MAGNITUDE_IMAGE_TYPE for scalar
+    image dtypes and COMPLEX_IMAGE_TYPE for complex dtypes
     """
 
-    def __init__(self, data_domain: str = SPATIAL_DOMAIN, **kwargs):
+    def __init__(self, data_domain: str = SPATIAL_DOMAIN, image_type=None, **kwargs):
         if data_domain not in [SPATIAL_DOMAIN, INVERSE_DOMAIN]:
             raise ValueError(
                 "data_domain is not of of SPATIAL_DOMAIN or INVERSE_DOMAIN"
             )
         self.data_domain = data_domain
+
+        # Set the default image type based on the image dtype
+        if image_type is None:
+            if self.image.dtype in [np.complex64, np.complex128]:
+                image_type = COMPLEX_IMAGE_TYPE
+            else:
+                image_type = MAGNITUDE_IMAGE_TYPE
+
+        # Check the image_type is in the valid options
+        if image_type not in [
+            IMAGINARY_IMAGE_TYPE,
+            REAL_IMAGE_TYPE,
+            PHASE_IMAGE_TYPE,
+            COMPLEX_IMAGE_TYPE,
+            MAGNITUDE_IMAGE_TYPE,
+        ]:
+            raise ValueError(f"{self} has bad value for image_type ({image_type})")
+
+        # Check the image type matches the image dtype
+        # complex dtypes must match COMPLEX_IMAGE_TYPE
+        # non-complex dtype must not match COMPLEX_IMAGE_TYPE
+        if (
+            image_type is COMPLEX_IMAGE_TYPE
+            and self.image.dtype not in [np.complex64, np.complex128]
+            or image_type is not COMPLEX_IMAGE_TYPE
+            and self.image.dtype in [np.complex64, np.complex128]
+        ):
+            raise ValueError(
+                f"{self} created with image type of {image_type} "
+                f"and image dtype is {self.image.dtype}"
+            )
+
+        self.image_type = image_type
+
+        # Check we aren't passed unexpected parameters
         if len(kwargs) != 0:
             raise TypeError(
                 f"BaseImageContainer received unexpected arguments {kwargs}"
@@ -174,13 +223,13 @@ class NumpyImageContainer(BaseImageContainer):
         :param time_step: the time step (in units of time_units)
         :param **kwargs: any additional arguments accepted by BaseImageContainer
         """
-        super().__init__(**kwargs)
         self._image: np.ndarray = image
         self._affine: np.ndarray = affine
         self._space_units: str = space_units
         self._time_units: str = time_units
         self._voxel_size: np.array = np.array(voxel_size)
         self._time_step: float = time_step
+        super().__init__(**kwargs)  # Call super last as we check member variables
 
     @property
     def has_nifti(self):
@@ -267,8 +316,8 @@ class NiftiImageContainer(BaseImageContainer):
         :param nifti_img: A nibabel Nifti1Image or Nifti2Image
         :param **kwargs: any additional arguments accepted by BaseImageContainer
         """
-        super().__init__(**kwargs)
         self._nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
+        super().__init__(**kwargs)  # Call super last as we check member variables
 
     @property
     def nifti_type(self) -> Type[Union[nib.Nifti1Image, nib.Nifti2Image]]:

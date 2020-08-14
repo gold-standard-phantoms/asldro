@@ -23,6 +23,11 @@ from asldro.containers.image import (
     UNITS_MICROSECONDS,
     SPATIAL_DOMAIN,
     INVERSE_DOMAIN,
+    IMAGINARY_IMAGE_TYPE,
+    REAL_IMAGE_TYPE,
+    PHASE_IMAGE_TYPE,
+    COMPLEX_IMAGE_TYPE,
+    MAGNITUDE_IMAGE_TYPE,
 )
 
 
@@ -342,6 +347,7 @@ def test_image_container_unexpected_arguments():
         )
 
 
+# SPATIAL_DOMAIN tests
 def test_image_container_spatial_domain_initialisation():
     """ Check that passing a string not in SPATIAL_DOMAIN or INVERSE_DOMAIN to
     data_domain raises an exception ( and vice versa )"""
@@ -357,6 +363,79 @@ def test_image_container_spatial_domain_initialisation():
         image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
     )  # OK
     assert image_container.data_domain == INVERSE_DOMAIN
+
+
+# IMAGE_TYPE tests
+def test_image_container_image_type_bad_initialisation():
+    """ Check initialising image containers with bad image types creates an exception """
+    with pytest.raises(ValueError):
+        NumpyImageContainer(image=np.zeros((3, 3, 3)), image_type="foobar")
+
+
+def test_image_container_image_type_good_bad_initialisation():
+    """ Check initialising image containers with image types creates the correct defaults
+    and if an image_type is supplied, it is correctly validated """
+    for dtype in [
+        np.int8,
+        np.int16,
+        np.int32,
+        np.int64,
+        np.uint8,
+        np.uint16,
+        np.uint32,
+        np.uint64,
+        np.intp,
+        np.uintp,
+        np.float32,
+        np.float64,
+    ]:
+        # Check that the correct default image_type is created
+        image_container = NumpyImageContainer(
+            image=np.zeros((3, 3, 3), dtype=dtype)
+        )  # OK
+        assert image_container.image_type == MAGNITUDE_IMAGE_TYPE
+
+        # Check that correct dtype/image_type combos are OK
+        for image_type in [
+            IMAGINARY_IMAGE_TYPE,
+            REAL_IMAGE_TYPE,
+            PHASE_IMAGE_TYPE,
+            MAGNITUDE_IMAGE_TYPE,
+        ]:
+            image_container = NumpyImageContainer(
+                image=np.zeros((3, 3, 3), dtype=dtype), image_type=image_type
+            )  # no error
+            assert image_container.image_type == image_type
+
+        # Check that incorrect dtype/image_type combos raise an error
+        with pytest.raises(ValueError):
+            image_container = NumpyImageContainer(
+                image=np.zeros((3, 3, 3), dtype=dtype), image_type=COMPLEX_IMAGE_TYPE
+            )  # dtype is scalar, incompatible with COMPLEX_IMAGE_TYPE
+
+    for dtype in [np.complex64, np.complex128]:
+        image_container = NumpyImageContainer(
+            image=np.zeros((3, 3, 3), dtype=dtype)
+        )  # OK
+        assert image_container.image_type == COMPLEX_IMAGE_TYPE
+
+        # Check that incorrect dtype/image_type combos raise an error
+        for image_type in [
+            IMAGINARY_IMAGE_TYPE,
+            REAL_IMAGE_TYPE,
+            PHASE_IMAGE_TYPE,
+            MAGNITUDE_IMAGE_TYPE,
+        ]:
+            with pytest.raises(ValueError):
+                image_container = NumpyImageContainer(
+                    image=np.zeros((3, 3, 3), dtype=dtype), image_type=image_type
+                )  # dtype is complex, not compatible with scalar image types
+
+        # Check that correct dtype/image_type combos are OK
+        image_container = NumpyImageContainer(
+            image=np.zeros((3, 3, 3), dtype=dtype), image_type=COMPLEX_IMAGE_TYPE
+        )  # dtype is complex, compatible with COMPLEX_IMAGE_TYPE
+        assert image_container.image_type == COMPLEX_IMAGE_TYPE
 
 
 # Clone tests
