@@ -22,8 +22,10 @@ class AddNoiseFilter(BaseFilter):
 
     'reference_image' can be in a different data domain to the 'image'.  For example, 'image'
     might be in the inverse domain (i.e. fourier transformed) whereas 'reference_image' is in
-    the spatial domain.  In this instance the noise amplitude is correctly scaled so that the 
-    desired snr is preserved.
+    the spatial domain. Where data domains differ the following scaling is applied to the noise amplitude:
+        'image' is SPATIAL_DOMAIN and 'reference_image' is INVERSE_DOMAIN: 1/N
+        'image' is INVERSE_DOMAIN and 'reference_image' is SPATIAL_DOMAIN: N
+    Where N is 'reference_image.image.size'
 
     If 'reference_image' is not supplied, 'image' will be used to calculate the noise amplitude.
 
@@ -32,6 +34,15 @@ class AddNoiseFilter(BaseFilter):
 
     Output:
         'image' (BaseImageContainer): The input image with noise added.
+
+    Note that the actual SNR (as calculated using "A comparison of two methods for measuring the signal to
+    noise ratio on MR images", PMB, vol 44, no. 12, pp.N261-N264 (1999)) will not match the desired SNR
+    under the following circumstances:
+        'image' is SPATIAL_DOMAIN and 'reference_image' is INVERSE_DOMAIN
+        'image' is INVERSE_DOMAIN and 'reference_image' is SPATIAL_DOMAIN
+    In the second case, performing an inverse fourier transform on the output image with noise results in 
+    a spatial domain image where the calculated SNR matches the desired SNR.  This is how the AddNoiseFilter
+    is used within the AddComplexNoiseFilter
     """
 
     def __init__(self):
