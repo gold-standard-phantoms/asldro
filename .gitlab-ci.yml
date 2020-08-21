@@ -46,24 +46,6 @@ python:
       - coverage_html_report
     expire_in: 1 day
 
-canary:
-  allow_failure: true
-  stage: test
-  script:
-    - apt-get update -qq && apt-get install -y -qq tox
-    - tox -e canary
-
-unit-test-documentation:
-  stage: test
-  script:
-    - apt-get update -qq && apt-get install -y -qq python3-pip
-    - pip3 install Unit-Test-Documentation
-    - unit-test-documentation directory src unit-test-documentation.md
-  artifacts:
-    paths:
-      - unit-test-documentation.md
-    expire_in: 30 days
-
 deploy_development:
   stage: deploy
   script:
