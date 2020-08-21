@@ -1,6 +1,4 @@
 """ Add complex noise filter block """
-import numpy as np
-
 from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import FilterBlock
@@ -9,20 +7,23 @@ from asldro.filters.add_noise_filter import AddNoiseFilter
 
 
 class AddComplexNoiseFilter(FilterBlock):
-    """
-    A filter that simulates adds random noise to the real and imaginary
-    channels of the fourier transform of the input image.
+    """ A filter that adds normally distributed random noise
+    to the real and imaginary parts of the fourier transform of the input image.
+
     Inputs:
-        -'image', type = BaseImageContainer: An input image which noise will be added to
-        -'snr', type = float: the desired signal-to-noise ratio
-        -'reference_image', type = BaseImageContainer: The reference image (optional)
+        'image' (BaseImageContainer): An input image which noise will be added to
+        'snr' (float): the desired signal-to-noise ratio
+        'reference_image' (BaseImageContainer): The reference image (optional)
+
     The reference image is used to calculate the amplitude of the random noise
     to add to the image.  If no reference image is supplied, the input image
     will be used.
+
     The noise is added pseudo-randomly based on the state of numpy.random. This should be
     appropriately controlled prior to running the filter
-    Output:
-        'image', type = BaseImageContainer: The input image with complex noise added.
+
+    Outputs:
+        'image' (BaseImageContainer): The input image with noise added.
     """
 
     def __init__(self):
@@ -73,11 +74,6 @@ class AddComplexNoiseFilter(FilterBlock):
         if not isinstance(input_image, BaseImageContainer):
             raise FilterInputValidationError(
                 f"Input 'image' is not a BaseImageContainer (is {type(input_image)})"
-            )
-        if input_image.image.dtype in [np.complex64, np.complex128]:
-            raise FilterInputValidationError(
-                f"{self} should not have input 'image' as complex data type "
-                f"(is {type(input_image.image.dtype)})"
             )
 
         input_snr = self.inputs["snr"]
