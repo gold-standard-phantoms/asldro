@@ -19,11 +19,13 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
 
+TEST_VOLUME_DIMENSIONS = (32, 32, 32)
+
 
 def test_fourier_filters_ifft_validation():
     """ Check that running an ifft on in SPATIAL_DOMAIN image raises a
     FilterInputValidationError """
-    image_data = np.random.normal(0, 1, (32, 32, 32))
+    image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=SPATIAL_DOMAIN)
 
     ifft_filter = IfftFilter()
@@ -35,7 +37,7 @@ def test_fourier_filters_ifft_validation():
 def test_fourier_filters_fft_validation():
     """ Check that running an fft on an INVERSE_DOMAIN image raises a
     FilterInputValidationError """
-    image_data = np.random.normal(0, 1, (32, 32, 32))
+    image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=INVERSE_DOMAIN)
 
     fft_filter = FftFilter()
@@ -71,7 +73,7 @@ def test_fourier_filters_with_mock_data():
     # Create a 3D numpy image of normally distributed noise
     # fft to obtain k-space data, then ifft that to go back
     # to the image
-    image_data = np.random.normal(0, 1, (32, 32, 32))
+    image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     kspace_data = np.fft.fftn(image_data)
     inverse_transformed_image_data = np.fft.ifftn(kspace_data)
     image_container = NumpyImageContainer(image=image_data)
@@ -99,6 +101,7 @@ def test_fourier_filters_with_mock_data():
     )
 
 
+@pytest.mark.slow
 def test_fourier_filters_with_test_data():
     """ Tests the fourier filters with some test data """
 

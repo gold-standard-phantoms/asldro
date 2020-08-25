@@ -5,16 +5,10 @@ import numpy as np
 import numpy.testing
 
 from asldro.filters.basefilter import FilterInputValidationError
-from asldro.filters.json_loader import JsonLoaderFilter
-from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.add_noise_filter import AddNoiseFilter
-from asldro.filters.fourier_filter import FftFilter, IfftFilter
+from asldro.filters.fourier_filter import FftFilter
 
-from asldro.containers.image import (
-    BaseImageContainer,
-    NiftiImageContainer,
-    NumpyImageContainer,
-)
+from asldro.containers.image import NumpyImageContainer
 
 SNR_VALUE = 100.0
 RANDOM_SEED = 1234
@@ -70,9 +64,9 @@ def add_noise_function(
         reference_image (numpy.ndarray): reference image to use to calculate the noise amplitude
         snr (float): signal to noise ratio
         noise_scaling (float): scales the noise amplitude by this number
-    
+
     Returns:
-        numpy.ndarray: the input image with noise added 
+        numpy.ndarray: the input image with noise added
     """
     if reference_image is None:
         reference_image = image
@@ -97,12 +91,12 @@ def calculate_snr_function(
     image_1: np.ndarray, image_2: np.ndarray, mask: np.ndarray = None
 ):
     """calculates the snr from two image arrays
-    
+
     Image arrays should be of the same object and with the same amplitude
     of normally distributed random noise added. The noise component must be different
     on each image.  The signal to noise ratio is calculated using the mean value (within
     and optional ROI defined by the input mask) divided by the standard deviation of the
-    difference between image_1 and image_2.  This is in accordance with 
+    difference between image_1 and image_2.  This is in accordance with
     "A comparison of two methods for measuring the signal to
     noise ratio on MR images", PMB, vol 44, no. 12, pp.N261-N264 (1999)
 
@@ -148,6 +142,7 @@ def complex_image_container_function() -> NumpyImageContainer:
 
 
 def ft_image_container_function(img: NumpyImageContainer) -> NumpyImageContainer:
+    """ Fourier transforms the input image container 'img' """
     fft_filter = FftFilter()
     fft_filter.add_input("image", img)
     fft_filter.run()
@@ -379,7 +374,9 @@ def test_add_noise_filter_with_mock_data_complex_image_reference_inverse(
 def test_add_noise_filter_with_mock_data_complex_image_spatial_reference_inverse(
     complex_image_container, ft_complex_image_container,
 ):
-    """ Test the add noise filter with a complex image SPATIAL_DOMAIN, complex reference in the INVERSE_DOMAIN """
+    """ Test the add noise filter with a complex image SPATIAL_DOMAIN,
+    complex reference in the INVERSE_DOMAIN
+    """
     np.random.seed(RANDOM_SEED)
     # calculate manually
     image_with_noise = add_noise_function(
@@ -430,7 +427,9 @@ def test_add_noise_filter_with_mock_data_complex_image_spatial_reference_inverse
 def test_add_noise_filter_with_mock_data_complex_image_inverse_reference_spatial(
     complex_image_container, ft_complex_image_container
 ):
-    """ Test the add noise filter with a complex image INVERSE_DOMAIN, complex reference in the SPATIAL_DOMAIN """
+    """ Test the add noise filter with a complex image INVERSE_DOMAIN,
+    complex reference in the SPATIAL_DOMAIN
+    """
     np.random.seed(RANDOM_SEED)
     # calculate manually
     image_with_noise = add_noise_function(
@@ -478,6 +477,4 @@ def test_add_noise_filter_with_mock_data_complex_image_inverse_reference_spatial
 
 if __name__ == "__main__":
     # test_add_noise_filter_validate_inputs()
-    img = image_container_function()
-    test_add_noise_filter_with_mock_data_mag_image_only(img)
-
+    test_add_noise_filter_with_mock_data_mag_image_only(image_container_function())

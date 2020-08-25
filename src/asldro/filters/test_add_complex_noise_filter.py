@@ -20,6 +20,8 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
 
+TEST_VOLUME_DIMENSIONS = (32, 32, 32)
+
 
 def test_add_complex_noise_filter_wrong_input_type_error():
     """ Check a FilterInputValidationError is raised when the inputs
@@ -33,7 +35,9 @@ def test_add_complex_noise_filter_wrong_input_type_error():
         noise_filter.run()  # image wrong type
 
     noise_filter = AddComplexNoiseFilter()
-    noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
+    noise_filter.add_input(
+        "image", NumpyImageContainer(image=np.zeros(TEST_VOLUME_DIMENSIONS))
+    )
     with pytest.raises(FilterInputValidationError):
         noise_filter.run()  # snr not defined
     noise_filter.add_input("snr", "str")
@@ -41,7 +45,9 @@ def test_add_complex_noise_filter_wrong_input_type_error():
         noise_filter.run()  # snr wrong type
 
     noise_filter = AddComplexNoiseFilter()
-    noise_filter.add_input("image", NumpyImageContainer(image=np.zeros((32, 32, 32))))
+    noise_filter.add_input(
+        "image", NumpyImageContainer(image=np.zeros(TEST_VOLUME_DIMENSIONS))
+    )
     noise_filter.add_input("snr", 1)
     noise_filter.add_input("reference_image", 1)
     with pytest.raises(FilterInputValidationError):
@@ -58,9 +64,9 @@ def add_complex_noise_function(
         image (numpy.ndarray): numpy array containing the input image to add noise to
         reference_image (numpy.ndarray): reference image to use to calculate the noise amplitude
         snr (float): signal to noise ratio
-    
-    Returns
-        numpy.ndarray: the input image with noise added 
+
+    Returns:
+        numpy.ndarray: the input image with noise added
     """
     ft_image = np.fft.fftn(image)
     noise_amplitude = (
@@ -78,7 +84,7 @@ def add_complex_noise_function(
     return np.fft.ifftn(ft_image_noise)
 
 
-def simulate__dual_image_snr_measurement_function(
+def simulate_dual_image_snr_measurement_function(
     image_container: BaseImageContainer, snr: float, mask: np.ndarray = None
 ):
     """ Calculate the SNR of the images using the subtraction method
@@ -110,7 +116,7 @@ def test_add_complex_noise_filter_with_mock_data():
     snr = 100.0
     seed = 1234
     np.random.seed(seed)
-    image = np.random.normal(signal_level, 10, (32, 32, 32))
+    image = np.random.normal(signal_level, 10, TEST_VOLUME_DIMENSIONS)
     reference_image = image
 
     np.random.seed(seed)
@@ -158,12 +164,13 @@ def test_add_complex_noise_filter_with_mock_data():
     )
 
     # Calculate the SNR of the images using the subtraction method
-    calculated_snr = simulate__dual_image_snr_measurement_function(image_container, snr)
+    calculated_snr = simulate_dual_image_snr_measurement_function(image_container, snr)
     print(f"calculated snr = {calculated_snr}, desired snr = {snr}")
     # This should be almost equal to the desired snr
     numpy.testing.assert_array_almost_equal(calculated_snr, snr, 0)
 
 
+@pytest.mark.slow
 def test_add_complex_noise_filter_with_test_data():
     """ tests the complex noise filter with test data """
     json_filter = JsonLoaderFilter()
@@ -204,7 +211,7 @@ def test_add_complex_noise_filter_with_test_data():
     )
 
     # measure the actual SNR
-    calculated_snr = simulate__dual_image_snr_measurement_function(
+    calculated_snr = simulate_dual_image_snr_measurement_function(
         image_container, snr, mask_container.image
     )
     print(f"calculated snr = {calculated_snr}, desired snr = {snr}")
