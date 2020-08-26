@@ -1,0 +1,248 @@
+"""
+Used to perform parameter validation. The most useful documentation is on the class:
+'ParameterValidator'
+"""
+import re
+from copy import deepcopy
+from typing import Tuple, Union, List, Dict, Callable, Any
+
+
+class ValidationError(Exception):
+    """ Used to indicate that a dictionary is invalid """
+
+
+class Validator:
+    """ All _validator functions return an object of this class.
+    The object can be called with a value to check whether the value
+    is valid. A string method is also available to print the validator's
+    criteria message.
+    """
+
+    def __init__(self, func: Callable[[Any], bool], criteria_message: str):
+        """
+        :param func: the callable (must take a single value) which returns
+        True or False depending on whether the validation criteria have been met
+        :param criteria_message: the message that can be used to display the
+        validation criteria
+        """
+        self.func = func
+        self.criteria_message = criteria_message
+
+    def __call__(self, value) -> bool:
+        return self.func(value)
+
+    def __str__(self) -> str:
+        return self.criteria_message
+
+
+def range_exclusive_validator(start, end) -> Validator:
+    """
+    Validate that a given value is between a given range (excluding the start and end values)
+    :param start: the start value
+    :param end: the end value
+    """
+    if start >= end:
+        raise ValueError(f"Start ({start} must be less than end ({end})")
+    return Validator(
+        lambda x: start < x < end,
+        f"Value must be between {start} and {end} (exclusive)",
+    )
+
+
+def range_inclusive_validator(start, end) -> Validator:
+    """
+    Validate that a given value is between a given range (including the start and end values)
+    :param start: the start value
+    :param end: the end value
+    """
+    if start > end:
+        raise ValueError(f"Start ({start} must be less than or equal to end ({end})")
+    return Validator(
+        lambda value: start <= value <= end,
+        f"Value must be between {start} and {end} (inclusive)",
+    )
+
+
+def greater_than_validator(start) -> Validator:
+    """
+    Validate that a given value is greater than a number.
+    :param start: the value to be greater than
+    """
+    if not isinstance(start, (float, int)):
+        raise TypeError(f"Start ({start}) must be a number type")
+    return Validator(lambda value: start < value, f"Value must be greater than {start}")
+
+
+def from_list_validator(options: list) -> Validator:
+    """
+    Validates that a given value is from a list.
+    :param option: the list of options, one of which the value must match
+    """
+    if not isinstance(options, list):
+        raise TypeError(f"Input must be a list, is {options}")
+    return Validator(lambda value: value in options, f"Value must be in {options}")
+
+
+def list_of_type_validator(a_type: Union[type, Tuple[type]]) -> Validator:
+    """
+    Validates that a given value is a list of the given type(s).
+    a_type: a type e.g. str, or a tuple of types e.g. (int, str)
+    """
+    if not isinstance(a_type, type):
+        if not (
+            isinstance(a_type, tuple)
+            and all(isinstance(single_type, type) for single_type in a_type)
+        ):
+            raise TypeError(f"{a_type} is not a type or list of types")
+    msg = "Value must be a list of type "
+    if isinstance(a_type, tuple):
+        msg += " or ".join([x.__name__ for x in a_type])
+    else:
+        msg += a_type.__name__
+
+    return Validator(
+        lambda value: all(isinstance(single, a_type) for single in value), msg
+    )
+
+
+def non_empty_list_validator() -> Validator:
+    """ Validates that a value is a list and is non-empty """
+    return Validator(
+        lambda value: isinstance(value, list) and len(value) > 0,
+        "Value must be a non-empty list",
+    )
+
+
+def regex_validator(pattern: str) -> Validator:
+    """ Validates that a value matches the given regex pattern """
+    try:
+        re.compile(pattern)
+    except re.error:
+        raise ValueError(f"{pattern} is not a valid python regex pattern")
+    return Validator(
+        lambda value: re.match(pattern, value) is not None,
+        f"Value must match pattern {pattern}",
+    )
+
+
+def reserved_string_list_validator(strings: List[str], delimiter=" ") -> Validator:
+    """
+    Validates that the value is a string which is comprised only of the list of given strings,
+    separated by the delimiter. The strings may be repeated multiple times and in any order,
+    although the value must not be the empty string.
+    e.g. with strings=['foo','bar'] and delimiter='_', this would match:
+    "foo_bar_foo", "foo", "bar", "bar_bar_bar_bar_foo"
+    but would not match:
+    "", "FOO", "anythingelse", "foo__bar", "bar foo"
+    :param strings: a list of strings
+    :delimiter: a delimiter (defaults to space)
+    """
+    if not isinstance(strings, list):
+        raise TypeError(f"string must be a list, is {strings}")
+    if len(strings) == 0:
+        raise ValueError("strings list cannot be empty")
+    for string in strings:
+        if not isinstance(string, str):
+            raise ValueError(
+                f"strings list must only contains strings. Contains {string}"
+            )
+
+    concat_strings = "|".join(strings)
+    pattern = fr"^({concat_strings})({delimiter}({concat_strings}))*$"
+    return Validator(
+        regex_validator(pattern=pattern).func,
+        f"Value must be a string combination of {strings} separated by '_'",
+    )
+
+
+class Parameter:
+    """ A description of a parameter which is to be validated against """
+
+    def __init__(
+        self,
+        validators: Union[callable, List[callable]],
+        default_value=None,
+        optional=False,
+    ):
+        """
+        :param validators: a single validators, or a list of validators. The
+        validators must be initialised with their parameters. Examples might be:
+        validators=greater_than_validator(0.7)
+        validators=[range_inclusive_validator(1, 2), from_list_validator([1.5, 1.6])]
+        :param default_value: a default value. If set, when an input dictionary is validated,
+        if a given parameter is missing, it will be given this value
+        :param optional: if False, this parameter must be supplied.
+        """
+        if isinstance(validators, list):
+            self.validators = validators
+        else:
+            self.validators = [validators]
+        self.default_value = default_value
+        self.optional = True if default_value is not None else optional
+
+        # Must ensure the default value is valid
+        if default_value is not None:
+            for validator in self.validators:
+                if not validator(default_value):
+                    raise ValueError(f"Default value of {default_value} is not valid")
+
+
+class ParameterValidator:
+    """ Used to validate a dictionary of parameters specified with the Parameter class against
+    an input dictionary. Will also insert any default values that are missing from the input
+    dictionary
+    """
+
+    def __init__(self, parameters: Dict[str, Parameter]):
+        """
+        :param parameters: a dictionary of input parameters. An example might be:
+        {
+            "foo": Parameter(reserved_string_list_validator(["foo", "bar"])),
+            "bar": Parameter(non_empty_list_validator(), default_value=[1, 2, 3]),
+        }
+        """
+        for parameter in parameters.values():
+            if not isinstance(parameter, Parameter):
+                raise TypeError(
+                    "All values passed to InputParameters must be of Parameter type, {key} is not"
+                )
+        self.parameters: Dict[Parameter] = parameters
+
+    def validate(self, d: dict) -> dict:
+        """
+        Validate an input dictionary, replacing missing dictionary entries with default values.
+        If any of the dictionary entries are invalid w.r.t. any of the validators, a
+        ValidationError will be raised.
+        :param d: the input dictionary. e.g.: {"foo": "bar foo bar"}
+        :return: the dictionary with any defaults filled. e.g.
+        {
+            "foo": "bar foo bar",
+            "bar": [1, 2, 3],
+        }
+        """
+        return_dict = deepcopy(d)
+        errors = []
+        # Check all non-optional parameters are present
+        for parameter_name, parameter in self.parameters.items():
+            # If a parameter is missing
+            if d.get(parameter_name, None) is None:
+                # If the parameter is optional, set it to the
+                if parameter.optional and parameter.default_value is not None:
+                    return_dict[parameter_name] = parameter.default_value
+                if not parameter.optional:
+                    errors.append(
+                        f"{parameter_name} is a required parameter and is "
+                        "not in the input dictionary"
+                    )
+            else:
+                # We need to validate the parameter against its validators
+                for validator in parameter.validators:
+                    if not validator(d[parameter_name]):
+                        errors.append(
+                            f"Parameter {parameter_name} with value {d[parameter_name]} "
+                            f"does not meet the following criterion: {validator}"
+                        )
+
+        if errors:
+            raise ValidationError(". ".join(errors))
+        return return_dict
