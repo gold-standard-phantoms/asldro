@@ -44,7 +44,7 @@ def range_exclusive_validator(start, end) -> Validator:
     if start >= end:
         raise ValueError(f"Start ({start} must be less than end ({end})")
     return Validator(
-        lambda x: start < x < end,
+        lambda value: isinstance(value, (float, int)) and start < value < end,
         f"Value must be between {start} and {end} (exclusive)",
     )
 
@@ -58,8 +58,21 @@ def range_inclusive_validator(start, end) -> Validator:
     if start > end:
         raise ValueError(f"Start ({start} must be less than or equal to end ({end})")
     return Validator(
-        lambda value: start <= value <= end,
+        lambda value: isinstance(value, (float, int)) and start <= value <= end,
         f"Value must be between {start} and {end} (inclusive)",
+    )
+
+
+def greater_than_equal_to_validator(start) -> Validator:
+    """
+    Validate that a given value is greater or equal to a number.
+    :param start: the value to be greater than or equal to
+    """
+    if not isinstance(start, (float, int)):
+        raise TypeError(f"Start ({start}) must be a number type")
+    return Validator(
+        lambda value: isinstance(value, (float, int)) and start <= value,
+        f"Value must be greater than or equal to {start}",
     )
 
 
@@ -70,7 +83,10 @@ def greater_than_validator(start) -> Validator:
     """
     if not isinstance(start, (float, int)):
         raise TypeError(f"Start ({start}) must be a number type")
-    return Validator(lambda value: start < value, f"Value must be greater than {start}")
+    return Validator(
+        lambda value: isinstance(value, (float, int)) and start < value,
+        f"Value must be greater than {start}",
+    )
 
 
 def from_list_validator(options: list) -> Validator:
@@ -152,6 +168,25 @@ def reserved_string_list_validator(strings: List[str], delimiter=" ") -> Validat
     return Validator(
         regex_validator(pattern=pattern).func,
         f"Value must be a string combination of {strings} separated by '_'",
+    )
+
+
+def for_each_validator(item_validator=Validator) -> Validator:
+    """
+    Validates that the value must be iteratable and each of its items are
+    valid based on the item_validator.
+    e.g.
+    validator=for_each_validator(greater_than_validator(0.7))
+    would create a validator that check all items in a last are > 0.7
+    :param item_validator: a validator to apply to each item in a list
+    """
+
+    if not isinstance(item_validator, Validator):
+        raise TypeError("First argument of `for_each_validator` must be a validator")
+    return Validator(
+        lambda value: isinstance(value, list)
+        and all([item_validator(v) for v in value]),
+        f"Must be a list and for each value in the list: {item_validator}",
     )
 
 

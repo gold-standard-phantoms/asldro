@@ -1,6 +1,6 @@
 """ parameters.py tests """
 import pytest
-from asldro.parameters import (
+from asldro.validators.parameters import (
     Parameter,
     ParameterValidator,
     ValidationError,
@@ -12,6 +12,8 @@ from asldro.parameters import (
     regex_validator,
     reserved_string_list_validator,
     greater_than_validator,
+    greater_than_equal_to_validator,
+    for_each_validator,
 )
 
 
@@ -33,6 +35,7 @@ def test_range_inclusive_validator():
     assert validator(1)
     assert not validator(-1.01)
     assert not validator(1.01)
+    assert not validator("not a number")
 
 
 def test_range_exclusive_validator_creator():
@@ -52,6 +55,7 @@ def test_range_exclusive_validator():
     assert validator(0.99)
     assert not validator(-1)
     assert not validator(1)
+    assert not validator("not a number")
 
 
 def test_greater_than_validator_creator():
@@ -73,6 +77,29 @@ def test_greater_than_validator():
     assert not validator(99)
     assert not validator(100)
     assert not validator(float("-inf"))
+    assert not validator("not a number")
+
+
+def test_greater_than_equal_to_validator_creator():
+    """ Check the greater_than_equal_to_validator creator raises
+    errors when start is not a number type """
+    with pytest.raises(TypeError):
+        greater_than_equal_to_validator("str")
+    with pytest.raises(TypeError):
+        greater_than_equal_to_validator([])
+
+
+def test_greater_than_equal_to_validator():
+    """ Test the greater_than_equal_to_validator with some values """
+    validator = greater_than_equal_to_validator(100)
+    assert str(validator) == "Value must be greater than or equal to 100"
+    assert validator(101)
+    assert validator(1000)
+    assert validator(float("inf"))
+    assert not validator(99)
+    assert validator(100)
+    assert not validator(float("-inf"))
+    assert not validator("not a number")
 
 
 def test_from_list_validator_creator():
@@ -191,7 +218,7 @@ def test_reserved_string_list_validator_creator():
         reserved_string_list_validator(["foo", 1])
 
 
-def test_regex_validator():
+def test_reserved_string_list_validator():
     """ Test the reserved string list validator """
     validator = reserved_string_list_validator(
         strings=["M0", "CONTROL", "LABEL"], delimiter="_"
@@ -206,6 +233,30 @@ def test_regex_validator():
     assert validator("M0_LABEL_CONTROL")
     assert not validator("foo")
     assert not validator("M0_foo")
+
+
+def test_for_each_validator_creator():
+    """ Test the for each validator creator """
+    with pytest.raises(TypeError):
+        for_each_validator(item_validator="not a validator")
+
+    # An uninitialised validator
+    with pytest.raises(TypeError):
+        for_each_validator(item_validator=range_inclusive_validator)
+
+
+def test_for_each_validator():
+    """ Test the for each validator """
+
+    validator = for_each_validator(greater_than_validator(0.5))
+    assert (
+        str(validator)
+        == "Must be a list and for each value in the list: Value must be greater than 0.5"
+    )
+    assert validator([0.6, 0.7, 0.8])
+    assert not validator([0.5, 0.6, 0.7])
+    assert not validator([0.1, 100, 0.9])
+    assert not validator("not a list")
 
 
 def test_parameter_validator_valid():
