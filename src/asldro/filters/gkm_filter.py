@@ -57,13 +57,15 @@ class GkmFilter(BaseFilter):
         """ Checks that the inputs meet their validation criteria
         'perfusion_rate' must be derived from BaseImageContainer and be >= 0
         'transit_time' must be derived from BaseImageContainer and be >= 0
-        'm0' must be derived from BaseImageContainer and be >= 0
+        'm0' must be either a float or derived from BaseImageContainer and be >= 0
         'label_type' must be a string and equal to "CASL" OR "pCASL" OR "PASL"
         'label_duration" must be a float between 0 and 100
         'signal_time' must be a float between 0 and 100
         'label_efficiency' must be a float between 0 and 1
         'lambda_blood_brain' must be a float between 0 and 1
         't1_arterial_blood' must be a float between 0 and 100
+
+        all BaseImageContainers supplied should be the same dimensions
          """
 
         # Dictionary for data validation.  Each entry has key corresponding to
@@ -76,7 +78,7 @@ class GkmFilter(BaseFilter):
         inputs_datavalid_dict = {
             KEY_PERFUSION_RATE: (BaseImageContainer, 0, float("Inf")),
             KEY_TRANSIT_TIME: (BaseImageContainer, 0, float("Inf")),
-            KEY_M0: (BaseImageContainer, 0, float("Inf")),
+            KEY_M0: ((BaseImageContainer, float), 0, float("Inf")),
             KEY_LABEL_TYPE: (str, CASL, PCASL, PASL),
             KEY_LABEL_DURATION: (float, 0, 100),
             KEY_SIGNAL_TIME: (float, 0, 100),
@@ -99,7 +101,7 @@ class GkmFilter(BaseFilter):
 
             # Data type OK, check value is within limits
             # float or int
-            if inputs_datavalid_dict[key][0] in (int, float):
+            if isinstance(input_value, (int, float)):
                 min_val = inputs_datavalid_dict[key][1]
                 max_val = inputs_datavalid_dict[key][2]
                 if input_value < min_val or input_value > max_val:
@@ -107,7 +109,7 @@ class GkmFilter(BaseFilter):
                         f"{self} is not between {min_val} and {max_val} (is {input_value}"
                     )
             # BaseImageContainer derived
-            if inputs_datavalid_dict[key][0] == BaseImageContainer:
+            if isinstance(input_value, BaseImageContainer):
                 min_val = inputs_datavalid_dict[key][1]
                 max_val = inputs_datavalid_dict[key][2]
                 if (input_value.image < min_val).any() or (
@@ -118,9 +120,31 @@ class GkmFilter(BaseFilter):
                     )
 
             # string
-            if inputs_datavalid_dict[key][0] == str:
+            if isinstance(input_value, str):
                 match_strings = inputs_datavalid_dict[key][1:]
                 if input_value not in match_strings:
                     raise FilterInputValidationError(
                         f"{self} is not between {min_val} and {max_val} (is {input_value}"
                     )
+
+        # Check that all the input images are all the same dimensions
+        input_keys = self.inputs.keys()
+        keys_of_images = [
+            key
+            for key in input_keys
+            if isinstance(self.inputs[key], BaseImageContainer)
+        ]
+
+        list_of_image_shapes = [self.inputs[key].shape for key in keys_of_images]
+        if list_of_image_shapes.count(list_of_image_shapes[0]) != len(
+            list_of_image_shapes
+        ):
+            raise FilterInputValidationError(
+                [
+                    f"Input image shapes do not match.",
+                    [
+                        f"{keys_of_images[i]}: {list_of_image_shapes[i]}, "
+                        for i in range(len(list_of_image_shapes))
+                    ],
+                ]
+            )
