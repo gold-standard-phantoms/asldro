@@ -13,6 +13,7 @@ KEY_SIGNAL_TIME = "signal_time"
 KEY_LABEL_EFFICIENCY = "label_efficiency"
 KEY_LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
 KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
+KEY_DELTA_M = "delta_m"
 
 CASL = "CASL"
 PCASL = "pCASL"
@@ -45,13 +46,88 @@ class GkmFilter(BaseFilter):
         super().__init__(name="General Kinetic Model")
 
     def _run(self):
+        perfusion_rate: np.ndarray = self.inputs[KEY_PERFUSION_RATE].image
+        transit_time: np.ndarray = self.inputs[KEY_TRANSIT_TIME].image
+
+        label_duration: float = self.inputs[KEY_LABEL_DURATION]
+        signal_time: float = self.inputs[KEY_SIGNAL_TIME]
+        label_efficiency: float = self.inputs[KEY_LABEL_EFFICIENCY]
+        lambda_blood_brain: float = self.inputs[KEY_LAMBDA_BLOOD_BRAIN]
+        t1_arterial_blood: float = self.inputs[KEY_T1_ARTERIAL_BLOOD]
+
+        # if m0 is an image load that, if not then make a ndarray
+        # with the same value (makes the calculations more straightforward)
+        if isinstance(self.inputs[KEY_M0], BaseImageContainer):
+            m0: np.ndarray = self.inputs[KEY_M0].image
+        else:
+            m0: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
+
+        t1_prime: np.ndarray = 1 / (
+            1 / t1_arterial_blood + perfusion_rate / lambda_blood_brain
+        )
+
+        # create boolean masks for each of the states of the delivery curve
+        condition_bolus_not_arrived = 0 < signal_time <= transit_time
+        condition_bolus_arriving = (transit_time < signal_time) & (
+            signal_time < transit_time + label_duration
+        )
+        condition_bolus_arrived = signal_time >= transit_time + label_duration
+
+        delta_m = np.zeros(perfusion_rate.shape)
 
         if self.inputs[KEY_LABEL_TYPE] == PASL:
             # do GKM for PASL
             print("General Kinetic Model for Pulsed ASL")
+            k: np.ndarray = (1 / t1_arterial_blood - 1 / t1_prime)
+            q_pasl_arriving = (
+                np.exp(k * signal_time)
+                * (np.exp(-k * transit_time) - np.exp(-k * signal_time))
+                / (k * (signal_time - transit_time))
+            )
+            q_pasl_arrived = (
+                np.exp(k * signal_time)
+                * (
+                    np.exp(-k * transit_time)
+                    - np.exp(-k * (transit_time + label_duration))
+                )
+                / (k * label_duration)
+            )
+
+            delta_m_arriving = (
+                2
+                * m0
+                * perfusion_rate
+                * (signal_time - transit_time)
+                * label_efficiency
+                * np.exp(-signal_time / t1_arterial_blood)
+                * q_pasl_arriving
+            )
+            delta_m_arrived = (
+                2
+                * m0
+                * perfusion_rate
+                * label_efficiency
+                * label_duration
+                * np.exp(-signal_time / t1_arterial_blood)
+                * q_pasl_arrived
+            )
+
+            # combine the different arrival states into delta_m
+            delta_m[condition_bolus_not_arrived] = 0.0
+            delta_m[condition_bolus_arriving] = delta_m_arriving[
+                condition_bolus_arriving
+            ]
+            delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
+
         elif self.inputs[KEY_LABEL_TYPE] in [CASL, PCASL]:
             # do GKM for CASL/pCASL
             print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
+
+        # copy 'perfusion_rate' image container and set the image to delta_m
+        self.outputs[KEY_DELTA_M]: BaseImageContainer = self.inputs[
+            KEY_PERFUSION_RATE
+        ].clone()
+        self.outputs[KEY_DELTA_M].image = delta_m
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
@@ -141,7 +217,7 @@ class GkmFilter(BaseFilter):
         ):
             raise FilterInputValidationError(
                 [
-                    f"Input image shapes do not match.",
+                    "Input image shapes do not match.",
                     [
                         f"{keys_of_images[i]}: {list_of_image_shapes[i]}, "
                         for i in range(len(list_of_image_shapes))

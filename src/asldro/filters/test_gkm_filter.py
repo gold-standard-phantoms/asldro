@@ -13,6 +13,10 @@ TEST_IMAGE_ONES = NumpyImageContainer(image=np.ones(TEST_VOLUME_DIMENSIONS))
 TEST_IMAGE_NEG = NumpyImageContainer(image=-1.0 * np.ones(TEST_VOLUME_DIMENSIONS))
 TEST_IMAGE_SMALL = NumpyImageContainer(image=np.ones((8, 8, 8)))
 
+CASL = "CASL"
+PCASL = "PCASL"
+PASL = "PASL"
+
 # test data dictionary, [0] in each tuple passes, after that should fail validation
 TEST_DATA_DICT_M0_IM = {
     "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
@@ -37,17 +41,123 @@ TEST_DATA_DICT_M0_FLOAT = {
     "lambda_blood_brain": (0.9, -0.1, 1.01),
     "t1_arterial_blood": (1.6, -0.1, 101.0),
 }
-CASL = "CASL"
-PCASL = "PCASL"
-PASL = "PASL"
+
+# f, delta_t, t, label_type, tau, alpha, expected
+TIMECOURSE_PARAMS = (
+    (
+        1.0,
+        0.5,
+        np.arange(0, 2.6, 0.1),
+        "PASL",
+        1.0,
+        1.0,
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.130096458,
+            0.231576484,
+            0.309478412,
+            0.368008653,
+            0.410676035,
+            0.440404628,
+            0.459628488,
+            0.470371207,
+            0.474312695,
+            0.472845241,
+            0.397484936,
+            0.334135275,
+            0.280882046,
+            0.236116117,
+            0.198484814,
+            0.166851047,
+            0.140258952,
+            0.117905005,
+            0.099113747,
+            0.083317369,
+        ],
+    ),
+)
 
 
-def add_multiple_inputs_to_filter(filter: BaseFilter, input_data: dict):
+@pytest.fixture(name="pasl_input")
+def pasl_input_fixture() -> dict:
+    np.random.seed(0)
+    return {
+        "perfusion_rate": NumpyImageContainer(
+            image=np.random.normal(60, 10, TEST_VOLUME_DIMENSIONS)
+        ),
+        "transit_time": TEST_IMAGE_ONES,
+        "m0": TEST_IMAGE_ONES,
+        "label_type": PASL,
+        "label_duration": 0.8,
+        "signal_time": 1.8,
+        "label_efficiency": 0.99,
+        "lambda_blood_brain": 0.9,
+        "t1_arterial_blood": 1.6,
+    }
+
+
+def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
     """ Adds the data held within the input_data dictionary to the filter's inputs """
     for key in input_data:
-        filter.add_input(key, input_data[key])
+        input_filter.add_input(key, input_data[key])
 
-    return filter
+    return input_filter
+
+
+def gkm_pasl_function(input_data: dict) -> np.ndarray:
+    """ Function that calculates the gkm for PASL
+    Variable names match those in the GKM equations
+    """
+    f: np.ndarray = input_data["perfusion_rate"].image
+    delta_t: np.ndarray = input_data["transit_time"].image
+    tau: float = input_data["label_duration"]
+    t: float = input_data["signal_time"]
+    alpha: float = input_data["label_efficiency"]
+    # _lambda avoids clash with lambda function
+    _lambda: float = input_data["lambda_blood_brain"]
+    t1b: float = input_data["t1_arterial_blood"]
+
+    if isinstance(input_data["m0"], BaseImageContainer):
+        m0: np.ndarray = input_data["m0"].image
+    else:
+        m0: np.ndarray = input_data["m0"] * np.ones(f.shape)
+
+    t1_prime: np.ndarray = 1 / (1 / t1b + f / _lambda)
+
+    # create boolean masks for each of the states of the delivery curve
+    condition_bolus_not_arrived = 0 < t <= delta_t
+    condition_bolus_arriving = (delta_t < t) & (t < delta_t + tau)
+    condition_bolus_arrived = t >= delta_t + tau
+
+    delta_m = np.zeros(f.shape)
+
+    k: np.ndarray = (1 / t1b - 1 / t1_prime)
+
+    q_pasl_arriving = (
+        np.exp(k * t) * (np.exp(-k * delta_t) - np.exp(-k * t)) / (k * (t - delta_t))
+    )
+    q_pasl_arrived = (
+        np.exp(k * t)
+        * (np.exp(-k * delta_t) - np.exp(-k * (delta_t + tau)))
+        / (k * tau)
+    )
+
+    delta_m_arriving = (
+        2 * m0 * f * (t - delta_t) * alpha * np.exp(-t / t1b) * q_pasl_arriving
+    )
+    delta_m_arrived = 2 * m0 * f * alpha * tau * np.exp(-t / t1b) * q_pasl_arrived
+
+    # combine the different arrival states into delta_m
+    delta_m[condition_bolus_not_arrived] = 0.0
+    delta_m[condition_bolus_arriving] = delta_m_arriving[condition_bolus_arriving]
+    delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
+
+    return delta_m
 
 
 @pytest.mark.parametrize(
@@ -89,6 +199,62 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
             gkm_filter.add_input(inputs_key, test_value)
             with pytest.raises(FilterInputValidationError):
                 gkm_filter.run()
+
+
+def test_gkm_filter_pasl(pasl_input):
+    """ Test the GkmFilter for Pulsed ASL """
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
+    gkm_filter.run()
+
+    delta_m = gkm_pasl_function(pasl_input)
+    numpy.testing.assert_array_equal(delta_m, gkm_filter.outputs["delta_m"].image)
+
+    # Set 'signal_time' to be less than the transit time so that the bolus
+    # has not arrived yet
+    pasl_input["signal_time"] = 0.5
+    assert (pasl_input["signal_time"] < pasl_input["transit_time"].image).all()
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
+    gkm_filter.run()
+    # 'delta_m' should be all zero
+    numpy.testing.assert_array_equal(
+        gkm_filter.outputs["delta_m"].image,
+        np.zeros(gkm_filter.outputs["delta_m"].shape),
+    )
+
+
+@pytest.mark.parametrize(
+    "f, delta_t, timepoints, label_type, tau, alpha, expected", TIMECOURSE_PARAMS
+)
+def test_gkm_timecourse(
+    f: float,
+    delta_t: float,
+    timepoints: np.array,
+    label_type: str,
+    tau: float,
+    alpha: str,
+    expected: np.ndarray,
+):
+    delta_m_timecourse = np.ndarray(timepoints.shape)
+    for idx, t in np.ndenumerate(timepoints):
+        params = {
+            "perfusion_rate": NumpyImageContainer(image=f * np.ones((1, 1, 1))),
+            "transit_time": NumpyImageContainer(image=delta_t * np.ones((1, 1, 1))),
+            "m0": 1.0,
+            "label_type": label_type,
+            "label_duration": tau,
+            "signal_time": t,
+            "label_efficiency": alpha,
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.6,
+        }
+        gkm_filter = GkmFilter()
+        gkm_filter = add_multiple_inputs_to_filter(gkm_filter, params)
+        gkm_filter.run()
+        delta_m_timecourse[idx] = gkm_filter.outputs["delta_m"].image
+    # arrays should be equal to 9 decimal places
+    numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 9)
 
 
 if __name__ == "__main__":
