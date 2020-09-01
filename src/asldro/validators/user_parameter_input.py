@@ -23,7 +23,9 @@ from asldro.validators.parameters import (
 USER_INPUT_VALIDATOR = ParameterValidator(
     parameters={
         "label_type": Parameter(
-            validators=from_list_validator(["CASL", "pCASL", "PASL"])
+            validators=from_list_validator(
+                ["CASL", "PCASL", "PASL"], case_insensitive=True
+            )
         ),
         "label_duration": Parameter(
             validators=range_inclusive_validator(0, 100), default_value=1.8
@@ -42,7 +44,9 @@ USER_INPUT_VALIDATOR = ParameterValidator(
         ),
         "m0": Parameter(validators=greater_than_equal_to_validator(0), optional=True),
         "asl_context_array": Parameter(
-            validators=reserved_string_list_validator(["m0scan", "control", "label"])
+            validators=reserved_string_list_validator(
+                ["m0scan", "control", "label"], case_insensitive=True
+            )
         ),
         "te_array": Parameter(
             validators=[

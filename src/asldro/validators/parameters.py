@@ -89,13 +89,22 @@ def greater_than_validator(start) -> Validator:
     )
 
 
-def from_list_validator(options: list) -> Validator:
+def from_list_validator(options: list, case_insensitive: bool = False) -> Validator:
     """
     Validates that a given value is from a list.
     :param option: the list of options, one of which the value must match
+    :param case_insensitive: perform a case-insensitive matching
     """
     if not isinstance(options, list):
         raise TypeError(f"Input must be a list, is {options}")
+    if case_insensitive:
+        lowercase_options = [x.lower() if isinstance(x, str) else x for x in options]
+        return Validator(
+            lambda value: value.lower() in lowercase_options
+            if isinstance(value, str)
+            else value in lowercase_options,
+            f"Value must be in {options} (ignoring case)",
+        )
     return Validator(lambda value: value in options, f"Value must be in {options}")
 
 
@@ -129,19 +138,28 @@ def non_empty_list_validator() -> Validator:
     )
 
 
-def regex_validator(pattern: str) -> Validator:
-    """ Validates that a value matches the given regex pattern """
+def regex_validator(pattern: str, case_insensitive: bool = False) -> Validator:
+    """
+    Validates that a value matches the given regex pattern
+    :param pattern: the regex pattern to match
+    :param case_insensitive: perform a case-insensitive matching
+    """
     try:
         re.compile(pattern)
     except re.error:
         raise ValueError(f"{pattern} is not a valid python regex pattern")
     return Validator(
-        lambda value: re.match(pattern, value) is not None,
-        f"Value must match pattern {pattern}",
+        lambda value: re.match(
+            pattern, value, flags=re.IGNORECASE if case_insensitive else 0
+        )
+        is not None,
+        f"Value must match pattern {pattern}{' (ignoring case)' if case_insensitive else ''}",
     )
 
 
-def reserved_string_list_validator(strings: List[str], delimiter=" ") -> Validator:
+def reserved_string_list_validator(
+    strings: List[str], delimiter=" ", case_insensitive: bool = False
+) -> Validator:
     """
     Validates that the value is a string which is comprised only of the list of given strings,
     separated by the delimiter. The strings may be repeated multiple times and in any order,
@@ -151,7 +169,8 @@ def reserved_string_list_validator(strings: List[str], delimiter=" ") -> Validat
     but would not match:
     "", "FOO", "anythingelse", "foo__bar", "bar foo"
     :param strings: a list of strings
-    :delimiter: a delimiter (defaults to space)
+    :param delimiter: a delimiter (defaults to space)
+    :param case_insensitive: perform a case-insensitive matching
     """
     if not isinstance(strings, list):
         raise TypeError(f"string must be a list, is {strings}")
@@ -166,8 +185,8 @@ def reserved_string_list_validator(strings: List[str], delimiter=" ") -> Validat
     concat_strings = "|".join(strings)
     pattern = fr"^({concat_strings})({delimiter}({concat_strings}))*$"
     return Validator(
-        regex_validator(pattern=pattern).func,
-        f"Value must be a string combination of {strings} separated by '_'",
+        regex_validator(pattern=pattern, case_insensitive=case_insensitive).func,
+        f"Value must be a string combination of {strings} separated by '_'{' (ignoring case)' if case_insensitive else ''}",
     )
 
 
