@@ -55,6 +55,9 @@ class GkmFilter(BaseFilter):
     Outputs:
         'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast
 
+    NOTE: CASL/pCASL is not yet implemented.  Running the filter with label_duration set to either
+    of these will result in a "not yet supported" error
+
     """
 
     def __init__(self):
@@ -138,7 +141,10 @@ class GkmFilter(BaseFilter):
 
         elif self.inputs[KEY_LABEL_TYPE] in [CASL, PCASL]:
             # do GKM for CASL/pCASL
-            print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
+            print(
+                "General Kinetic Model for Continuous/pseudo-Continuous"
+                " ASL is currently not supported"
+            )
 
         # copy 'perfusion_rate' image container and set the image to delta_m
         self.outputs[KEY_DELTA_M]: BaseImageContainer = self.inputs[
@@ -241,3 +247,7 @@ class GkmFilter(BaseFilter):
                     ],
                 ]
             )
+
+        # CASL and pCASL are not yet implemented - raise an error
+        if self.inputs[KEY_LABEL_TYPE] in (CASL, PCASL):
+            raise FilterInputValidationError("CASL/PCASL is not currently supported")

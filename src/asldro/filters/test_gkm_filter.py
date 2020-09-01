@@ -14,7 +14,7 @@ TEST_IMAGE_NEG = NumpyImageContainer(image=-1.0 * np.ones(TEST_VOLUME_DIMENSIONS
 TEST_IMAGE_SMALL = NumpyImageContainer(image=np.ones((8, 8, 8)))
 
 CASL = "CASL"
-PCASL = "PCASL"
+PCASL = "pCASL"
 PASL = "PASL"
 
 # test data dictionary, [0] in each tuple passes, after that should fail validation
@@ -22,7 +22,7 @@ TEST_DATA_DICT_M0_IM = {
     "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "label_type": ("pCASL", "casl", "PSL", "str"),
+    "label_type": ("PASL", "casl", "PSL", "str", "pCASL"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -34,7 +34,7 @@ TEST_DATA_DICT_M0_FLOAT = {
     "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (1.0, -1.0, int(1)),
-    "label_type": ("pCASL", "casl", "PSL", "str"),
+    "label_type": ("PASL", "casl", "PSL", "str", "pCASL"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -85,6 +85,7 @@ TIMECOURSE_PARAMS = (
 
 @pytest.fixture(name="pasl_input")
 def pasl_input_fixture() -> dict:
+    """ creates test data for testing the PASL model """
     np.random.seed(0)
     return {
         "perfusion_rate": NumpyImageContainer(
@@ -96,6 +97,25 @@ def pasl_input_fixture() -> dict:
         "label_duration": 0.8,
         "signal_time": 1.8,
         "label_efficiency": 0.99,
+        "lambda_blood_brain": 0.9,
+        "t1_arterial_blood": 1.6,
+    }
+
+
+@pytest.fixture(name="casl_input")
+def casl_input_fixture() -> dict:
+    """ creates test data for testing the CASL/pCASL model """
+    np.random.seed(0)
+    return {
+        "perfusion_rate": NumpyImageContainer(
+            image=np.random.normal(60, 10, TEST_VOLUME_DIMENSIONS)
+        ),
+        "transit_time": TEST_IMAGE_ONES,
+        "m0": TEST_IMAGE_ONES,
+        "label_type": CASL,
+        "label_duration": 1.8,
+        "signal_time": 3.6,
+        "label_efficiency": 0.85,
         "lambda_blood_brain": 0.9,
         "t1_arterial_blood": 1.6,
     }
