@@ -45,39 +45,39 @@ TEST_DATA_DICT_M0_FLOAT = {
 # f, delta_t, t, label_type, tau, alpha, expected
 TIMECOURSE_PARAMS = (
     (
-        1.0,
+        60,
         0.5,
         np.arange(0, 2.6, 0.1),
         "PASL",
         1.0,
         1.0,
         [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.130096458,
-            0.231576484,
-            0.309478412,
-            0.368008653,
-            0.410676035,
-            0.440404628,
-            0.459628488,
-            0.470371207,
-            0.474312695,
-            0.472845241,
-            0.397484936,
-            0.334135275,
-            0.280882046,
-            0.236116117,
-            0.198484814,
-            0.166851047,
-            0.140258952,
-            0.117905005,
-            0.099113747,
-            0.083317369,
+            0.00000000000000e00,
+            0.00000000000000e00,
+            0.00000000000000e00,
+            0.00000000000000e00,
+            0.00000000000000e00,
+            0.00000000000000e00,
+            1.37381518558427e-03,
+            2.57972668111671e-03,
+            3.63312538529594e-03,
+            4.54814811537416e-03,
+            5.33777340800020e-03,
+            6.01391029427834e-03,
+            6.58748054999844e-03,
+            7.06849488699720e-03,
+            7.46612351902566e-03,
+            7.78876150515868e-03,
+            7.30873896677194e-03,
+            6.85830028933751e-03,
+            6.43562221507296e-03,
+            6.03899385384618e-03,
+            5.66680975794015e-03,
+            5.31756342362121e-03,
+            4.98984119320646e-03,
+            4.68231653294780e-03,
+            4.39374466357073e-03,
+            4.12295752173393e-03,
         ],
     ),
 )
@@ -113,7 +113,7 @@ def gkm_pasl_function(input_data: dict) -> np.ndarray:
     """ Function that calculates the gkm for PASL
     Variable names match those in the GKM equations
     """
-    f: np.ndarray = input_data["perfusion_rate"].image
+    f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
     delta_t: np.ndarray = input_data["transit_time"].image
     tau: float = input_data["label_duration"]
     t: float = input_data["signal_time"]
@@ -254,7 +254,7 @@ def test_gkm_timecourse(
         gkm_filter.run()
         delta_m_timecourse[idx] = gkm_filter.outputs["delta_m"].image
     # arrays should be equal to 9 decimal places
-    numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 9)
+    numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 10)
 
 
 if __name__ == "__main__":

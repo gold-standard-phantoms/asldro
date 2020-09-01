@@ -34,11 +34,26 @@ KEYS_TUPLE = (
 
 class GkmFilter(BaseFilter):
     """
-    A filter that generates the ASL signal using the General Kinetic Model
+    A filter that generates the ASL signal using the General Kinetic Model.
 
     Inputs:
-
+        'perfusion_rate' (BaseImageContainer): Map of perfusion rate, in ml/100g/min (>=0)
+        'transit_time' (BaseImageContainer):  Map of the time taken for the labelled bolus
+        to reach the voxel, seconds (>=0).
+        'm0' (BaseImageContainer or float): The equilibrium magnetisation, can be a map or
+        single value (>=0).
+        'label_type' (str): Determined which GKM equations to use:
+             "casl" OR "pcasl" (case insensitive) for the continuous model
+             "pasl" (case insensitive) for the pulsed model
+        'label_duration' (float): The length of the labelling pulse, seconds (0 to 100 inclusive)
+        'signal_time' (float): The time after labelling commences to generate signal,
+        seconds (0 to 100 inclusive)
+        'label_efficiency' (float): The degree of inversion of the labelling (0 to 1 inclusive)
+        'lambda_blood_brain' (float): The blood-brain-partition-coefficient (0 to 1 inclusive)
+        't1_arterial_blood' (float): Longitudinal relaxation time of arterial blood,
+        seconds (>0, to 100)
     Outputs:
+        'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast
 
     """
 
@@ -46,7 +61,9 @@ class GkmFilter(BaseFilter):
         super().__init__(name="General Kinetic Model")
 
     def _run(self):
-        perfusion_rate: np.ndarray = self.inputs[KEY_PERFUSION_RATE].image
+        """ Generates the delta_m signal based on the inputs """
+
+        perfusion_rate: np.ndarray = self.inputs[KEY_PERFUSION_RATE].image / 6000.0
         transit_time: np.ndarray = self.inputs[KEY_TRANSIT_TIME].image
 
         label_duration: float = self.inputs[KEY_LABEL_DURATION]
