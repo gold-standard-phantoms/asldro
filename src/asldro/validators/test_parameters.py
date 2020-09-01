@@ -114,12 +114,25 @@ def test_from_list_validator_creator():
 
 def test_from_list_validator():
     """ Test the from list validator """
-    validator = from_list_validator(["FOO", "BAR", "foo"])
-    assert str(validator) == "Value must be in ['FOO', 'BAR', 'foo']"
+    validator = from_list_validator(["FOO", "BAR", "foo", 2])
+    assert str(validator) == "Value must be in ['FOO', 'BAR', 'foo', 2]"
     assert validator("FOO")
     assert validator("BAR")
     assert validator("foo")
+    assert validator(2)
     assert not validator("bar")
+    assert not validator(["FOO"])
+    assert not validator({})
+    assert not validator(1)
+
+    validator = from_list_validator(["BAR", "foo", 2], case_insensitive=True)
+    assert str(validator) == "Value must be in ['BAR', 'foo', 2] (ignoring case)"
+    assert validator("FOO")
+    assert validator("foo")
+    assert validator("BAR")
+    assert validator("bAr")
+    assert validator(2)
+    assert not validator("baz")
     assert not validator(["FOO"])
     assert not validator({})
     assert not validator(1)
@@ -205,6 +218,13 @@ def test_regex_validator():
     assert not validator("foo")
     assert not validator("")
 
+    validator = regex_validator(r"^COW|dog|CaT$", case_insensitive=True)
+    assert validator("CAT")
+    assert validator("cAT")
+    assert validator("cOw")
+    assert not validator("Cog")
+    assert str(validator) == "Value must match pattern ^COW|dog|CaT$ (ignoring case)"
+
 
 def test_reserved_string_list_validator_creator():
     """ Test the reserved string list validator creator """
@@ -231,6 +251,21 @@ def test_reserved_string_list_validator():
     assert validator("CONTROL")
     assert validator("LABEL_CONTROL")
     assert validator("M0_LABEL_CONTROL")
+    assert not validator("foo")
+    assert not validator("M0_foo")
+
+    validator = reserved_string_list_validator(
+        strings=["M0", "CONTROL", "LABEL"], delimiter="_", case_insensitive=True
+    )
+    assert (
+        str(validator)
+        == "Value must be a string combination of ['M0', 'CONTROL', 'LABEL'] separated by '_' (ignoring case)"
+    )
+    assert validator("m0")
+    assert validator("M0")
+    assert validator("CONTROL")
+    assert validator("coNTrol")
+    assert validator("m0_LaBEl_ConTROL")
     assert not validator("foo")
     assert not validator("M0_foo")
 
