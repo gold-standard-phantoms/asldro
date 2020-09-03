@@ -13,6 +13,7 @@ KEY_SIGNAL_TIME = "signal_time"
 KEY_LABEL_EFFICIENCY = "label_efficiency"
 KEY_LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
 KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
+KEY_T1_TISSUE = "t1_tissue"
 KEY_DELTA_M = "delta_m"
 
 CASL = "CASL"
@@ -29,12 +30,16 @@ KEYS_TUPLE = (
     KEY_LABEL_EFFICIENCY,
     KEY_LAMBDA_BLOOD_BRAIN,
     KEY_T1_ARTERIAL_BLOOD,
+    KEY_T1_TISSUE,
 )
 
 
 class GkmFilter(BaseFilter):
     """
     A filter that generates the ASL signal using the General Kinetic Model.
+    From: Buxton et. al, 'A general kinetic model for quantitative perfusion imaging with arterial
+    spin labeling', Magnetic Resonance in Medicine, vol. 40, no. 3, pp. 383-396, 1998.
+    https://doi.org/10.1002/mrm.1910400308
 
     Inputs:
         'perfusion_rate' (BaseImageContainer): Map of perfusion rate, in ml/100g/min (>=0)
@@ -52,11 +57,12 @@ class GkmFilter(BaseFilter):
         'lambda_blood_brain' (float): The blood-brain-partition-coefficient (0 to 1 inclusive)
         't1_arterial_blood' (float): Longitudinal relaxation time of arterial blood,
         seconds (>0, to 100)
-    Outputs:
-        'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast
+        't1_tissue' (BaseImageContainer): Longitudinal relaxation time of the tissue,
+        seconds (>0, to 100)
 
-    NOTE: CASL/pCASL is not yet implemented.  Running the filter with label_duration set to either
-    of these will result in a "not yet supported" error
+    Outputs:
+        'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast. This will
+        be the same class as the input 'perfusion_rate'
 
     """
 
@@ -68,6 +74,7 @@ class GkmFilter(BaseFilter):
 
         perfusion_rate: np.ndarray = self.inputs[KEY_PERFUSION_RATE].image / 6000.0
         transit_time: np.ndarray = self.inputs[KEY_TRANSIT_TIME].image
+        t1_tissue: np.ndarray = self.inputs[KEY_T1_TISSUE].image
 
         label_duration: float = self.inputs[KEY_LABEL_DURATION]
         signal_time: float = self.inputs[KEY_SIGNAL_TIME]
@@ -82,9 +89,7 @@ class GkmFilter(BaseFilter):
         else:
             m0: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
 
-        t1_prime: np.ndarray = 1 / (
-            1 / t1_arterial_blood + perfusion_rate / lambda_blood_brain
-        )
+        t1_prime: np.ndarray = 1 / (1 / t1_tissue + perfusion_rate / lambda_blood_brain)
 
         # create boolean masks for each of the states of the delivery curve
         condition_bolus_not_arrived = 0 < signal_time <= transit_time
@@ -132,19 +137,36 @@ class GkmFilter(BaseFilter):
                 * q_pasl_arrived
             )
 
-            # combine the different arrival states into delta_m
-            delta_m[condition_bolus_not_arrived] = 0.0
-            delta_m[condition_bolus_arriving] = delta_m_arriving[
-                condition_bolus_arriving
-            ]
-            delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
-
         elif self.inputs[KEY_LABEL_TYPE] in [CASL, PCASL]:
             # do GKM for CASL/pCASL
-            print(
-                "General Kinetic Model for Continuous/pseudo-Continuous"
-                " ASL is currently not supported"
+            print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
+            q_ss_arriving = 1 - np.exp(-(signal_time - transit_time) / t1_prime)
+            q_ss_arrived = 1 - np.exp(-label_duration / t1_prime)
+
+            delta_m_arriving = (
+                2
+                * m0
+                * perfusion_rate
+                * t1_prime
+                * label_efficiency
+                * np.exp(-transit_time / t1_arterial_blood)
+                * q_ss_arriving
             )
+            delta_m_arrived = (
+                2
+                * m0
+                * perfusion_rate
+                * t1_prime
+                * label_efficiency
+                * np.exp(-transit_time / t1_arterial_blood)
+                * np.exp(-(signal_time - label_duration - transit_time) / t1_prime)
+                * q_ss_arrived
+            )
+
+        # combine the different arrival states into delta_m
+        delta_m[condition_bolus_not_arrived] = 0.0
+        delta_m[condition_bolus_arriving] = delta_m_arriving[condition_bolus_arriving]
+        delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
 
         # copy 'perfusion_rate' image container and set the image to delta_m
         self.outputs[KEY_DELTA_M]: BaseImageContainer = self.inputs[
@@ -184,6 +206,7 @@ class GkmFilter(BaseFilter):
             KEY_LABEL_EFFICIENCY: (float, 0, 1),
             KEY_LAMBDA_BLOOD_BRAIN: (float, 0, 1),
             KEY_T1_ARTERIAL_BLOOD: (float, 0, 100),
+            KEY_T1_TISSUE: (BaseImageContainer, 0, 100),
         }
         # Loop over the keys
         for key in KEYS_TUPLE:
@@ -247,7 +270,3 @@ class GkmFilter(BaseFilter):
                     ],
                 ]
             )
-
-        # CASL and pCASL are not yet implemented - raise an error
-        if self.inputs[KEY_LABEL_TYPE] in (CASL, PCASL):
-            raise FilterInputValidationError("CASL/PCASL is not currently supported")
