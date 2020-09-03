@@ -1,5 +1,6 @@
 """ parameters.py tests """
 import pytest
+import numpy as np
 from asldro.validators.parameters import (
     Parameter,
     ParameterValidator,
@@ -15,6 +16,7 @@ from asldro.validators.parameters import (
     greater_than_equal_to_validator,
     for_each_validator,
 )
+from asldro.containers.image import NumpyImageContainer
 
 
 def test_range_inclusive_validator_creator():
@@ -28,7 +30,7 @@ def test_range_inclusive_validator_creator():
 def test_range_inclusive_validator():
     """ Test the inclusive validator with some values """
     validator = range_inclusive_validator(-1, 1)
-    assert str(validator) == "Value must be between -1 and 1 (inclusive)"
+    assert str(validator) == "Value(s) must be between -1 and 1 (inclusive)"
     assert validator(-0.99)
     assert validator(0.99)
     assert validator(-1)
@@ -36,6 +38,23 @@ def test_range_inclusive_validator():
     assert not validator(-1.01)
     assert not validator(1.01)
     assert not validator("not a number")
+
+
+def test_range_inclusive_validator_image_container():
+    """ Test the inclusive validator with an image container """
+    validator = range_inclusive_validator(-1, 1)
+    assert str(validator) == "Value(s) must be between -1 and 1 (inclusive)"
+
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [0.1, -0.9]]))
+    assert validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-1.0, 0.2], [0.1, -0.9]]))
+    assert validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [1, -0.9]]))
+    assert validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [1.1, -0.9]]))
+    assert not validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-1.1, 0.2], [1, -0.9]]))
+    assert not validator(image_container)
 
 
 def test_range_exclusive_validator_creator():
@@ -50,12 +69,25 @@ def test_range_exclusive_validator_creator():
 def test_range_exclusive_validator():
     """ Test the exclusive validator with some values """
     validator = range_exclusive_validator(-1, 1)
-    assert str(validator) == "Value must be between -1 and 1 (exclusive)"
+    assert str(validator) == "Value(s) must be between -1 and 1 (exclusive)"
     assert validator(-0.99)
     assert validator(0.99)
     assert not validator(-1)
     assert not validator(1)
     assert not validator("not a number")
+
+
+def test_range_exclusive_validator_image_container():
+    """ Test the exclusive validator with an image container """
+    validator = range_exclusive_validator(-1, 1)
+    assert str(validator) == "Value(s) must be between -1 and 1 (exclusive)"
+
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [0.1, -0.9]]))
+    assert validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-1.0, 0.2], [0.1, -0.9]]))
+    assert not validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [1, -0.9]]))
+    assert not validator(image_container)
 
 
 def test_greater_than_validator_creator():
@@ -70,7 +102,7 @@ def test_greater_than_validator_creator():
 def test_greater_than_validator():
     """ Test the greater_than_validator with some values """
     validator = greater_than_validator(100)
-    assert str(validator) == "Value must be greater than 100"
+    assert str(validator) == "Value(s) must be greater than 100"
     assert validator(101)
     assert validator(1000)
     assert validator(float("inf"))
@@ -78,6 +110,19 @@ def test_greater_than_validator():
     assert not validator(100)
     assert not validator(float("-inf"))
     assert not validator("not a number")
+
+
+def test_greater_than_validator_image_container():
+    """ Test the greater than validator with an image container """
+    validator = greater_than_validator(1.5)
+    assert str(validator) == "Value(s) must be greater than 1.5"
+
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [0.1, -0.9]]))
+    assert not validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[1.5, 2.2], [1.7, 90]]))
+    assert not validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[1.51, 2.2], [1.7, 90]]))
+    assert validator(image_container)
 
 
 def test_greater_than_equal_to_validator_creator():
@@ -92,7 +137,7 @@ def test_greater_than_equal_to_validator_creator():
 def test_greater_than_equal_to_validator():
     """ Test the greater_than_equal_to_validator with some values """
     validator = greater_than_equal_to_validator(100)
-    assert str(validator) == "Value must be greater than or equal to 100"
+    assert str(validator) == "Value(s) must be greater than or equal to 100"
     assert validator(101)
     assert validator(1000)
     assert validator(float("inf"))
@@ -100,6 +145,19 @@ def test_greater_than_equal_to_validator():
     assert validator(100)
     assert not validator(float("-inf"))
     assert not validator("not a number")
+
+
+def test_greater_than_equal_to_validator_image_container():
+    """ Test the greater than equal to validator with an image container """
+    validator = greater_than_equal_to_validator(1.5)
+    assert str(validator) == "Value(s) must be greater than or equal to 1.5"
+
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [0.1, -0.9]]))
+    assert not validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[1.5, 2.2], [1.7, 90]]))
+    assert validator(image_container)
+    image_container = NumpyImageContainer(image=np.array([[1.51, 2.2], [1.7, 90]]))
+    assert validator(image_container)
 
 
 def test_from_list_validator_creator():
@@ -286,7 +344,7 @@ def test_for_each_validator():
     validator = for_each_validator(greater_than_validator(0.5))
     assert (
         str(validator)
-        == "Must be a list and for each value in the list: Value must be greater than 0.5"
+        == "Must be a list and for each value in the list: Value(s) must be greater than 0.5"
     )
     assert validator([0.6, 0.7, 0.8])
     assert not validator([0.5, 0.6, 0.7])
@@ -370,7 +428,7 @@ def test_parameter_validator_multiple_errors():
 
     with pytest.raises(
         ValidationError,
-        match=r"^Parameter a_number with value 0.9 does not meet the following criterion: Value must be between 1 and 2 \(inclusive\)\. Parameter a_number with value 0.9 does not meet the following criterion: Value must be in \[1.5, 1.6\]\. Parameter b_number with value \[1, 2\] does not meet the following criterion: Value must be a list of type str$",
+        match=r"^Parameter a_number with value 0.9 does not meet the following criterion: Value\(s\) must be between 1 and 2 \(inclusive\)\. Parameter a_number with value 0.9 does not meet the following criterion: Value must be in \[1.5, 1.6\]\. Parameter b_number with value \[1, 2\] does not meet the following criterion: Value must be a list of type str$",
     ):
         parameter_validator.validate({"a_number": 0.9, "b_number": [1, 2]})
 

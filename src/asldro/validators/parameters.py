@@ -1,10 +1,13 @@
 """
-Used to perform parameter validation. The most useful documentation is on the class:
+Used to perform parameter validation. The most useful documentatio: {}, result: undefined 
+is on the class:
 'ParameterValidator'
 """
 import re
 from copy import deepcopy
 from typing import Tuple, Union, List, Dict, Callable, Any
+
+from asldro.containers.image import BaseImageContainer
 
 
 class ValidationError(Exception):
@@ -37,56 +40,84 @@ class Validator:
 
 def range_exclusive_validator(start, end) -> Validator:
     """
-    Validate that a given value is between a given range (excluding the start and end values)
+    Validate that a given value is between a given range (excluding the start and end values).
+    Can be used with int, float or BaseImageContainer.
     :param start: the start value
     :param end: the end value
     """
     if start >= end:
         raise ValueError(f"Start ({start} must be less than end ({end})")
+
+    def validate(value: Union[float, int, BaseImageContainer]) -> bool:
+        if isinstance(value, (float, int)):
+            return start < value < end
+        if isinstance(value, BaseImageContainer):
+            return (value.image > start).all() and (value.image < end).all()
+        return False
+
     return Validator(
-        lambda value: isinstance(value, (float, int)) and start < value < end,
-        f"Value must be between {start} and {end} (exclusive)",
+        validate, f"Value(s) must be between {start} and {end} (exclusive)"
     )
 
 
 def range_inclusive_validator(start, end) -> Validator:
     """
     Validate that a given value is between a given range (including the start and end values)
+    Can be used with int, float or BaseImageContainer.
     :param start: the start value
     :param end: the end value
     """
     if start > end:
         raise ValueError(f"Start ({start} must be less than or equal to end ({end})")
+
+    def validate(value: Union[float, int, BaseImageContainer]) -> bool:
+        if isinstance(value, (float, int)):
+            return start <= value <= end
+        if isinstance(value, BaseImageContainer):
+            return (value.image >= start).all() and (value.image <= end).all()
+        return False
+
     return Validator(
-        lambda value: isinstance(value, (float, int)) and start <= value <= end,
-        f"Value must be between {start} and {end} (inclusive)",
+        validate, f"Value(s) must be between {start} and {end} (inclusive)"
     )
 
 
 def greater_than_equal_to_validator(start) -> Validator:
     """
     Validate that a given value is greater or equal to a number.
+    Can be used with int, float or BaseImageContainer.
     :param start: the value to be greater than or equal to
     """
     if not isinstance(start, (float, int)):
         raise TypeError(f"Start ({start}) must be a number type")
-    return Validator(
-        lambda value: isinstance(value, (float, int)) and start <= value,
-        f"Value must be greater than or equal to {start}",
-    )
+
+    def validate(value: Union[float, int, BaseImageContainer]) -> bool:
+        if isinstance(value, (float, int)):
+            return start <= value
+        if isinstance(value, BaseImageContainer):
+            return (start <= value.image).all()
+        return False
+
+    return Validator(validate, f"Value(s) must be greater than or equal to {start}")
 
 
 def greater_than_validator(start) -> Validator:
     """
     Validate that a given value is greater than a number.
+    Can be used with int, float or BaseImageContainer.
     :param start: the value to be greater than
     """
     if not isinstance(start, (float, int)):
         raise TypeError(f"Start ({start}) must be a number type")
-    return Validator(
-        lambda value: isinstance(value, (float, int)) and start < value,
-        f"Value must be greater than {start}",
-    )
+
+    def validate(value: Union[float, int, BaseImageContainer]) -> bool:
+        if isinstance(value, (float, int)):
+            return start < value
+        if isinstance(value, BaseImageContainer):
+            return (start < value.image).all()
+        return False
+
+    return Validator(validate, f"Value(s) must be greater than {start}")
 
 
 def from_list_validator(options: list, case_insensitive: bool = False) -> Validator:
