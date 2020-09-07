@@ -112,10 +112,18 @@ class GkmFilter(BaseFilter):
             # do GKM for PASL
             print("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (1 / t1_arterial_blood - 1 / t1_prime)
-            q_pasl_arriving = (
-                np.exp(k * signal_time)
-                * (np.exp(-k * transit_time) - np.exp(-k * signal_time))
-                / (k * (signal_time - transit_time))
+            # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
+            # numerator and denominator separately for q_pasl_arriving
+            numerator = np.exp(k * signal_time) * (
+                np.exp(-k * transit_time) - np.exp(-k * signal_time)
+            )
+            denominator = k * (signal_time - transit_time)
+
+            q_pasl_arriving = np.divide(
+                numerator,
+                denominator,
+                out=np.zeros_like(numerator),
+                where=denominator != 0,
             )
             q_pasl_arrived = (
                 np.exp(k * signal_time)
