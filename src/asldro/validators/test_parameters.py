@@ -485,3 +485,28 @@ def test_parameter_validator_multiple_errors():
     ):
         parameter_validator.validate({"a_number": 0.9, "b_number": [1, 2]})
 
+
+def test_parameter_validator_bad_error_type():
+    """ Test that a TypeError is raised if a bad error type is given to the validator """
+
+    parameter_validator = ParameterValidator({})
+    with pytest.raises(TypeError):
+        parameter_validator({}, error_type="foo")
+    with pytest.raises(TypeError):
+        parameter_validator({}, error_type="foo")
+
+    parameter_validator.validate(
+        {}, error_type=ValidationError
+    )  # sanity check - should be allowed
+
+
+def test_parameter_validator_change_error_type():
+    """ Test that the appropriate error type is raised when user-specified """
+
+    parameter_validator = ParameterValidator(
+        {"b_number": Parameter(list_of_type_validator(str))}
+    )
+
+    with pytest.raises(RuntimeError):
+        parameter_validator.validate({}, error_type=RuntimeError)
+
