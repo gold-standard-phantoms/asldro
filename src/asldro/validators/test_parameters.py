@@ -15,8 +15,9 @@ from asldro.validators.parameters import (
     greater_than_validator,
     greater_than_equal_to_validator,
     for_each_validator,
+    isinstance_validator,
 )
-from asldro.containers.image import NumpyImageContainer
+from asldro.containers.image import NumpyImageContainer, BaseImageContainer
 
 
 def test_range_inclusive_validator_creator():
@@ -196,8 +197,60 @@ def test_from_list_validator():
     assert not validator(1)
 
 
+def test_isinstance_validator_creator():
+    """ The the isinstance validator creation """
+    isinstance_validator(int)  # ok
+    isinstance_validator((int, float, str))  # ok
+    with pytest.raises(TypeError):
+        isinstance_validator(1)
+    with pytest.raises(TypeError):
+        isinstance_validator("foo")
+    with pytest.raises(TypeError):
+        isinstance_validator([])
+    with pytest.raises(TypeError):
+        isinstance_validator({})
+
+
+def test_isinstance_validator():
+    """ Test the isinstance_validator """
+    validator = isinstance_validator(str)
+    assert str(validator) == "Value must be of type str"
+    assert validator("foo")
+    assert not validator([])
+    assert not validator({})
+    assert not validator(1)
+    assert not validator(2.0)
+
+    validator = isinstance_validator(int)
+    assert str(validator) == "Value must be of type int"
+    assert validator(1)
+    assert not validator("foo")
+    assert not validator(1.0)
+    assert not validator([])
+    assert not validator({})
+
+    validator = isinstance_validator(BaseImageContainer)
+    assert str(validator) == "Value must be of type BaseImageContainer"
+    image_container = NumpyImageContainer(image=np.array([[-0.5, 0.2], [0.1, -0.9]]))
+    assert validator(image_container)
+    assert not validator("foo")
+    assert not validator(1)
+    assert not validator([])
+
+    validator = isinstance_validator((float, int))
+    assert str(validator) == "Value must be of type float or int"
+    assert validator(1.0)
+    assert validator(2)
+    assert not validator([1])
+    assert not validator([1, 2])
+    assert not validator("foo")
+    assert not validator(["foo", "bar"])
+
+
 def test_list_of_type_validator_creator():
     """ Test the list of validator creation"""
+    list_of_type_validator(int)  # ok
+    list_of_type_validator((int, float, str))  # ok
     with pytest.raises(TypeError):
         list_of_type_validator(1)
     with pytest.raises(TypeError):
