@@ -5,9 +5,8 @@ import pytest
 import numpy as np
 import numpy.testing
 from asldro.containers.image import BaseImageContainer, NumpyImageContainer
-from asldro.filters.basefilter import BaseFilter
+from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.filters.gkm_filter import GkmFilter
-from asldro.validators.parameters import ValidationError
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_IMAGE_ONES = NumpyImageContainer(image=np.ones(TEST_VOLUME_DIMENSIONS))
@@ -321,12 +320,12 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
 
         # Key not defined
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(FilterInputValidationError):
             gkm_filter.run()
 
         # Key has wrong data type
         gkm_filter.add_input(inputs_key, None)
-        with pytest.raises(ValidationError):
+        with pytest.raises(FilterInputValidationError):
             gkm_filter.run()
 
         # Data not in the valid range
@@ -340,7 +339,7 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
 
             # add invalid input and check a FilterInputValidationError is raised
             gkm_filter.add_input(inputs_key, test_value)
-            with pytest.raises(ValidationError):
+            with pytest.raises(FilterInputValidationError):
                 gkm_filter.run()
 
 

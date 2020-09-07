@@ -2,14 +2,13 @@
 
 import numpy as np
 from asldro.containers.image import BaseImageContainer
-from asldro.filters.basefilter import BaseFilter
+from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
     range_inclusive_validator,
     greater_than_equal_to_validator,
     from_list_validator,
-    ValidationError,
     isinstance_validator,
 )
 
@@ -261,7 +260,7 @@ class GkmFilter(BaseFilter):
             }
         )
 
-        input_validator.validate(self.inputs)
+        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
 
         # Check that all the input images are all the same dimensions
         input_keys = self.inputs.keys()
@@ -275,7 +274,7 @@ class GkmFilter(BaseFilter):
         if list_of_image_shapes.count(list_of_image_shapes[0]) != len(
             list_of_image_shapes
         ):
-            raise ValidationError(
+            raise FilterInputValidationError(
                 [
                     "Input image shapes do not match.",
                     [
