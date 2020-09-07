@@ -3,6 +3,14 @@
 import numpy as np
 from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
+from asldro.validators.parameters import (
+    ParameterValidator,
+    Parameter,
+    range_inclusive_validator,
+    greater_than_equal_to_validator,
+    from_list_validator,
+    isinstance_validator,
+)
 
 KEY_PERFUSION_RATE = "perfusion_rate"
 KEY_TRANSIT_TIME = "transit_time"
@@ -16,9 +24,9 @@ KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
 KEY_T1_TISSUE = "t1_tissue"
 KEY_DELTA_M = "delta_m"
 
-CASL = "CASL"
-PCASL = "pCASL"
-PASL = "PASL"
+CASL = "casl"
+PCASL = "pcasl"
+PASL = "pasl"
 
 KEYS_TUPLE = (
     KEY_PERFUSION_RATE,
@@ -100,14 +108,22 @@ class GkmFilter(BaseFilter):
 
         delta_m = np.zeros(perfusion_rate.shape)
 
-        if self.inputs[KEY_LABEL_TYPE] == PASL:
+        if self.inputs[KEY_LABEL_TYPE].lower() == PASL:
             # do GKM for PASL
             print("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (1 / t1_arterial_blood - 1 / t1_prime)
-            q_pasl_arriving = (
-                np.exp(k * signal_time)
-                * (np.exp(-k * transit_time) - np.exp(-k * signal_time))
-                / (k * (signal_time - transit_time))
+            # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
+            # numerator and denominator separately for q_pasl_arriving
+            numerator = np.exp(k * signal_time) * (
+                np.exp(-k * transit_time) - np.exp(-k * signal_time)
+            )
+            denominator = k * (signal_time - transit_time)
+
+            q_pasl_arriving = np.divide(
+                numerator,
+                denominator,
+                out=np.zeros_like(numerator),
+                where=denominator != 0,
             )
             q_pasl_arrived = (
                 np.exp(k * signal_time)
@@ -137,7 +153,7 @@ class GkmFilter(BaseFilter):
                 * q_pasl_arrived
             )
 
-        elif self.inputs[KEY_LABEL_TYPE] in [CASL, PCASL]:
+        elif self.inputs[KEY_LABEL_TYPE].lower() in [CASL, PCASL]:
             # do GKM for CASL/pCASL
             print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
             q_ss_arriving = 1 - np.exp(-(signal_time - transit_time) / t1_prime)
@@ -188,66 +204,71 @@ class GkmFilter(BaseFilter):
 
         all BaseImageContainers supplied should be the same dimensions
          """
+        input_validator = ParameterValidator(
+            parameters={
+                KEY_PERFUSION_RATE: Parameter(
+                    validators=[
+                        greater_than_equal_to_validator(0),
+                        isinstance_validator(BaseImageContainer),
+                    ]
+                ),
+                KEY_TRANSIT_TIME: Parameter(
+                    validators=[
+                        greater_than_equal_to_validator(0),
+                        isinstance_validator(BaseImageContainer),
+                    ]
+                ),
+                KEY_M0: Parameter(
+                    validators=[
+                        greater_than_equal_to_validator(0),
+                        isinstance_validator((BaseImageContainer, float)),
+                    ]
+                ),
+                KEY_T1_TISSUE: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 100),
+                        isinstance_validator(BaseImageContainer),
+                    ]
+                ),
+                KEY_LABEL_TYPE: Parameter(
+                    validators=from_list_validator(
+                        [CASL, PCASL, PASL], case_insensitive=True
+                    ),
+                ),
+                KEY_LABEL_DURATION: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 100),
+                        isinstance_validator(float),
+                    ]
+                ),
+                KEY_SIGNAL_TIME: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 100),
+                        isinstance_validator(float),
+                    ]
+                ),
+                KEY_LABEL_EFFICIENCY: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 1),
+                        isinstance_validator(float),
+                    ]
+                ),
+                KEY_LAMBDA_BLOOD_BRAIN: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 1),
+                        isinstance_validator(float),
+                    ]
+                ),
+                KEY_T1_ARTERIAL_BLOOD: Parameter(
+                    validators=[
+                        range_inclusive_validator(0, 100),
+                        isinstance_validator(float),
+                    ]
+                ),
+            }
+        )
 
-        # Dictionary for data validation.  Each entry has key corresponding to
-        # the inputs keyword for the filter, then the value is a tuple with:
-        # [0] - the data type
-        # [1:] - the data range.
-        #       - for numeric types this is the min and max (inclusive)
-        #       - for BaseImageContainer this is the min and max of the .image (inclusive)
-        #       = for strings this is a one or more strings to match against
-        inputs_datavalid_dict = {
-            KEY_PERFUSION_RATE: (BaseImageContainer, 0, float("Inf")),
-            KEY_TRANSIT_TIME: (BaseImageContainer, 0, float("Inf")),
-            KEY_M0: ((BaseImageContainer, float), 0, float("Inf")),
-            KEY_LABEL_TYPE: (str, CASL, PCASL, PASL),
-            KEY_LABEL_DURATION: (float, 0, 100),
-            KEY_SIGNAL_TIME: (float, 0, 100),
-            KEY_LABEL_EFFICIENCY: (float, 0, 1),
-            KEY_LAMBDA_BLOOD_BRAIN: (float, 0, 1),
-            KEY_T1_ARTERIAL_BLOOD: (float, 0, 100),
-            KEY_T1_TISSUE: (BaseImageContainer, 0, 100),
-        }
-        # Loop over the keys
-        for key in KEYS_TUPLE:
-            # Check if key is present
-            if key not in self.inputs:
-                raise FilterInputValidationError(f"{self} does not have defined {key}")
-
-            # Key present, check data type
-            input_value = self.inputs[key]
-            if not isinstance(input_value, inputs_datavalid_dict[key][0]):
-                raise FilterInputValidationError(
-                    f"{self} is not a {inputs_datavalid_dict[key][0]} (is {type(input_value)})"
-                )
-
-            # Data type OK, check value is within limits
-            # float or int
-            if isinstance(input_value, (int, float)):
-                min_val = inputs_datavalid_dict[key][1]
-                max_val = inputs_datavalid_dict[key][2]
-                if input_value < min_val or input_value > max_val:
-                    raise FilterInputValidationError(
-                        f"{self} is not between {min_val} and {max_val} (is {input_value}"
-                    )
-            # BaseImageContainer derived
-            if isinstance(input_value, BaseImageContainer):
-                min_val = inputs_datavalid_dict[key][1]
-                max_val = inputs_datavalid_dict[key][2]
-                if (input_value.image < min_val).any() or (
-                    input_value.image > max_val
-                ).any():
-                    raise FilterInputValidationError(
-                        f"{self} has values outside of the range {min_val} to {max_val}"
-                    )
-
-            # string
-            if isinstance(input_value, str):
-                match_strings = inputs_datavalid_dict[key][1:]
-                if input_value not in match_strings:
-                    raise FilterInputValidationError(
-                        f"{self} is not between {min_val} and {max_val} (is {input_value}"
-                    )
+        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
 
         # Check that all the input images are all the same dimensions
         input_keys = self.inputs.keys()
