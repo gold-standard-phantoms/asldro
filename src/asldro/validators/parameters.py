@@ -38,6 +38,26 @@ class Validator:
         return self.criteria_message
 
 
+def isinstance_validator(a_type: Union[type, Tuple[type]]) -> Validator:
+    """
+    Validates that a given value is an instance of the given type(s) (or or derived from).
+    a_type: a type e.g. str, or a tuple of types e.g. (int, str)
+    """
+    if not isinstance(a_type, type):
+        if not (
+            isinstance(a_type, tuple)
+            and all(isinstance(single_type, type) for single_type in a_type)
+        ):
+            raise TypeError(f"{a_type} is not a type or list of types")
+    msg = "Value must be of type "
+    if isinstance(a_type, tuple):
+        msg += " or ".join([x.__name__ for x in a_type])
+    else:
+        msg += a_type.__name__
+
+    return Validator(lambda value: isinstance(value, a_type), msg)
+
+
 def range_exclusive_validator(start, end) -> Validator:
     """
     Validate that a given value is between a given range (excluding the start and end values).
