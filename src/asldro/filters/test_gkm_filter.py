@@ -5,8 +5,9 @@ import pytest
 import numpy as np
 import numpy.testing
 from asldro.containers.image import BaseImageContainer, NumpyImageContainer
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
+from asldro.filters.basefilter import BaseFilter
 from asldro.filters.gkm_filter import GkmFilter
+from asldro.validators.parameters import ValidationError
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_IMAGE_ONES = NumpyImageContainer(image=np.ones(TEST_VOLUME_DIMENSIONS))
@@ -24,7 +25,7 @@ TEST_DATA_DICT_PASL_M0_IM = {
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("PASL", "pasl", "PSL", "str"),
+    "label_type": ("pasl", "PSL", "str"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -37,7 +38,7 @@ TEST_DATA_DICT_PASL_M0_FLOAT = {
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (1.0, -1.0, int(1)),
     "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("PASL", "pasl", "PSL", "str"),
+    "label_type": ("pasl", "PSL", "str"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -50,7 +51,7 @@ TEST_DATA_DICT_CASL_M0_IM = {
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("CASL", "casl", "CSL", "str"),
+    "label_type": ("casl", "CSL", "str"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -63,7 +64,7 @@ TEST_DATA_DICT_CASL_M0_FLOAT = {
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "m0": (1.0, -1.0, int(1)),
     "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("pCASL", "pcasl", "PCSL", "str"),
+    "label_type": ("pcasl", "PCSL", "str"),
     "label_duration": (1.8, -0.1, 101.0),
     "signal_time": (3.6, -0.1, 101.0),
     "label_efficiency": (0.85, -0.1, 1.01),
@@ -319,12 +320,13 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
             gkm_filter.add_input(data_key, test_data[data_key][0])
 
         # Key not defined
-        with pytest.raises(FilterInputValidationError):
+
+        with pytest.raises(ValidationError):
             gkm_filter.run()
 
         # Key has wrong data type
         gkm_filter.add_input(inputs_key, None)
-        with pytest.raises(FilterInputValidationError):
+        with pytest.raises(ValidationError):
             gkm_filter.run()
 
         # Data not in the valid range
@@ -338,7 +340,7 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
 
             # add invalid input and check a FilterInputValidationError is raised
             gkm_filter.add_input(inputs_key, test_value)
-            with pytest.raises(FilterInputValidationError):
+            with pytest.raises(ValidationError):
                 gkm_filter.run()
 
 
