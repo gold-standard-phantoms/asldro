@@ -313,18 +313,24 @@ class ParameterValidator:
                 )
         self.parameters: Dict[Parameter] = parameters
 
-    def validate(self, d: dict) -> dict:
+    def validate(self, d: dict, error_type: type = ValidationError) -> dict:
         """
         Validate an input dictionary, replacing missing dictionary entries with default values.
         If any of the dictionary entries are invalid w.r.t. any of the validators, a
-        ValidationError will be raised.
+        ValidationError will be raised (unless error_type is defined, see parameter docs).
         :param d: the input dictionary. e.g.: {"foo": "bar foo bar"}
+        :param error_type: the type of Exception to be raised.
         :return: the dictionary with any defaults filled. e.g.
         {
             "foo": "bar foo bar",
             "bar": [1, 2, 3],
         }
         """
+        # error_type must derived from Exception
+        if not issubclass(error_type, Exception):
+            raise TypeError(
+                f"error_type must be a subclass of Exception, is {error_type.__name__}."
+            )
         return_dict = deepcopy(d)
         errors = []
         # Check all non-optional parameters are present
@@ -349,5 +355,5 @@ class ParameterValidator:
                         )
 
         if errors:
-            raise ValidationError(". ".join(errors))
+            raise error_type(". ".join(errors))
         return return_dict
