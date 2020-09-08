@@ -3,7 +3,18 @@ from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import FilterBlock
 from asldro.filters.fourier_filter import FftFilter, IfftFilter
-from asldro.filters.add_noise_filter import AddNoiseFilter
+from asldro.filters.add_noise_filter import (
+    AddNoiseFilter,
+    KEY_IMAGE,
+    KEY_REF_IMAGE,
+    KEY_SNR,
+)
+from asldro.validators.parameters import (
+    ParameterValidator,
+    Parameter,
+    isinstance_validator,
+    greater_than_validator,
+)
 
 
 class AddComplexNoiseFilter(FilterBlock):
@@ -34,23 +45,21 @@ class AddComplexNoiseFilter(FilterBlock):
         the noise amplitude, adds this to the FT of the input image, then
         inverse fourier transforms to obtain the output image """
 
-        input_image: BaseImageContainer = self.inputs["image"]
+        input_image: BaseImageContainer = self.inputs[KEY_IMAGE]
         # Fourier transform the input image
         image_fft_filter = FftFilter()
-        image_fft_filter.add_input("image", input_image)
+        image_fft_filter.add_input(KEY_IMAGE, input_image)
 
         # Create the noise filter
         add_noise_filter = AddNoiseFilter()
         add_noise_filter.add_parent_filter(image_fft_filter)
-        add_noise_filter.add_input("snr", self.inputs["snr"])
+        add_noise_filter.add_input(KEY_SNR, self.inputs[KEY_SNR])
 
         # If present load the reference image, if not, copy the input_image
-        if "reference_image" in self.inputs:
-            add_noise_filter.add_input(
-                "reference_image", self.inputs["reference_image"]
-            )
+        if KEY_REF_IMAGE in self.inputs:
+            add_noise_filter.add_input(KEY_REF_IMAGE, self.inputs[KEY_REF_IMAGE])
         else:
-            add_noise_filter.add_input("reference_image", self.inputs["image"])
+            add_noise_filter.add_input(KEY_REF_IMAGE, self.inputs[KEY_IMAGE])
 
         # Inverse Fourier Transform and set the output
         ifft_filter = IfftFilter()
@@ -59,33 +68,21 @@ class AddComplexNoiseFilter(FilterBlock):
 
     def _validate_inputs(self):
         """
-        'image' must be derived from BaseImageContainer. The image type should not
-        be complex.
-        'snr' must be a float
+        'image' must be derived from BaseImageContainer.
+        'snr' must be a positive float
         'reference_image' if present must be derived from BaseImageContainer
         """
-        if "image" not in self.inputs:
-            raise FilterInputValidationError(f"{self} does not have defined `image`")
-
-        if "snr" not in self.inputs:
-            raise FilterInputValidationError(f"{self} does not have defined `snr`")
-
-        input_image: BaseImageContainer = self.inputs["image"]
-        if not isinstance(input_image, BaseImageContainer):
-            raise FilterInputValidationError(
-                f"Input 'image' is not a BaseImageContainer (is {type(input_image)})"
-            )
-
-        input_snr = self.inputs["snr"]
-        if not isinstance(input_snr, float):
-            raise FilterInputValidationError(
-                f"Input 'snr' is not a float (is {type(input_snr)})"
-            )
-
-        if "reference_image" in self.inputs:
-            input_reference_image = self.inputs["reference_image"]
-            if not isinstance(input_reference_image, BaseImageContainer):
-                raise FilterInputValidationError(
-                    f"Input 'reference_image' is not a BaseImageContainer"
-                    f"(is {type(input_reference_image)})"
-                )
+        input_validator = ParameterValidator(
+            parameters={
+                KEY_IMAGE: Parameter(
+                    validators=isinstance_validator(BaseImageContainer)
+                ),
+                KEY_SNR: Parameter(
+                    validators=[isinstance_validator(float), greater_than_validator(0)]
+                ),
+                KEY_REF_IMAGE: Parameter(
+                    validators=isinstance_validator(BaseImageContainer), optional=True
+                ),
+            }
+        )
+        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
