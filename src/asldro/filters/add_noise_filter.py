@@ -3,6 +3,16 @@ import numpy as np
 
 from asldro.containers.image import BaseImageContainer, SPATIAL_DOMAIN, INVERSE_DOMAIN
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
+from asldro.validators.parameters import (
+    ParameterValidator,
+    Parameter,
+    isinstance_validator,
+    greater_than_validator,
+)
+
+KEY_IMAGE = "image"
+KEY_SNR = "snr"
+KEY_REF_IMAGE = "reference_image"
 
 
 class AddNoiseFilter(BaseFilter):
@@ -22,7 +32,8 @@ class AddNoiseFilter(BaseFilter):
 
     'reference_image' can be in a different data domain to the 'image'.  For example, 'image'
     might be in the inverse domain (i.e. fourier transformed) whereas 'reference_image' is in
-    the spatial domain. Where data domains differ the following scaling is applied to the noise amplitude:
+    the spatial domain.
+    Where data domains differ the following scaling is applied to the noise amplitude:
         'image' is SPATIAL_DOMAIN and 'reference_image' is INVERSE_DOMAIN: 1/N
         'image' is INVERSE_DOMAIN and 'reference_image' is SPATIAL_DOMAIN: N
     Where N is 'reference_image.image.size'
@@ -35,14 +46,14 @@ class AddNoiseFilter(BaseFilter):
     Output:
         'image' (BaseImageContainer): The input image with noise added.
 
-    Note that the actual SNR (as calculated using "A comparison of two methods for measuring the signal to
-    noise ratio on MR images", PMB, vol 44, no. 12, pp.N261-N264 (1999)) will not match the desired SNR
-    under the following circumstances:
+    Note that the actual SNR (as calculated using "A comparison of two methods for
+    measuring the signal to noise ratio on MR images", PMB, vol 44, no. 12, pp.N261-N264 (1999))
+    will not match the desired SNR under the following circumstances:
         'image' is SPATIAL_DOMAIN and 'reference_image' is INVERSE_DOMAIN
         'image' is INVERSE_DOMAIN and 'reference_image' is SPATIAL_DOMAIN
-    In the second case, performing an inverse fourier transform on the output image with noise results in 
-    a spatial domain image where the calculated SNR matches the desired SNR.  This is how the AddNoiseFilter
-    is used within the AddComplexNoiseFilter
+    In the second case, performing an inverse fourier transform on the output image with
+    noise results in a spatial domain image where the calculated SNR matches the desired SNR.
+    This is how the AddNoiseFilter is used within the AddComplexNoiseFilter
     """
 
     def __init__(self):
@@ -52,13 +63,13 @@ class AddNoiseFilter(BaseFilter):
         """ Calculate the noise amplitude, adds input image, and
         return the result"""
 
-        input_image: BaseImageContainer = self.inputs["image"]
-        snr: float = self.inputs["snr"]
+        input_image: BaseImageContainer = self.inputs[KEY_IMAGE]
+        snr: float = self.inputs[KEY_SNR]
 
         # If present load the reference image, if not
         # copy the input_image
-        if "reference_image" in self.inputs:
-            reference_image: BaseImageContainer = self.inputs["reference_image"]
+        if KEY_REF_IMAGE in self.inputs:
+            reference_image: BaseImageContainer = self.inputs[KEY_REF_IMAGE]
         else:
             reference_image: BaseImageContainer = input_image
 
@@ -108,34 +119,35 @@ class AddNoiseFilter(BaseFilter):
                 0, noise_amplitude, input_image.shape
             )
 
-        self.outputs["image"] = image_with_noise
+        self.outputs[KEY_IMAGE] = image_with_noise
 
     def _validate_inputs(self):
         """
         'image' must be derived from BaseImageContainer
-        'snr' must be a float
-        'reference_image' if present must be derived from BaseImageContainer. image.shape and reference_image.shape must be equal
+        'snr' must be a positive float
+        'reference_image' if present must be derived from BaseImageContainer.
+        image.shape and reference_image.shape must be equal
         """
-        if "image" not in self.inputs:
-            raise FilterInputValidationError(f"{self} does not have defined `image`")
+        input_validator = ParameterValidator(
+            parameters={
+                KEY_IMAGE: Parameter(
+                    validators=isinstance_validator(BaseImageContainer)
+                ),
+                KEY_SNR: Parameter(
+                    validators=[isinstance_validator(float), greater_than_validator(0)]
+                ),
+                KEY_REF_IMAGE: Parameter(
+                    validators=isinstance_validator(BaseImageContainer), optional=True
+                ),
+            }
+        )
 
-        if "snr" not in self.inputs:
-            raise FilterInputValidationError(f"{self} does not have defined `snr`")
+        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
 
-        input_image = self.inputs["image"]
-        if not isinstance(input_image, BaseImageContainer):
-            raise FilterInputValidationError(
-                f"Input 'image' is not a BaseImageContainer (is {type(input_image)})"
-            )
-
-        input_snr = self.inputs["snr"]
-        if not isinstance(input_snr, float):
-            raise FilterInputValidationError(
-                f"Input 'snr' is not a float (is {type(input_snr)})"
-            )
-
-        if "reference_image" in self.inputs:
-            input_reference_image = self.inputs["reference_image"]
+        # If 'reference_image' is supplied, check that its dimensions match 'image'
+        if KEY_REF_IMAGE in self.inputs:
+            input_reference_image = self.inputs[KEY_REF_IMAGE]
+            input_image = self.inputs[KEY_IMAGE]
             if not isinstance(input_reference_image, BaseImageContainer):
                 raise FilterInputValidationError(
                     f"Input 'reference_image' is not a BaseImageContainer"
