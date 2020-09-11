@@ -28,19 +28,6 @@ CASL = "casl"
 PCASL = "pcasl"
 PASL = "pasl"
 
-KEYS_TUPLE = (
-    KEY_PERFUSION_RATE,
-    KEY_TRANSIT_TIME,
-    KEY_M0,
-    KEY_LABEL_TYPE,
-    KEY_LABEL_DURATION,
-    KEY_SIGNAL_TIME,
-    KEY_LABEL_EFFICIENCY,
-    KEY_LAMBDA_BLOOD_BRAIN,
-    KEY_T1_ARTERIAL_BLOOD,
-    KEY_T1_TISSUE,
-)
-
 
 class GkmFilter(BaseFilter):
     """
@@ -49,13 +36,13 @@ class GkmFilter(BaseFilter):
     spin labeling', Magnetic Resonance in Medicine, vol. 40, no. 3, pp. 383-396, 1998.
     https://doi.org/10.1002/mrm.1910400308
 
-    Inputs:
+    ### Inputs:
         'perfusion_rate' (BaseImageContainer): Map of perfusion rate, in ml/100g/min (>=0)
         'transit_time' (BaseImageContainer):  Map of the time taken for the labelled bolus
         to reach the voxel, seconds (>=0).
         'm0' (BaseImageContainer or float): The equilibrium magnetisation, can be a map or
         single value (>=0).
-        'label_type' (str): Determined which GKM equations to use:
+        'label_type' (str): Determines which GKM equations to use:
              "casl" OR "pcasl" (case insensitive) for the continuous model
              "pasl" (case insensitive) for the pulsed model
         'label_duration' (float): The length of the labelling pulse, seconds (0 to 100 inclusive)
@@ -68,7 +55,7 @@ class GkmFilter(BaseFilter):
         't1_tissue' (BaseImageContainer): Longitudinal relaxation time of the tissue,
         seconds (>0, to 100)
 
-    Outputs:
+    ### Outputs:
         'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast. This will
         be the same class as the input 'perfusion_rate'
 
