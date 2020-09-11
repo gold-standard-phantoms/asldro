@@ -1,6 +1,6 @@
 """ Examples of filter chains """
 import pprint
-
+import os
 import numpy as np
 import nibabel as nib
 
@@ -144,6 +144,8 @@ def run_full_pipeline():
     print(
         f"residual = {np.sqrt(np.mean((control_label_difference - delta_m_array)**2))}"
     )
+    if not os.path.exists("output"):
+        os.mkdir("output")
 
     nib.save(control_filter.outputs[KEY_IMAGE]._nifti_image, "output/control.nii.gz")
     nib.save(label_filter.outputs[KEY_IMAGE]._nifti_image, "output/label.nii.gz")
