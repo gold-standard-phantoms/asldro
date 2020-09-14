@@ -97,7 +97,20 @@ class GkmFilter(BaseFilter):
         else:
             m0: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
 
-        t1_prime: np.ndarray = 1 / (1 / t1_tissue + perfusion_rate / lambda_blood_brain)
+        # calculate T1', handling runtime divide-by-zeros
+        flow_over_lambda = (
+            perfusion_rate / lambda_blood_brain
+            if lambda_blood_brain != 0
+            else np.zeros_like(perfusion_rate)
+        )
+
+        one_over_t1_tissue = np.divide(
+            1, t1_tissue, out=np.zeros_like(t1_tissue), where=t1_tissue != 0
+        )
+        denominator = one_over_t1_tissue + flow_over_lambda
+        t1_prime: np.ndarray = np.divide(
+            1, denominator, out=np.zeros_like(denominator), where=denominator != 0
+        )
 
         # create boolean masks for each of the states of the delivery curve
         condition_bolus_not_arrived = 0 < signal_time <= transit_time
@@ -111,7 +124,12 @@ class GkmFilter(BaseFilter):
         if self.inputs[KEY_LABEL_TYPE].lower() == PASL:
             # do GKM for PASL
             print("General Kinetic Model for Pulsed ASL")
-            k: np.ndarray = (1 / t1_arterial_blood - 1 / t1_prime)
+            k: np.ndarray = (
+                (1 / t1_arterial_blood if t1_arterial_blood != 0 else 0)
+                - np.divide(
+                    1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0
+                )
+            )
             # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
             # numerator and denominator separately for q_pasl_arriving
             numerator = np.exp(k * signal_time) * (
@@ -125,13 +143,17 @@ class GkmFilter(BaseFilter):
                 out=np.zeros_like(numerator),
                 where=denominator != 0,
             )
-            q_pasl_arrived = (
-                np.exp(k * signal_time)
-                * (
-                    np.exp(-k * transit_time)
-                    - np.exp(-k * (transit_time + label_duration))
-                )
-                / (k * label_duration)
+
+            numerator = np.exp(k * signal_time) * (
+                np.exp(-k * transit_time) - np.exp(-k * (transit_time + label_duration))
+            )
+
+            denominator = k * label_duration
+            q_pasl_arrived = np.divide(
+                numerator,
+                denominator,
+                out=np.zeros_like(denominator),
+                where=denominator != 0,
             )
 
             delta_m_arriving = (
@@ -140,7 +162,11 @@ class GkmFilter(BaseFilter):
                 * perfusion_rate
                 * (signal_time - transit_time)
                 * label_efficiency
-                * np.exp(-signal_time / t1_arterial_blood)
+                * (
+                    np.exp(-signal_time / t1_arterial_blood)
+                    if t1_arterial_blood > 0
+                    else 0
+                )
                 * q_pasl_arriving
             )
             delta_m_arrived = (
@@ -149,15 +175,33 @@ class GkmFilter(BaseFilter):
                 * perfusion_rate
                 * label_efficiency
                 * label_duration
-                * np.exp(-signal_time / t1_arterial_blood)
+                * (
+                    np.exp(-signal_time / t1_arterial_blood)
+                    if t1_arterial_blood > 0
+                    else 0
+                )
                 * q_pasl_arrived
             )
 
         elif self.inputs[KEY_LABEL_TYPE].lower() in [CASL, PCASL]:
             # do GKM for CASL/pCASL
             print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
-            q_ss_arriving = 1 - np.exp(-(signal_time - transit_time) / t1_prime)
-            q_ss_arrived = 1 - np.exp(-label_duration / t1_prime)
+            q_ss_arriving = 1 - np.exp(
+                -np.divide(
+                    (signal_time - transit_time),
+                    t1_prime,
+                    out=np.zeros_like(t1_prime),
+                    where=t1_prime != 0,
+                )
+            )
+            q_ss_arrived = 1 - np.exp(
+                -np.divide(
+                    label_duration,
+                    t1_prime,
+                    out=np.zeros_like(t1_prime),
+                    where=t1_prime != 0,
+                )
+            )
 
             delta_m_arriving = (
                 2
@@ -165,7 +209,11 @@ class GkmFilter(BaseFilter):
                 * perfusion_rate
                 * t1_prime
                 * label_efficiency
-                * np.exp(-transit_time / t1_arterial_blood)
+                * (
+                    np.exp(-transit_time / t1_arterial_blood)
+                    if t1_arterial_blood != 0
+                    else np.zeros_like(transit_time)
+                )
                 * q_ss_arriving
             )
             delta_m_arrived = (
@@ -174,8 +222,19 @@ class GkmFilter(BaseFilter):
                 * perfusion_rate
                 * t1_prime
                 * label_efficiency
-                * np.exp(-transit_time / t1_arterial_blood)
-                * np.exp(-(signal_time - label_duration - transit_time) / t1_prime)
+                * (
+                    np.exp(-transit_time / t1_arterial_blood)
+                    if t1_arterial_blood != 0
+                    else np.zeros_like(transit_time)
+                )
+                * np.exp(
+                    -np.divide(
+                        (signal_time - label_duration - transit_time),
+                        t1_prime,
+                        out=np.zeros_like(t1_prime),
+                        where=t1_prime != 0,
+                    )
+                )
                 * q_ss_arrived
             )
 

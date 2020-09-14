@@ -365,6 +365,22 @@ def test_gkm_filter_pasl(pasl_input):
         np.zeros(gkm_filter.outputs["delta_m"].shape),
     )
 
+    # create input images with some zeros in to test that divide-by-zero is not encountered at
+    # runtime
+    image_with_some_zeros = numpy.concatenate(
+        (np.ones((32, 32, 16)), np.zeros((32, 32, 16))), axis=2
+    )
+    pasl_input["perfusion_rate"] = NumpyImageContainer(image=60 * image_with_some_zeros)
+    pasl_input["transit_time"] = NumpyImageContainer(image=image_with_some_zeros)
+    pasl_input["m0"] = NumpyImageContainer(image=image_with_some_zeros)
+    pasl_input["t1_tissue"] = NumpyImageContainer(image=1.4 * image_with_some_zeros)
+    pasl_input["lambda_blood_brain"] = 0.0
+    pasl_input["t1_arterial_blood"] = 0.0
+
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
+    gkm_filter.run()
+
 
 def test_gkm_filter_casl(casl_input):
     """ Test the GkmFilter for Continuous ASL """
@@ -387,6 +403,22 @@ def test_gkm_filter_casl(casl_input):
         gkm_filter.outputs["delta_m"].image,
         np.zeros(gkm_filter.outputs["delta_m"].shape),
     )
+
+    # create input images with some zeros in to test that divide-by-zero is not encountered at
+    # runtime
+    image_with_some_zeros = numpy.concatenate(
+        (np.ones((32, 32, 16)), np.zeros((32, 32, 16))), axis=2
+    )
+    casl_input["perfusion_rate"] = NumpyImageContainer(image=60 * image_with_some_zeros)
+    casl_input["transit_time"] = NumpyImageContainer(image=image_with_some_zeros)
+    casl_input["m0"] = NumpyImageContainer(image=image_with_some_zeros)
+    casl_input["t1_tissue"] = NumpyImageContainer(image=1.4 * image_with_some_zeros)
+    casl_input["lambda_blood_brain"] = 0.0
+    casl_input["t1_arterial_blood"] = 0.0
+
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
 
 
 @pytest.mark.parametrize(
