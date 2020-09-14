@@ -112,4 +112,7 @@ coverage_html_report
 #Visual Studio Code
 .vscode/
 
+#Output
+output/
+
 
