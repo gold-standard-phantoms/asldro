@@ -40,7 +40,7 @@ class GkmFilter(BaseFilter):
         'perfusion_rate' (BaseImageContainer): Map of perfusion rate, in ml/100g/min (>=0)
         'transit_time' (BaseImageContainer):  Map of the time taken for the labelled bolus
         to reach the voxel, seconds (>=0).
-        'm0' (BaseImageContainer or float): The equilibrium magnetisation, can be a map or
+        'm0' (BaseImageContainer or float): The tissue equilibrium magnetisation, can be a map or
         single value (>=0).
         'label_type' (str): Determines which GKM equations to use:
              "casl" OR "pcasl" (case insensitive) for the continuous model
@@ -80,9 +80,16 @@ class GkmFilter(BaseFilter):
         # if m0 is an image load that, if not then make a ndarray
         # with the same value (makes the calculations more straightforward)
         if isinstance(self.inputs[KEY_M0], BaseImageContainer):
-            m0: np.ndarray = self.inputs[KEY_M0].image
+            m0_tissue: np.ndarray = self.inputs[KEY_M0].image
         else:
-            m0: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
+            m0_tissue: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
+
+        # calculate M0b, handling runtime divide-by-zeros
+        m0_arterial_blood = (
+            m0_tissue / lambda_blood_brain
+            if lambda_blood_brain != 0
+            else np.zeros_like(m0_tissue)
+        )
 
         # calculate T1', handling runtime divide-by-zeros
         flow_over_lambda = (
@@ -145,7 +152,7 @@ class GkmFilter(BaseFilter):
 
             delta_m_arriving = (
                 2
-                * m0
+                * m0_arterial_blood
                 * perfusion_rate
                 * (signal_time - transit_time)
                 * label_efficiency
@@ -158,7 +165,7 @@ class GkmFilter(BaseFilter):
             )
             delta_m_arrived = (
                 2
-                * m0
+                * m0_arterial_blood
                 * perfusion_rate
                 * label_efficiency
                 * label_duration
@@ -192,7 +199,7 @@ class GkmFilter(BaseFilter):
 
             delta_m_arriving = (
                 2
-                * m0
+                * m0_arterial_blood
                 * perfusion_rate
                 * t1_prime
                 * label_efficiency
@@ -205,7 +212,7 @@ class GkmFilter(BaseFilter):
             )
             delta_m_arrived = (
                 2
-                * m0
+                * m0_arterial_blood
                 * perfusion_rate
                 * t1_prime
                 * label_efficiency
