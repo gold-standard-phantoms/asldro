@@ -77,8 +77,6 @@ class MriSignalFilter(BaseFilter):
                     acq_te, t2_star, out=np.zeros_like(t2_star), where=t2_star != 0
                 )
             )
-            # divide mag_enc by exp_t2_star so it is numerically correct
-            mag_enc = mag_enc / exp_t2_star
             mri_signal = (
                 m0
                 * (
@@ -95,8 +93,6 @@ class MriSignalFilter(BaseFilter):
             exp_t2 = np.exp(
                 -np.divide(acq_te, t2, out=np.zeros_like(t2), where=t2 != 0)
             )
-            # divide mag_enc by exp_t2_star so it is numerically correct
-            mag_enc = mag_enc / exp_t2
             mri_signal = (
                 m0
                 * (

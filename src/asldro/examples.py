@@ -138,7 +138,22 @@ def run_full_pipeline():
     )
     delta_m_array: np.ndarray = gkm_filter.outputs[KEY_DELTA_M].image
 
-    comparison = np.allclose(control_label_difference, delta_m_array,)
+    # Compare control - label with delta m from the GkmFilter.  Note that delta m must be multiplied
+    # by exp(-TE/T2*) because control - label is transverse mangetisation and subject to T2* decay
+    # and the output of the GkmFilter is longitudinal magnetisation
+    t2_star_array: np.ndarray = ground_truth_filter.outputs["t2_star"].image
+    comparison = np.allclose(
+        control_label_difference,
+        delta_m_array
+        * np.exp(
+            -np.divide(
+                control_filter.inputs[KEY_ACQ_TE],
+                t2_star_array,
+                out=np.zeros_like(t2_star_array),
+                where=t2_star_array != 0,
+            )
+        ),
+    )
 
     print(f"control - label == delta_m? {comparison}")
     print(

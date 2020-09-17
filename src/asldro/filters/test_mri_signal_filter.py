@@ -215,7 +215,6 @@ def mri_signal_gradient_echo_function(input_data: dict) -> np.ndarray:
     mag_enc: np.ndarray = input_data["mag_enc"].image
     acq_te: float = input_data["acq_te"]
     acq_tr: float = input_data["acq_tr"]
-    mag_enc = mag_enc / np.exp(-acq_te / t2_star)
     return (m0 * (1 - np.exp(-acq_tr / t1)) + mag_enc) * np.exp(-acq_te / t2_star)
 
 
@@ -227,7 +226,6 @@ def mri_signal_spin_echo_function(input_data: dict) -> np.ndarray:
     mag_enc: np.ndarray = input_data["mag_enc"].image
     acq_te: float = input_data["acq_te"]
     acq_tr: float = input_data["acq_tr"]
-    mag_enc = mag_enc / np.exp(-acq_te / t2)
     return (m0 * (1 - np.exp(-acq_tr / t1)) + mag_enc) * np.exp(-acq_te / t2)
 
 
