@@ -10,9 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__name__), "../src"))
 
 
 # -- Project information -----------------------------------------------------
@@ -27,16 +28,24 @@ author = "Tom Hampshire, Aaron Oliver-Taylor"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.mathjax"]
+
+# This value contains a list of modules to be mocked up.
+# This is useful when some external dependencies are not met at build time
+# and break the building process. You may only specify the root package of
+# the dependencies themselves and omit the sub-modules:
+autodoc_mock_imports = ["numpy", "nibabel", "jsonschema"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+
+
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -50,4 +59,4 @@ html_theme = "alabaster"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-
+todo_include_todos = True
