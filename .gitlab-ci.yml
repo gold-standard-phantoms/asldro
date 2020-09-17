@@ -1,5 +1,5 @@
 default:
-    image: python:3.7-slim-buster 
+    image: python:3.7-buster 
 
 before_script:
   # Install ssh-agent if not already installed, it is required by Docker.
@@ -63,3 +63,13 @@ deploy_production:
     - scp dist/* pypi@goldstandardphantoms.com:/var/www/private-pypi/asldro
   only:
     - tags
+
+pages:  
+  stage: test
+  script:
+  - pip install -r docs/requirements.txt
+  - sphinx-build -b html docs public
+  artifacts:
+    paths:
+    - public
+
