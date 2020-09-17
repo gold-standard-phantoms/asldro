@@ -115,4 +115,5 @@ coverage_html_report
 #Output
 output/
 
-
+# vim config
+.vim/
