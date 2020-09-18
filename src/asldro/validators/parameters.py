@@ -17,7 +17,7 @@ class ValidationError(Exception):
 class Validator:
     """ All _validator functions return an object of this class.
     The object can be called with a value to check whether the value
-    is valid. A string method is also available to print the validator's
+    is valid. A string method is also available to display the validator's
     criteria message.
     """
 

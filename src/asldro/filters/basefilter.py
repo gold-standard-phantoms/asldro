@@ -1,8 +1,11 @@
 """ BaseFilter classes and exception handling """
 
 import copy
+import logging
 from typing import List
 from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 
 
 class BaseFilterException(Exception):
@@ -114,6 +117,7 @@ class BaseFilter(ABC):
         Then maps the parents' outputs to inputs for this filter.
         Then calls the _run method on this filter.
         """
+        logger.info(f"Running {self}")
 
         # Don't run anything if the inputs haven't changed
         if not self.needs_run:
@@ -131,7 +135,7 @@ class BaseFilter(ABC):
         for parent_dict in self.parent_dict_list:
             parent_dict[FILTER].run(history=history)
 
-        print(f"Running filter {self}")
+        logger.info(f"Running filter {self}")
         # Populate all of the inputs to this filter
         self.inputs = {}
 

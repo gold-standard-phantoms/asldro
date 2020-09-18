@@ -1,5 +1,6 @@
 """ Add noise filter """
 import numpy as np
+import logging
 
 from asldro.containers.image import BaseImageContainer, SPATIAL_DOMAIN, INVERSE_DOMAIN
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
@@ -9,6 +10,8 @@ from asldro.validators.parameters import (
     isinstance_validator,
     greater_than_validator,
 )
+
+logger = logging.getLogger(__name__)
 
 KEY_IMAGE = "image"
 KEY_SNR = "snr"
@@ -75,8 +78,8 @@ class AddNoiseFilter(BaseFilter):
 
         noise_amplitude_scaling: float = 1.0  # default if domains match
         # Otherwise correct for differences in scaling due to fourier transform
-        # print(f"input image domain is {input_image.data_domain}")
-        # print(f"reference_image domain is {reference_image.data_domain}")
+        logging.debug(f"input image domain is {input_image.data_domain}")
+        logging.debug(f"reference_image domain is {reference_image.data_domain}")
         if (
             input_image.data_domain == SPATIAL_DOMAIN
             and reference_image.data_domain == INVERSE_DOMAIN
@@ -90,14 +93,14 @@ class AddNoiseFilter(BaseFilter):
 
         # Calculate the noise amplitude (i.e. its standard deviation) using the non-zero voxels
         # in the magnitude of the reference image (in case it is complex)
-        # print(f"noise amplitude scaling {noise_amplitude_scaling}")
+        logging.debug(f"noise amplitude scaling {noise_amplitude_scaling}")
         noise_amplitude = (
             noise_amplitude_scaling
             * np.mean(np.abs(reference_image.image[reference_image.image.nonzero()]))
             / (snr)
         )
 
-        print(f"noise amplitude {noise_amplitude}")
+        logging.info(f"noise amplitude {noise_amplitude}")
 
         # Make an image container for the image with noise
         image_with_noise: BaseImageContainer = input_image.clone()

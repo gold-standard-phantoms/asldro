@@ -1,6 +1,8 @@
 """ Examples of filter chains """
 import pprint
 import os
+import logging
+
 import numpy as np
 import nibabel as nib
 
@@ -39,6 +41,8 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def run_full_pipeline():
     """ A function that runs the entire DRO pipeline. This
@@ -58,9 +62,9 @@ def run_full_pipeline():
 
     ground_truth_filter.run()
 
-    print(f"JsonLoaderFilter outputs:\n{pprint.pformat(json_filter.outputs)}")
-    print(f"NiftiLoaderFilter outputs:\n{pprint.pformat(nifti_filter.outputs)}")
-    print(
+    logger.info(f"JsonLoaderFilter outputs:\n{pprint.pformat(json_filter.outputs)}")
+    logger.info(f"NiftiLoaderFilter outputs:\n{pprint.pformat(nifti_filter.outputs)}")
+    logger.info(
         f"GroundTruthLoaderFilter outputs:\n{pprint.pformat(ground_truth_filter.outputs)}"
     )
 
@@ -68,7 +72,7 @@ def run_full_pipeline():
     image_container = NumpyImageContainer(
         image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
     )
-    print(f"NumpyImageContainer:\n{pprint.pformat(image_container)}")
+    logger.info(f"NumpyImageContainer:\n{pprint.pformat(image_container)}")
 
     # Run the GkmFilter on the ground_truth data
     label_duration = 1.8
@@ -89,7 +93,7 @@ def run_full_pipeline():
     gkm_filter.add_input(KEY_T1_ARTERIAL_BLOOD, 1.65)
     gkm_filter.run()
 
-    print(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
+    logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
 
     # Run the MriSignalFilter to obtain control, label and m0scan
     # control: gradient echo, TE=10ms, TR = 5000ms
@@ -102,7 +106,7 @@ def run_full_pipeline():
     control_filter.add_input(KEY_ACQ_TE, 10e-3)
     control_filter.add_input(KEY_ACQ_TR, 5.0)
     control_filter.run()
-    print(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
+    logger.info(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
 
     # label: gradient echo, TE=10ms, TR = 5000ms
     delta_m = gkm_filter.outputs[KEY_DELTA_M].clone()
@@ -119,7 +123,7 @@ def run_full_pipeline():
     label_filter.add_input(KEY_ACQ_TE, 10e-3)
     label_filter.add_input(KEY_ACQ_TR, 5.0)
     label_filter.run()
-    print(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
+    logger.info(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
 
     # m0scan: gradient echo, TE=10ms, TR=10000ms
     m0scan_filter = MriSignalFilter()
@@ -131,7 +135,7 @@ def run_full_pipeline():
     m0scan_filter.add_input(KEY_ACQ_TE, 10e-3)
     m0scan_filter.add_input(KEY_ACQ_TR, 10.0)
     m0scan_filter.run()
-    print(f"m0scan_filter outputs: \n {pprint.pformat(m0scan_filter.outputs)}")
+    logger.info(f"m0scan_filter outputs: \n {pprint.pformat(m0scan_filter.outputs)}")
 
     control_label_difference = (
         control_filter.outputs[KEY_IMAGE].image - label_filter.outputs[KEY_IMAGE].image
@@ -155,8 +159,8 @@ def run_full_pipeline():
         ),
     )
 
-    print(f"control - label == delta_m? {comparison}")
-    print(
+    logger.info(f"control - label == delta_m? {comparison}")
+    logger.info(
         f"residual = {np.sqrt(np.mean((control_label_difference - delta_m_array)**2))}"
     )
     if not os.path.exists("output"):

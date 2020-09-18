@@ -35,4 +35,3 @@ class FilterBlock(BaseFilter):
         filter_block = self._create_filter_block()
         filter_block.run()
         self.outputs = filter_block.outputs
-        print(self.outputs)
