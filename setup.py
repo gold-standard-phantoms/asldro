@@ -22,4 +22,6 @@ setup(
     package_dir={"": "src"},
     install_requires=requirements,
     include_package_data=True,
+    entry_points={"console_scripts": ["asldro=asldro.cli:main"]},
 )
+
