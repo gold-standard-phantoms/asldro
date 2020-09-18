@@ -2,6 +2,9 @@
 import pprint
 import os
 import logging
+import shutil
+from copy import deepcopy
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import nibabel as nib
@@ -40,15 +43,50 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
+from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
 
 logger = logging.getLogger(__name__)
 
+EXAMPLE_INPUT_PARAMS = {
+    "asl_context_array": "m0scan m0scan control label",
+    "label_type": "pCASL",
+    "lambda_blood_brain": 0.9,  # TODO: move into the ground truth loader
+    "t1_arterial_blood": 1.65,  # TODO: move into the ground truth loader
+}
 
-def run_full_pipeline():
+SUPPORTED_EXTENSIONS = [".zip", ".tar.gz"]
+# Used in shutil.make_archive
+EXTENSION_MAPPING = {".zip": "zip", ".tar.gz": "gztar"}
+
+
+def splitext(path):
+    """
+    The normal os.path.splitext treats path/example.tar.gz
+    as having a filepath of path/example.tar with a .gz
+    extension - this fixes it """
+    for ext in [".tar.gz", ".tar.bz2"]:
+        if path.lower().endswith(ext.lower()):
+            return path[: -len(ext)], path[-len(ext) :]
+    return os.path.splitext(path)
+
+
+def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     """ A function that runs the entire DRO pipeline. This
     can be extended as more functionality is included.
     This function is deliberately verbose to explain the
     operation, inputs and outputs of individual filters. """
+
+    if input_params is None:
+        input_params = deepcopy(EXAMPLE_INPUT_PARAMS)
+    if output_filename is not None:
+        _, output_filename_extension = splitext(output_filename)
+        if output_filename_extension not in SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"File output type {output_filename_extension} not supported"
+            )
+
+    # Validate parameter and update defaults
+    input_params = USER_INPUT_VALIDATOR.validate(input_params)
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)
@@ -75,9 +113,6 @@ def run_full_pipeline():
     logger.info(f"NumpyImageContainer:\n{pprint.pformat(image_container)}")
 
     # Run the GkmFilter on the ground_truth data
-    label_duration = 1.8
-    post_label_delay = 1.8
-    signal_time = label_duration + post_label_delay
     gkm_filter = GkmFilter()
     gkm_filter.add_input(
         KEY_PERFUSION_RATE, ground_truth_filter.outputs["perfusion_rate"]
@@ -86,11 +121,11 @@ def run_full_pipeline():
     gkm_filter.add_input(KEY_M0, ground_truth_filter.outputs["m0"])
     gkm_filter.add_input(KEY_T1_TISSUE, ground_truth_filter.outputs["t1"])
     gkm_filter.add_input(KEY_LABEL_TYPE, PCASL)
-    gkm_filter.add_input(KEY_SIGNAL_TIME, signal_time)
-    gkm_filter.add_input(KEY_LABEL_DURATION, label_duration)
-    gkm_filter.add_input(KEY_LABEL_EFFICIENCY, 0.85)
-    gkm_filter.add_input(KEY_LAMBDA_BLOOD_BRAIN, 0.9)
-    gkm_filter.add_input(KEY_T1_ARTERIAL_BLOOD, 1.65)
+    gkm_filter.add_input(KEY_SIGNAL_TIME, input_params["signal_time"])
+    gkm_filter.add_input(KEY_LABEL_DURATION, input_params["label_duration"])
+    gkm_filter.add_input(KEY_LABEL_EFFICIENCY, input_params["label_efficiency"])
+    gkm_filter.add_input(KEY_LAMBDA_BLOOD_BRAIN, input_params["lambda_blood_brain"])
+    gkm_filter.add_input(KEY_T1_ARTERIAL_BLOOD, input_params["t1_arterial_blood"])
     gkm_filter.run()
 
     logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
@@ -163,17 +198,36 @@ def run_full_pipeline():
     logger.info(
         f"residual = {np.sqrt(np.mean((control_label_difference - delta_m_array)**2))}"
     )
-    if not os.path.exists("output"):
-        os.mkdir("output")
 
-    nib.save(control_filter.outputs[KEY_IMAGE]._nifti_image, "output/control.nii.gz")
-    nib.save(label_filter.outputs[KEY_IMAGE]._nifti_image, "output/label.nii.gz")
-    nib.save(m0scan_filter.outputs[KEY_IMAGE]._nifti_image, "output/m0scan.nii.gz")
-    nib.save(
-        ground_truth_filter.outputs["m0"]._nifti_image,
-        "output/m0scan_ground_truth.nii.gz",
-    )
-    nib.save(gkm_filter.outputs[KEY_DELTA_M]._nifti_image, "output/delta_m.nii.gz")
+    # Output everything to a temporary directory
+    with TemporaryDirectory() as temp_dir:
+
+        nib.save(
+            control_filter.outputs[KEY_IMAGE]._nifti_image,
+            os.path.join(temp_dir, "control.nii.gz"),
+        )
+        nib.save(
+            label_filter.outputs[KEY_IMAGE]._nifti_image,
+            os.path.join(temp_dir, "label.nii.gz"),
+        )
+        nib.save(
+            m0scan_filter.outputs[KEY_IMAGE]._nifti_image,
+            os.path.join(temp_dir, "m0scan.nii.gz"),
+        )
+        nib.save(
+            ground_truth_filter.outputs["m0"]._nifti_image,
+            os.path.join(temp_dir, "m0scan_ground_truth.nii.gz"),
+        )
+        nib.save(
+            gkm_filter.outputs[KEY_DELTA_M]._nifti_image,
+            os.path.join(temp_dir, "delta_m.nii.gz"),
+        )
+        if output_filename is not None:
+            filename, file_extension = splitext(output_filename)
+            # output the file archive
+            shutil.make_archive(
+                filename, EXTENSION_MAPPING[file_extension], root_dir=temp_dir
+            )
 
 
 if __name__ == "__main__":
