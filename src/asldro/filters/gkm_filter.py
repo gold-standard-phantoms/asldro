@@ -1,6 +1,7 @@
 """ General Kinetic Model Filter """
 
 import numpy as np
+import logging
 from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -11,6 +12,8 @@ from asldro.validators.parameters import (
     from_list_validator,
     isinstance_validator,
 )
+
+logger = logging.getLogger(__name__)
 
 KEY_PERFUSION_RATE = "perfusion_rate"
 KEY_TRANSIT_TIME = "transit_time"
@@ -117,7 +120,7 @@ class GkmFilter(BaseFilter):
 
         if self.inputs[KEY_LABEL_TYPE].lower() == PASL:
             # do GKM for PASL
-            print("General Kinetic Model for Pulsed ASL")
+            logger.info("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (
                 (1 / t1_arterial_blood if t1_arterial_blood != 0 else 0)
                 - np.divide(
@@ -179,7 +182,7 @@ class GkmFilter(BaseFilter):
 
         elif self.inputs[KEY_LABEL_TYPE].lower() in [CASL, PCASL]:
             # do GKM for CASL/pCASL
-            print("General Kinetic Model for Continuous/pseudo-Continuous ASL")
+            logger.info("General Kinetic Model for Continuous/pseudo-Continuous ASL")
             q_ss_arriving = 1 - np.exp(
                 -np.divide(
                     (signal_time - transit_time),
@@ -286,7 +289,7 @@ class GkmFilter(BaseFilter):
                 KEY_LABEL_TYPE: Parameter(
                     validators=from_list_validator(
                         [CASL, PCASL, PASL], case_insensitive=True
-                    ),
+                    )
                 ),
                 KEY_LABEL_DURATION: Parameter(
                     validators=[
