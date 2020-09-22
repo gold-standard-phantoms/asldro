@@ -397,12 +397,14 @@ def test_for_each_validator():
     validator = for_each_validator(greater_than_validator(0.5))
     assert (
         str(validator)
-        == "Must be a list and for each value in the list: Value(s) must be greater than 0.5"
+        == "Must be a list or tuple and for each value in the list: Value(s) must be greater than 0.5"
     )
     assert validator([0.6, 0.7, 0.8])
+    assert validator((0.7, 0.51, 0.6))
     assert not validator([0.5, 0.6, 0.7])
     assert not validator([0.1, 100, 0.9])
-    assert not validator("not a list")
+    assert not validator((0.7, 0.1, 0.6))
+    assert not validator("not a list or tuple")
 
 
 def test_parameter_validator_valid():
