@@ -254,9 +254,9 @@ def for_each_validator(item_validator=Validator) -> Validator:
     if not isinstance(item_validator, Validator):
         raise TypeError("First argument of `for_each_validator` must be a validator")
     return Validator(
-        lambda value: isinstance(value, list)
+        lambda value: isinstance(value, (list, tuple))
         and all([item_validator(v) for v in value]),
-        f"Must be a list and for each value in the list: {item_validator}",
+        f"Must be a list or tuple and for each value in the list: {item_validator}",
     )
 
 
