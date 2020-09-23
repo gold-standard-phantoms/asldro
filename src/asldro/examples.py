@@ -15,6 +15,7 @@ from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
+from asldro.filters.invert_image_filter import InvertImageFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -129,11 +130,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     control_filter.add_input(control_filter.KEY_ACQ_TR, 5.0)
 
     # label: gradient echo, TE=10ms, TR = 5000ms
-    gkm_filter.run()
-    # TODO: replace with invert image filter (ASLDRO-86)
-    delta_m = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].clone()
     # reverse the polarity of delta_m.image for encoding it into the label signal
-    delta_m.image = -delta_m.image
+    invert_delta_m_filter = InvertImageFilter()
+    invert_delta_m_filter.add_parent_filter(
+        parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
+    )
 
     label_filter = MriSignalFilter()
     label_filter.add_parent_filter(
@@ -145,7 +146,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             "m0": label_filter.KEY_M0,
         },
     )
-    label_filter.add_input(label_filter.KEY_MAG_ENC, delta_m)
+    label_filter.add_parent_filter(
+        parent=invert_delta_m_filter, io_map={"image": label_filter.KEY_MAG_ENC}
+    )
     label_filter.add_input(label_filter.KEY_ACQ_CONTRAST, "ge")
     label_filter.add_input(label_filter.KEY_ACQ_TE, 10e-3)
     label_filter.add_input(label_filter.KEY_ACQ_TR, 5.0)
