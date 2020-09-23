@@ -15,22 +15,6 @@ from asldro.validators.parameters import (
 
 logger = logging.getLogger(__name__)
 
-KEY_PERFUSION_RATE = "perfusion_rate"
-KEY_TRANSIT_TIME = "transit_time"
-KEY_M0 = "m0"
-KEY_LABEL_TYPE = "label_type"
-KEY_LABEL_DURATION = "label_duration"
-KEY_SIGNAL_TIME = "signal_time"
-KEY_LABEL_EFFICIENCY = "label_efficiency"
-KEY_LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
-KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
-KEY_T1_TISSUE = "t1_tissue"
-KEY_DELTA_M = "delta_m"
-
-CASL = "casl"
-PCASL = "pcasl"
-PASL = "pasl"
-
 
 class GkmFilter(BaseFilter):
     """
@@ -64,28 +48,48 @@ class GkmFilter(BaseFilter):
 
     """
 
+    # Key constants
+    KEY_PERFUSION_RATE = "perfusion_rate"
+    KEY_TRANSIT_TIME = "transit_time"
+    KEY_M0 = "m0"
+    KEY_LABEL_TYPE = "label_type"
+    KEY_LABEL_DURATION = "label_duration"
+    KEY_SIGNAL_TIME = "signal_time"
+    KEY_LABEL_EFFICIENCY = "label_efficiency"
+    KEY_LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
+    KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
+    KEY_T1_TISSUE = "t1_tissue"
+    KEY_DELTA_M = "delta_m"
+
+    # Value constants
+    CASL = "casl"
+    PCASL = "pcasl"
+    PASL = "pasl"
+
     def __init__(self):
         super().__init__(name="General Kinetic Model")
 
     def _run(self):
         """ Generates the delta_m signal based on the inputs """
 
-        perfusion_rate: np.ndarray = self.inputs[KEY_PERFUSION_RATE].image / 6000.0
-        transit_time: np.ndarray = self.inputs[KEY_TRANSIT_TIME].image
-        t1_tissue: np.ndarray = self.inputs[KEY_T1_TISSUE].image
+        perfusion_rate: np.ndarray = self.inputs[self.KEY_PERFUSION_RATE].image / 6000.0
+        transit_time: np.ndarray = self.inputs[self.KEY_TRANSIT_TIME].image
+        t1_tissue: np.ndarray = self.inputs[self.KEY_T1_TISSUE].image
 
-        label_duration: float = self.inputs[KEY_LABEL_DURATION]
-        signal_time: float = self.inputs[KEY_SIGNAL_TIME]
-        label_efficiency: float = self.inputs[KEY_LABEL_EFFICIENCY]
-        lambda_blood_brain: float = self.inputs[KEY_LAMBDA_BLOOD_BRAIN]
-        t1_arterial_blood: float = self.inputs[KEY_T1_ARTERIAL_BLOOD]
+        label_duration: float = self.inputs[self.KEY_LABEL_DURATION]
+        signal_time: float = self.inputs[self.KEY_SIGNAL_TIME]
+        label_efficiency: float = self.inputs[self.KEY_LABEL_EFFICIENCY]
+        lambda_blood_brain: float = self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN]
+        t1_arterial_blood: float = self.inputs[self.KEY_T1_ARTERIAL_BLOOD]
 
         # if m0 is an image load that, if not then make a ndarray
         # with the same value (makes the calculations more straightforward)
-        if isinstance(self.inputs[KEY_M0], BaseImageContainer):
-            m0_tissue: np.ndarray = self.inputs[KEY_M0].image
+        if isinstance(self.inputs[self.KEY_M0], BaseImageContainer):
+            m0_tissue: np.ndarray = self.inputs[self.KEY_M0].image
         else:
-            m0_tissue: np.ndarray = self.inputs[KEY_M0] * np.ones(perfusion_rate.shape)
+            m0_tissue: np.ndarray = self.inputs[self.KEY_M0] * np.ones(
+                perfusion_rate.shape
+            )
 
         # calculate M0b, handling runtime divide-by-zeros
         m0_arterial_blood = (
@@ -118,7 +122,7 @@ class GkmFilter(BaseFilter):
 
         delta_m = np.zeros(perfusion_rate.shape)
 
-        if self.inputs[KEY_LABEL_TYPE].lower() == PASL:
+        if self.inputs[self.KEY_LABEL_TYPE].lower() == self.PASL:
             # do GKM for PASL
             logger.info("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (
@@ -180,7 +184,7 @@ class GkmFilter(BaseFilter):
                 * q_pasl_arrived
             )
 
-        elif self.inputs[KEY_LABEL_TYPE].lower() in [CASL, PCASL]:
+        elif self.inputs[self.KEY_LABEL_TYPE].lower() in [self.CASL, self.PCASL]:
             # do GKM for CASL/pCASL
             logger.info("General Kinetic Model for Continuous/pseudo-Continuous ASL")
             q_ss_arriving = 1 - np.exp(
@@ -241,10 +245,10 @@ class GkmFilter(BaseFilter):
         delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
 
         # copy 'perfusion_rate' image container and set the image to delta_m
-        self.outputs[KEY_DELTA_M]: BaseImageContainer = self.inputs[
-            KEY_PERFUSION_RATE
+        self.outputs[self.KEY_DELTA_M]: BaseImageContainer = self.inputs[
+            self.KEY_PERFUSION_RATE
         ].clone()
-        self.outputs[KEY_DELTA_M].image = delta_m
+        self.outputs[self.KEY_DELTA_M].image = delta_m
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
@@ -262,60 +266,60 @@ class GkmFilter(BaseFilter):
          """
         input_validator = ParameterValidator(
             parameters={
-                KEY_PERFUSION_RATE: Parameter(
+                self.KEY_PERFUSION_RATE: Parameter(
                     validators=[
                         greater_than_equal_to_validator(0),
                         isinstance_validator(BaseImageContainer),
                     ]
                 ),
-                KEY_TRANSIT_TIME: Parameter(
+                self.KEY_TRANSIT_TIME: Parameter(
                     validators=[
                         greater_than_equal_to_validator(0),
                         isinstance_validator(BaseImageContainer),
                     ]
                 ),
-                KEY_M0: Parameter(
+                self.KEY_M0: Parameter(
                     validators=[
                         greater_than_equal_to_validator(0),
                         isinstance_validator((BaseImageContainer, float)),
                     ]
                 ),
-                KEY_T1_TISSUE: Parameter(
+                self.KEY_T1_TISSUE: Parameter(
                     validators=[
                         range_inclusive_validator(0, 100),
                         isinstance_validator(BaseImageContainer),
                     ]
                 ),
-                KEY_LABEL_TYPE: Parameter(
+                self.KEY_LABEL_TYPE: Parameter(
                     validators=from_list_validator(
-                        [CASL, PCASL, PASL], case_insensitive=True
+                        [self.CASL, self.PCASL, self.PASL], case_insensitive=True
                     )
                 ),
-                KEY_LABEL_DURATION: Parameter(
+                self.KEY_LABEL_DURATION: Parameter(
                     validators=[
                         range_inclusive_validator(0, 100),
                         isinstance_validator(float),
                     ]
                 ),
-                KEY_SIGNAL_TIME: Parameter(
+                self.KEY_SIGNAL_TIME: Parameter(
                     validators=[
                         range_inclusive_validator(0, 100),
                         isinstance_validator(float),
                     ]
                 ),
-                KEY_LABEL_EFFICIENCY: Parameter(
+                self.KEY_LABEL_EFFICIENCY: Parameter(
                     validators=[
                         range_inclusive_validator(0, 1),
                         isinstance_validator(float),
                     ]
                 ),
-                KEY_LAMBDA_BLOOD_BRAIN: Parameter(
+                self.KEY_LAMBDA_BLOOD_BRAIN: Parameter(
                     validators=[
                         range_inclusive_validator(0, 1),
                         isinstance_validator(float),
                     ]
                 ),
-                KEY_T1_ARTERIAL_BLOOD: Parameter(
+                self.KEY_T1_ARTERIAL_BLOOD: Parameter(
                     validators=[
                         range_inclusive_validator(0, 100),
                         isinstance_validator(float),

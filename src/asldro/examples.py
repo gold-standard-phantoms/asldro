@@ -13,32 +13,8 @@ from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
-from asldro.filters.gkm_filter import (
-    GkmFilter,
-    PCASL,
-    KEY_PERFUSION_RATE,
-    KEY_TRANSIT_TIME,
-    KEY_M0,
-    KEY_LABEL_TYPE,
-    KEY_LABEL_DURATION,
-    KEY_SIGNAL_TIME,
-    KEY_LABEL_EFFICIENCY,
-    KEY_LAMBDA_BLOOD_BRAIN,
-    KEY_T1_ARTERIAL_BLOOD,
-    KEY_T1_TISSUE,
-    KEY_DELTA_M,
-)
-from asldro.filters.mri_signal_filter import (
-    MriSignalFilter,
-    KEY_T1,
-    KEY_T2,
-    KEY_T2_STAR,
-    KEY_MAG_ENC,
-    KEY_ACQ_CONTRAST,
-    KEY_ACQ_TE,
-    KEY_ACQ_TR,
-    KEY_IMAGE,
-)
+from asldro.filters.gkm_filter import GkmFilter
+from asldro.filters.mri_signal_filter import MriSignalFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -115,17 +91,25 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     # Run the GkmFilter on the ground_truth data
     gkm_filter = GkmFilter()
     gkm_filter.add_input(
-        KEY_PERFUSION_RATE, ground_truth_filter.outputs["perfusion_rate"]
+        gkm_filter.KEY_PERFUSION_RATE, ground_truth_filter.outputs["perfusion_rate"]
     )
-    gkm_filter.add_input(KEY_TRANSIT_TIME, ground_truth_filter.outputs["transit_time"])
-    gkm_filter.add_input(KEY_M0, ground_truth_filter.outputs["m0"])
-    gkm_filter.add_input(KEY_T1_TISSUE, ground_truth_filter.outputs["t1"])
-    gkm_filter.add_input(KEY_LABEL_TYPE, PCASL)
-    gkm_filter.add_input(KEY_SIGNAL_TIME, input_params["signal_time"])
-    gkm_filter.add_input(KEY_LABEL_DURATION, input_params["label_duration"])
-    gkm_filter.add_input(KEY_LABEL_EFFICIENCY, input_params["label_efficiency"])
-    gkm_filter.add_input(KEY_LAMBDA_BLOOD_BRAIN, input_params["lambda_blood_brain"])
-    gkm_filter.add_input(KEY_T1_ARTERIAL_BLOOD, input_params["t1_arterial_blood"])
+    gkm_filter.add_input(
+        gkm_filter.KEY_TRANSIT_TIME, ground_truth_filter.outputs["transit_time"]
+    )
+    gkm_filter.add_input(gkm_filter.KEY_M0, ground_truth_filter.outputs["m0"])
+    gkm_filter.add_input(gkm_filter.KEY_T1_TISSUE, ground_truth_filter.outputs["t1"])
+    gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, gkm_filter.PCASL)
+    gkm_filter.add_input(gkm_filter.KEY_SIGNAL_TIME, input_params["signal_time"])
+    gkm_filter.add_input(gkm_filter.KEY_LABEL_DURATION, input_params["label_duration"])
+    gkm_filter.add_input(
+        gkm_filter.KEY_LABEL_EFFICIENCY, input_params["label_efficiency"]
+    )
+    gkm_filter.add_input(
+        gkm_filter.KEY_LAMBDA_BLOOD_BRAIN, input_params["lambda_blood_brain"]
+    )
+    gkm_filter.add_input(
+        gkm_filter.KEY_T1_ARTERIAL_BLOOD, input_params["t1_arterial_blood"]
+    )
     gkm_filter.run()
 
     logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
@@ -133,49 +117,56 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     # Run the MriSignalFilter to obtain control, label and m0scan
     # control: gradient echo, TE=10ms, TR = 5000ms
     control_filter = MriSignalFilter()
-    control_filter.add_input(KEY_T1, ground_truth_filter.outputs["t1"])
-    control_filter.add_input(KEY_T2, ground_truth_filter.outputs["t2"])
-    control_filter.add_input(KEY_T2_STAR, ground_truth_filter.outputs["t2_star"])
-    control_filter.add_input(KEY_M0, ground_truth_filter.outputs["m0"])
-    control_filter.add_input(KEY_ACQ_CONTRAST, "ge")
-    control_filter.add_input(KEY_ACQ_TE, 10e-3)
-    control_filter.add_input(KEY_ACQ_TR, 5.0)
+    control_filter.add_input(control_filter.KEY_T1, ground_truth_filter.outputs["t1"])
+    control_filter.add_input(control_filter.KEY_T2, ground_truth_filter.outputs["t2"])
+    control_filter.add_input(
+        control_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    )
+    control_filter.add_input(control_filter.KEY_M0, ground_truth_filter.outputs["m0"])
+    control_filter.add_input(control_filter.KEY_ACQ_CONTRAST, "ge")
+    control_filter.add_input(control_filter.KEY_ACQ_TE, 10e-3)
+    control_filter.add_input(control_filter.KEY_ACQ_TR, 5.0)
     control_filter.run()
     logger.info(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
 
     # label: gradient echo, TE=10ms, TR = 5000ms
-    delta_m = gkm_filter.outputs[KEY_DELTA_M].clone()
+    delta_m = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].clone()
     # reverse the polarity of delta_m.image for encoding it into the label signal
     t2_star = ground_truth_filter.outputs["t2_star"].image
     delta_m.image = -delta_m.image
     label_filter = MriSignalFilter()
-    label_filter.add_input(KEY_T1, ground_truth_filter.outputs["t1"])
-    label_filter.add_input(KEY_T2, ground_truth_filter.outputs["t2"])
-    label_filter.add_input(KEY_T2_STAR, ground_truth_filter.outputs["t2_star"])
-    label_filter.add_input(KEY_M0, ground_truth_filter.outputs["m0"])
-    label_filter.add_input(KEY_MAG_ENC, delta_m)
-    label_filter.add_input(KEY_ACQ_CONTRAST, "ge")
-    label_filter.add_input(KEY_ACQ_TE, 10e-3)
-    label_filter.add_input(KEY_ACQ_TR, 5.0)
+    label_filter.add_input(label_filter.KEY_T1, ground_truth_filter.outputs["t1"])
+    label_filter.add_input(label_filter.KEY_T2, ground_truth_filter.outputs["t2"])
+    label_filter.add_input(
+        label_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    )
+    label_filter.add_input(label_filter.KEY_M0, ground_truth_filter.outputs["m0"])
+    label_filter.add_input(label_filter.KEY_MAG_ENC, delta_m)
+    label_filter.add_input(label_filter.KEY_ACQ_CONTRAST, "ge")
+    label_filter.add_input(label_filter.KEY_ACQ_TE, 10e-3)
+    label_filter.add_input(label_filter.KEY_ACQ_TR, 5.0)
     label_filter.run()
     logger.info(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
 
     # m0scan: gradient echo, TE=10ms, TR=10000ms
     m0scan_filter = MriSignalFilter()
-    m0scan_filter.add_input(KEY_T1, ground_truth_filter.outputs["t1"])
-    m0scan_filter.add_input(KEY_T2, ground_truth_filter.outputs["t2"])
-    m0scan_filter.add_input(KEY_T2_STAR, ground_truth_filter.outputs["t2_star"])
-    m0scan_filter.add_input(KEY_M0, ground_truth_filter.outputs["m0"])
-    m0scan_filter.add_input(KEY_ACQ_CONTRAST, "ge")
-    m0scan_filter.add_input(KEY_ACQ_TE, 10e-3)
-    m0scan_filter.add_input(KEY_ACQ_TR, 10.0)
+    m0scan_filter.add_input(m0scan_filter.KEY_T1, ground_truth_filter.outputs["t1"])
+    m0scan_filter.add_input(m0scan_filter.KEY_T2, ground_truth_filter.outputs["t2"])
+    m0scan_filter.add_input(
+        m0scan_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    )
+    m0scan_filter.add_input(m0scan_filter.KEY_M0, ground_truth_filter.outputs["m0"])
+    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_CONTRAST, "ge")
+    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TE, 10e-3)
+    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TR, 10.0)
     m0scan_filter.run()
     logger.info(f"m0scan_filter outputs: \n {pprint.pformat(m0scan_filter.outputs)}")
 
     control_label_difference = (
-        control_filter.outputs[KEY_IMAGE].image - label_filter.outputs[KEY_IMAGE].image
+        control_filter.outputs[control_filter.KEY_IMAGE].image
+        - label_filter.outputs[label_filter.KEY_IMAGE].image
     )
-    delta_m_array: np.ndarray = gkm_filter.outputs[KEY_DELTA_M].image
+    delta_m_array: np.ndarray = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].image
 
     # Compare control - label with delta m from the GkmFilter.  Note that delta m must be multiplied
     # by exp(-TE/T2*) because control - label is transverse mangetisation and subject to T2* decay
@@ -186,7 +177,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         delta_m_array
         * np.exp(
             -np.divide(
-                control_filter.inputs[KEY_ACQ_TE],
+                control_filter.inputs[control_filter.KEY_ACQ_TE],
                 t2_star_array,
                 out=np.zeros_like(t2_star_array),
                 where=t2_star_array != 0,
@@ -203,15 +194,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     with TemporaryDirectory() as temp_dir:
 
         nib.save(
-            control_filter.outputs[KEY_IMAGE]._nifti_image,
+            control_filter.outputs[control_filter.KEY_IMAGE]._nifti_image,
             os.path.join(temp_dir, "control.nii.gz"),
         )
         nib.save(
-            label_filter.outputs[KEY_IMAGE]._nifti_image,
+            label_filter.outputs[label_filter.KEY_IMAGE]._nifti_image,
             os.path.join(temp_dir, "label.nii.gz"),
         )
         nib.save(
-            m0scan_filter.outputs[KEY_IMAGE]._nifti_image,
+            m0scan_filter.outputs[m0scan_filter.KEY_IMAGE]._nifti_image,
             os.path.join(temp_dir, "m0scan.nii.gz"),
         )
         nib.save(
@@ -219,7 +210,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             os.path.join(temp_dir, "m0scan_ground_truth.nii.gz"),
         )
         nib.save(
-            gkm_filter.outputs[KEY_DELTA_M]._nifti_image,
+            gkm_filter.outputs[gkm_filter.KEY_DELTA_M]._nifti_image,
             os.path.join(temp_dir, "delta_m.nii.gz"),
         )
         if output_filename is not None:

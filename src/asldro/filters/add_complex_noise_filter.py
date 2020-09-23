@@ -3,12 +3,7 @@ from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import FilterBlock
 from asldro.filters.fourier_filter import FftFilter, IfftFilter
-from asldro.filters.add_noise_filter import (
-    AddNoiseFilter,
-    KEY_IMAGE,
-    KEY_REF_IMAGE,
-    KEY_SNR,
-)
+from asldro.filters.add_noise_filter import AddNoiseFilter
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
@@ -37,6 +32,10 @@ class AddComplexNoiseFilter(FilterBlock):
         'image' (BaseImageContainer): The input image with noise added.
     """
 
+    KEY_IMAGE = AddNoiseFilter.KEY_IMAGE
+    KEY_REF_IMAGE = AddNoiseFilter.KEY_REF_IMAGE
+    KEY_SNR = AddNoiseFilter.KEY_SNR
+
     def __init__(self):
         super().__init__(name="add complex noise")
 
@@ -45,21 +44,23 @@ class AddComplexNoiseFilter(FilterBlock):
         the noise amplitude, adds this to the FT of the input image, then
         inverse fourier transforms to obtain the output image """
 
-        input_image: BaseImageContainer = self.inputs[KEY_IMAGE]
+        input_image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
         # Fourier transform the input image
         image_fft_filter = FftFilter()
-        image_fft_filter.add_input(KEY_IMAGE, input_image)
+        image_fft_filter.add_input(self.KEY_IMAGE, input_image)
 
         # Create the noise filter
         add_noise_filter = AddNoiseFilter()
         add_noise_filter.add_parent_filter(image_fft_filter)
-        add_noise_filter.add_input(KEY_SNR, self.inputs[KEY_SNR])
+        add_noise_filter.add_input(self.KEY_SNR, self.inputs[self.KEY_SNR])
 
         # If present load the reference image, if not, copy the input_image
-        if KEY_REF_IMAGE in self.inputs:
-            add_noise_filter.add_input(KEY_REF_IMAGE, self.inputs[KEY_REF_IMAGE])
+        if self.KEY_REF_IMAGE in self.inputs:
+            add_noise_filter.add_input(
+                self.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE]
+            )
         else:
-            add_noise_filter.add_input(KEY_REF_IMAGE, self.inputs[KEY_IMAGE])
+            add_noise_filter.add_input(self.KEY_REF_IMAGE, self.inputs[self.KEY_IMAGE])
 
         # Inverse Fourier Transform and set the output
         ifft_filter = IfftFilter()
@@ -74,13 +75,13 @@ class AddComplexNoiseFilter(FilterBlock):
         """
         input_validator = ParameterValidator(
             parameters={
-                KEY_IMAGE: Parameter(
+                self.KEY_IMAGE: Parameter(
                     validators=isinstance_validator(BaseImageContainer)
                 ),
-                KEY_SNR: Parameter(
+                self.KEY_SNR: Parameter(
                     validators=[isinstance_validator(float), greater_than_validator(0)]
                 ),
-                KEY_REF_IMAGE: Parameter(
+                self.KEY_REF_IMAGE: Parameter(
                     validators=isinstance_validator(BaseImageContainer), optional=True
                 ),
             }
