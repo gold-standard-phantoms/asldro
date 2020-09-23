@@ -51,7 +51,7 @@ class MriSignalFilter(BaseFilter):
     CONTRAST_GE = "ge"
     CONTRAST_SE = "se"
 
-    def __init(self):
+    def __init__(self):
         super().__init__(name="MRI Signal Model")
 
     def _run(self):

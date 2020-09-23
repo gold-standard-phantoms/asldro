@@ -77,17 +77,18 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     ground_truth_filter.run()
 
-    logger.info(f"JsonLoaderFilter outputs:\n{pprint.pformat(json_filter.outputs)}")
-    logger.info(f"NiftiLoaderFilter outputs:\n{pprint.pformat(nifti_filter.outputs)}")
+    logger.info("JsonLoaderFilter outputs:\n%s", pprint.pformat(json_filter.outputs))
+    logger.info("NiftiLoaderFilter outputs:\n%s", pprint.pformat(nifti_filter.outputs))
     logger.info(
-        f"GroundTruthLoaderFilter outputs:\n{pprint.pformat(ground_truth_filter.outputs)}"
+        "GroundTruthLoaderFilter outputs:\n%s",
+        pprint.pformat(ground_truth_filter.outputs),
     )
 
     # Create an image container in the INVERSE_DOMAIN
     image_container = NumpyImageContainer(
         image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
     )
-    logger.info(f"NumpyImageContainer:\n{pprint.pformat(image_container)}")
+    logger.info("NumpyImageContainer:\n%s", pprint.pformat(image_container))
 
     # Run the GkmFilter on the ground_truth data
     gkm_filter = GkmFilter()
@@ -168,12 +169,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TE, 10e-3)
     m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TR, 10.0)
 
-    # logging
-    logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
-    logger.info(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
-    logger.info(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
-    logger.info(f"m0scan_filter outputs: \n {pprint.pformat(m0scan_filter.outputs)}")
-
     control_filter.run()
     label_filter.run()
     m0scan_filter.run()
@@ -181,6 +176,12 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         control_filter.outputs[control_filter.KEY_IMAGE].image
         - label_filter.outputs[label_filter.KEY_IMAGE].image
     )
+    # logging
+    logger.info("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
+    logger.info("control_filter outputs: \n %s", pprint.pformat(control_filter.outputs))
+    logger.info("label_filter outputs: \n %s", pprint.pformat(label_filter.outputs))
+    logger.info("m0scan_filter outputs: \n %s", pprint.pformat(m0scan_filter.outputs))
+
     delta_m_array: np.ndarray = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].image
 
     # Compare control - label with delta m from the GkmFilter.  Note that delta m must be multiplied
@@ -200,9 +201,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         ),
     )
 
-    logger.info(f"control - label == delta_m? {comparison}")
+    logger.info("control - label == delta_m? %s", comparison)
     logger.info(
-        f"residual = {np.sqrt(np.mean((control_label_difference - delta_m_array)**2))}"
+        "residual = %s",
+        np.sqrt(np.mean((control_label_difference - delta_m_array) ** 2)),
     )
 
     # Output everything to a temporary directory

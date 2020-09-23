@@ -133,7 +133,7 @@ class BaseFilter(ABC):
         for parent_dict in self.parent_dict_list:
             parent_dict[FILTER].run(history=history)
 
-        logger.info(f"Running {self}")
+        logger.info("Running %s", self)
         # Populate all of the inputs to this filter
         self.inputs = {}
 
