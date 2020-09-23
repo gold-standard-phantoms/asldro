@@ -13,10 +13,6 @@ from asldro.validators.parameters import (
 
 logger = logging.getLogger(__name__)
 
-KEY_IMAGE = "image"
-KEY_SNR = "snr"
-KEY_REF_IMAGE = "reference_image"
-
 
 class AddNoiseFilter(BaseFilter):
     """
@@ -59,6 +55,11 @@ class AddNoiseFilter(BaseFilter):
     This is how the AddNoiseFilter is used within the AddComplexNoiseFilter
     """
 
+    # Key constants
+    KEY_IMAGE = "image"
+    KEY_SNR = "snr"
+    KEY_REF_IMAGE = "reference_image"
+
     def __init__(self):
         super().__init__(name="add noise")
 
@@ -66,13 +67,13 @@ class AddNoiseFilter(BaseFilter):
         """ Calculate the noise amplitude, adds input image, and
         return the result"""
 
-        input_image: BaseImageContainer = self.inputs[KEY_IMAGE]
-        snr: float = self.inputs[KEY_SNR]
+        input_image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
+        snr: float = self.inputs[self.KEY_SNR]
 
         # If present load the reference image, if not
         # copy the input_image
-        if KEY_REF_IMAGE in self.inputs:
-            reference_image: BaseImageContainer = self.inputs[KEY_REF_IMAGE]
+        if self.KEY_REF_IMAGE in self.inputs:
+            reference_image: BaseImageContainer = self.inputs[self.KEY_REF_IMAGE]
         else:
             reference_image: BaseImageContainer = input_image
 
@@ -122,7 +123,7 @@ class AddNoiseFilter(BaseFilter):
                 0, noise_amplitude, input_image.shape
             )
 
-        self.outputs[KEY_IMAGE] = image_with_noise
+        self.outputs[self.KEY_IMAGE] = image_with_noise
 
     def _validate_inputs(self):
         """
@@ -133,13 +134,13 @@ class AddNoiseFilter(BaseFilter):
         """
         input_validator = ParameterValidator(
             parameters={
-                KEY_IMAGE: Parameter(
+                self.KEY_IMAGE: Parameter(
                     validators=isinstance_validator(BaseImageContainer)
                 ),
-                KEY_SNR: Parameter(
+                self.KEY_SNR: Parameter(
                     validators=[isinstance_validator(float), greater_than_validator(0)]
                 ),
-                KEY_REF_IMAGE: Parameter(
+                self.KEY_REF_IMAGE: Parameter(
                     validators=isinstance_validator(BaseImageContainer), optional=True
                 ),
             }
@@ -148,9 +149,9 @@ class AddNoiseFilter(BaseFilter):
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
 
         # If 'reference_image' is supplied, check that its dimensions match 'image'
-        if KEY_REF_IMAGE in self.inputs:
-            input_reference_image = self.inputs[KEY_REF_IMAGE]
-            input_image = self.inputs[KEY_IMAGE]
+        if self.KEY_REF_IMAGE in self.inputs:
+            input_reference_image = self.inputs[self.KEY_REF_IMAGE]
+            input_image = self.inputs[self.KEY_IMAGE]
             if not isinstance(input_reference_image, BaseImageContainer):
                 raise FilterInputValidationError(
                     f"Input 'reference_image' is not a BaseImageContainer"
