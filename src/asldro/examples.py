@@ -15,6 +15,7 @@ from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
+from asldro.filters.invert_image_filter import InvertImageFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -90,14 +91,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     # Run the GkmFilter on the ground_truth data
     gkm_filter = GkmFilter()
-    gkm_filter.add_input(
-        gkm_filter.KEY_PERFUSION_RATE, ground_truth_filter.outputs["perfusion_rate"]
+    gkm_filter.add_parent_filter(
+        parent=ground_truth_filter,
+        io_map={
+            "perfusion_rate": gkm_filter.KEY_PERFUSION_RATE,
+            "transit_time": gkm_filter.KEY_TRANSIT_TIME,
+            "m0": gkm_filter.KEY_M0,
+            "t1": gkm_filter.KEY_T1_TISSUE,
+        },
     )
-    gkm_filter.add_input(
-        gkm_filter.KEY_TRANSIT_TIME, ground_truth_filter.outputs["transit_time"]
-    )
-    gkm_filter.add_input(gkm_filter.KEY_M0, ground_truth_filter.outputs["m0"])
-    gkm_filter.add_input(gkm_filter.KEY_T1_TISSUE, ground_truth_filter.outputs["t1"])
     gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, gkm_filter.PCASL)
     gkm_filter.add_input(gkm_filter.KEY_SIGNAL_TIME, input_params["signal_time"])
     gkm_filter.add_input(gkm_filter.KEY_LABEL_DURATION, input_params["label_duration"])
@@ -110,58 +112,71 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     gkm_filter.add_input(
         gkm_filter.KEY_T1_ARTERIAL_BLOOD, input_params["t1_arterial_blood"]
     )
-    gkm_filter.run()
-
-    logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
 
     # Run the MriSignalFilter to obtain control, label and m0scan
     # control: gradient echo, TE=10ms, TR = 5000ms
     control_filter = MriSignalFilter()
-    control_filter.add_input(control_filter.KEY_T1, ground_truth_filter.outputs["t1"])
-    control_filter.add_input(control_filter.KEY_T2, ground_truth_filter.outputs["t2"])
-    control_filter.add_input(
-        control_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    control_filter.add_parent_filter(
+        parent=ground_truth_filter,
+        io_map={
+            "t1": control_filter.KEY_T1,
+            "t2": control_filter.KEY_T2,
+            "t2_star": control_filter.KEY_T2_STAR,
+            "m0": control_filter.KEY_M0,
+        },
     )
-    control_filter.add_input(control_filter.KEY_M0, ground_truth_filter.outputs["m0"])
     control_filter.add_input(control_filter.KEY_ACQ_CONTRAST, "ge")
     control_filter.add_input(control_filter.KEY_ACQ_TE, 10e-3)
     control_filter.add_input(control_filter.KEY_ACQ_TR, 5.0)
-    control_filter.run()
-    logger.info(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
 
     # label: gradient echo, TE=10ms, TR = 5000ms
-    delta_m = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].clone()
     # reverse the polarity of delta_m.image for encoding it into the label signal
-    t2_star = ground_truth_filter.outputs["t2_star"].image
-    delta_m.image = -delta_m.image
-    label_filter = MriSignalFilter()
-    label_filter.add_input(label_filter.KEY_T1, ground_truth_filter.outputs["t1"])
-    label_filter.add_input(label_filter.KEY_T2, ground_truth_filter.outputs["t2"])
-    label_filter.add_input(
-        label_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    invert_delta_m_filter = InvertImageFilter()
+    invert_delta_m_filter.add_parent_filter(
+        parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
     )
-    label_filter.add_input(label_filter.KEY_M0, ground_truth_filter.outputs["m0"])
-    label_filter.add_input(label_filter.KEY_MAG_ENC, delta_m)
+
+    label_filter = MriSignalFilter()
+    label_filter.add_parent_filter(
+        parent=ground_truth_filter,
+        io_map={
+            "t1": label_filter.KEY_T1,
+            "t2": label_filter.KEY_T2,
+            "t2_star": label_filter.KEY_T2_STAR,
+            "m0": label_filter.KEY_M0,
+        },
+    )
+    label_filter.add_parent_filter(
+        parent=invert_delta_m_filter, io_map={"image": label_filter.KEY_MAG_ENC}
+    )
     label_filter.add_input(label_filter.KEY_ACQ_CONTRAST, "ge")
     label_filter.add_input(label_filter.KEY_ACQ_TE, 10e-3)
     label_filter.add_input(label_filter.KEY_ACQ_TR, 5.0)
-    label_filter.run()
-    logger.info(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
 
     # m0scan: gradient echo, TE=10ms, TR=10000ms
     m0scan_filter = MriSignalFilter()
-    m0scan_filter.add_input(m0scan_filter.KEY_T1, ground_truth_filter.outputs["t1"])
-    m0scan_filter.add_input(m0scan_filter.KEY_T2, ground_truth_filter.outputs["t2"])
-    m0scan_filter.add_input(
-        m0scan_filter.KEY_T2_STAR, ground_truth_filter.outputs["t2_star"]
+    m0scan_filter.add_parent_filter(
+        parent=ground_truth_filter,
+        io_map={
+            "t1": m0scan_filter.KEY_T1,
+            "t2": m0scan_filter.KEY_T2,
+            "t2_star": m0scan_filter.KEY_T2_STAR,
+            "m0": m0scan_filter.KEY_M0,
+        },
     )
-    m0scan_filter.add_input(m0scan_filter.KEY_M0, ground_truth_filter.outputs["m0"])
     m0scan_filter.add_input(m0scan_filter.KEY_ACQ_CONTRAST, "ge")
     m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TE, 10e-3)
     m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TR, 10.0)
-    m0scan_filter.run()
+
+    # logging
+    logger.info(f"GkmFilter outputs: \n {pprint.pformat(gkm_filter.outputs)}")
+    logger.info(f"control_filter outputs: \n {pprint.pformat(control_filter.outputs)}")
+    logger.info(f"label_filter outputs: \n {pprint.pformat(label_filter.outputs)}")
     logger.info(f"m0scan_filter outputs: \n {pprint.pformat(m0scan_filter.outputs)}")
 
+    control_filter.run()
+    label_filter.run()
+    m0scan_filter.run()
     control_label_difference = (
         control_filter.outputs[control_filter.KEY_IMAGE].image
         - label_filter.outputs[label_filter.KEY_IMAGE].image

@@ -117,8 +117,6 @@ class BaseFilter(ABC):
         Then maps the parents' outputs to inputs for this filter.
         Then calls the _run method on this filter.
         """
-        logger.info(f"Running {self}")
-
         # Don't run anything if the inputs haven't changed
         if not self.needs_run:
             return
@@ -135,7 +133,7 @@ class BaseFilter(ABC):
         for parent_dict in self.parent_dict_list:
             parent_dict[FILTER].run(history=history)
 
-        logger.info(f"Running filter {self}")
+        logger.info(f"Running {self}")
         # Populate all of the inputs to this filter
         self.inputs = {}
 
@@ -153,8 +151,8 @@ class BaseFilter(ABC):
                     # Use the io_map lookup to check the output_key exists
                     if output_key not in parent_dict[IO_MAP]:
                         input_key = None
-
-                    input_key = parent_dict[IO_MAP][output_key]
+                    else:
+                        input_key = parent_dict[IO_MAP][output_key]
 
                 if input_key is not None:
                     # We have a mapping from output to input
