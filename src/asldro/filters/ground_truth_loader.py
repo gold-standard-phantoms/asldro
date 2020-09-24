@@ -20,8 +20,13 @@ class GroundTruthLoaderFilter(BaseFilter):
     same as those input EXCEPT for a quantity labelled "seg_label"
     which will be converted to a uint16 data type.
 
-    The "segmentation" object from the
-    JSON file will also be piped through to an output.
+    The "segmentation" object from the JSON file will also be
+    piped through to the output.
+
+    The "parameters" object from the JSON file will also be destructured
+    and piped through to the output i.e. "parameters" will not appear in 
+    "outputs", but all of its children will e.g. "t1_arterial_blood" and
+    "lambda_blood_brain".
     """
 
     def __init__(self):
@@ -62,6 +67,10 @@ class GroundTruthLoaderFilter(BaseFilter):
                 )
             )
             self.outputs[quantity] = new_image_container
+        # Pipe through the segmetation object
+        self.outputs["segmentation"] = self.inputs["segmentation"]
+        # Pipe through all parameters
+        self.outputs = {**self.outputs, **self.inputs["parameters"]}
 
     def _validate_inputs(self):
         """ There must be a input called 'image' with a ImageContainer.

@@ -49,9 +49,29 @@ def test_ground_truth_loader_filter_with_mock_data():
         ground_truth_filter.add_input(
             "segmentation", {"csf": 3, "grey_matter": 1, "white_matter": 2}
         )
+        ground_truth_filter.add_input(
+            "parameters",
+            {
+                "lambda_blood_brain": 0.9,
+                "t1_arterial_blood": 1.65,
+                "magnetic_field_strength": 3.0,
+            },
+        )
 
         # Should run without error
         ground_truth_filter.run()
+
+        # Should be piped through
+        assert ground_truth_filter.outputs["segmentation"] == {
+            "csf": 3,
+            "grey_matter": 1,
+            "white_matter": 2,
+        }
+
+        # Parameters should be piped through individually
+        assert ground_truth_filter.outputs["lambda_blood_brain"] == 0.9
+        assert ground_truth_filter.outputs["t1_arterial_blood"] == 1.65
+        assert ground_truth_filter.outputs["magnetic_field_strength"] == 3.0
 
         assert ground_truth_filter.outputs["perfusion_rate"].image.dtype == np.float32
         numpy.testing.assert_array_equal(

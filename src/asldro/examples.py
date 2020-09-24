@@ -27,8 +27,6 @@ logger = logging.getLogger(__name__)
 EXAMPLE_INPUT_PARAMS = {
     "asl_context_array": "m0scan m0scan control label",
     "label_type": "pCASL",
-    "lambda_blood_brain": 0.9,  # TODO: move into the ground truth loader
-    "t1_arterial_blood": 1.65,  # TODO: move into the ground truth loader
 }
 
 SUPPORTED_EXTENSIONS = [".zip", ".tar.gz"]
@@ -99,6 +97,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             "transit_time": gkm_filter.KEY_TRANSIT_TIME,
             "m0": gkm_filter.KEY_M0,
             "t1": gkm_filter.KEY_T1_TISSUE,
+            "lambda_blood_brain": gkm_filter.KEY_LAMBDA_BLOOD_BRAIN,
+            "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
         },
     )
     gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, gkm_filter.PCASL)
@@ -106,12 +106,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     gkm_filter.add_input(gkm_filter.KEY_LABEL_DURATION, input_params["label_duration"])
     gkm_filter.add_input(
         gkm_filter.KEY_LABEL_EFFICIENCY, input_params["label_efficiency"]
-    )
-    gkm_filter.add_input(
-        gkm_filter.KEY_LAMBDA_BLOOD_BRAIN, input_params["lambda_blood_brain"]
-    )
-    gkm_filter.add_input(
-        gkm_filter.KEY_T1_ARTERIAL_BLOOD, input_params["t1_arterial_blood"]
     )
 
     # Run the MriSignalFilter to obtain control, label and m0scan
