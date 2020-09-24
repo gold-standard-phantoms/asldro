@@ -28,25 +28,32 @@ class AffineMatrixFilter(BaseFilter):
     translate
     scale
 
-    ### Inputs
-    Parameters are all keyword arguments for the add_inputs() member function
+    
+    **Inputs**
 
-    :param rotation: angles to rotate about the x, y and z axes in degrees
-    (-180 to 180 degrees inclusive, default (0, 0, 0))
-    :type rotation: Tuple[float, float, float]
-    :param rotation_origin: coordinates of the point to perform rotations about (default (0, 0, 0))
-    :type rotation_origin: Tuple[float, float, float]
-    :param translation: amount to translate along the x, y and z axes (default (0, 0, 0))
-    :type translation: Tuple[float, float, float]
-    :param scale: scaling factors along each axis (default (1, 1, 1))
-    :type scale: Tuple[float, float, float]
-    :param affine: input 4x4 affine matrix to apply transformation to (default `numpy.eye(4)`)
-    :type affine: np.ndarray(4)
+    Input Parameters are all keyword arguments for the :class:`AffineMatrixFilter.add_inputs()` member function. They are also
+    accessible via class constants, for example :class:`AffineMatrixFilter.KEY_ROTATION`
 
-    ### Outputs
-    :param affine: output 4x4 affine matrix with all transformations combined.
-    All input parameters are optional, if no inputs are supplied
-    `'affine' = numpy.eye(4)`
+    :param 'rotation': angles to rotate about the x, y and z axes in degrees
+        (-180 to 180 degrees inclusive), defaults to (0, 0, 0)
+    :type 'rotation': Tuple[float, float, float], optional
+    :param 'rotation_origin': coordinates of the point to perform rotations about, defaults to (0, 0, 0)
+    :type 'rotation_origin': Tuple[float, float, float], optional
+    :param 'translation': amount to translate along the x, y and z axes. defaults to (0, 0, 0)
+    :type 'translation': Tuple[float, float, float], optional
+    :param 'scale': scaling factors along each axis, defaults to (1, 1, 1)
+    :type 'scale': Tuple[float, float, float], optional
+    :param 'affine': input 4x4 affine matrix to apply transformation to, defaults to `numpy.eye(4)`
+    :type 'affine': np.ndarray(4), optional
+
+    **Outputs**
+
+    Once run, the filter will populate the dictionary :class:`AffineMatrixFilter.outputs` with the
+    following entries
+
+    :param 'affine':  4x4 affine matrix with all transformations combined.
+    :type 'affine': np.ndarray(4)
+    
     """
 
     KEY_ROTATION = "rotation"
