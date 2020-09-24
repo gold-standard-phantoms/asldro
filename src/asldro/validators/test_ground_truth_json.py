@@ -18,7 +18,11 @@ def test_valid_ground_truth_json():
             "seg_label",
         ],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
-        "parameters": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     validate_input(input_dict=json)
 
@@ -36,7 +40,11 @@ def test_ground_truth_typos_a():
             "seg_label",
         ],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
-        "parameters": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)
@@ -55,7 +63,11 @@ def test_ground_truth_typos_b():
             "seg_label",
         ],
         "seg": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
-        "parameters": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)
@@ -74,7 +86,11 @@ def test_ground_truth_typos_c():
             "seg_label",
         ],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
-        "params": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
+        "params": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)
@@ -100,14 +116,19 @@ def test_ground_truth_json_missing_segmentation():
             "t2",
             "t2_star",
             "seg_label",
-        ]
+        ],
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)
 
 
 def test_ground_truth_missing_parameters():
-    """ Test missing 'segmentation' property raises error """
+    """ Test missing 'parameters' property raises error """
     json = {
         "quantities": [
             "perfusion_rate",

@@ -9,10 +9,15 @@ schema = {
         "segmentation": {"type": "object", "additionalProperties": {"type": "integer"}},
         "parameters": {
             "type": "object",
-            "required": ["lambda_blood_brain", "t1_arterial_blood"],
+            "required": [
+                "lambda_blood_brain",
+                "t1_arterial_blood",
+                "magnetic_field_strength",
+            ],
             "properties": {
                 "lambda_blood_brain": {"type": "number"},
                 "t1_arterial_blood": {"type": "number"},
+                "magnetic_field_strength": {"type": "number"},
             },
         },
     },

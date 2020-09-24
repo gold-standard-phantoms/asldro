@@ -15,6 +15,7 @@
   },
   "parameters": {
     "lambda_blood_brain": 0.9,
-    "t1_arterial_blood": 1.65
+    "t1_arterial_blood": 1.65,
+    "magnetic_field_strength": 3.0
   }
 }
