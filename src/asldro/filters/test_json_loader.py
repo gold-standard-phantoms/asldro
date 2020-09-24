@@ -78,6 +78,7 @@ def test_json_loader_input_validation_schema_mismatch():
                 "seg_label",
             ],
             "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
+            "parameters": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
         }
         temp_file = os.path.join(temp_dir, "file.json")
         with open(temp_file, "w") as file:
@@ -107,6 +108,7 @@ def test_json_loader_input_validation_correct_functionality():
                 "seg_label",
             ],
             "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
+            "parameters": {"lambda_blood_brain": 0.9, "t1_arterial_blood": 1.65},
         }
         temp_file = os.path.join(temp_dir, "file.json")
         with open(temp_file, "w") as file:
@@ -127,4 +129,8 @@ def test_json_loader_input_validation_correct_functionality():
             "csf": 3,
             "grey_matter": 1,
             "white_matter": 2,
+        }
+        assert json_loader_filter.outputs["parameters"] == {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
         }

@@ -3,11 +3,20 @@ from jsonschema import validate
 
 schema = {
     "type": "object",
-    "required": ["quantities", "segmentation"],
+    "required": ["quantities", "segmentation", "parameters"],
     "properties": {
         "quantities": {"type": "array", "items": {"type": "string"}},
         "segmentation": {"type": "object", "additionalProperties": {"type": "integer"}},
+        "parameters": {
+            "type": "object",
+            "required": ["lambda_blood_brain", "t1_arterial_blood"],
+            "properties": {
+                "lambda_blood_brain": {"type": "number"},
+                "t1_arterial_blood": {"type": "number"},
+            },
+        },
     },
+    "additionalProperties": False,
 }
 
 

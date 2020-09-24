@@ -12,5 +12,9 @@
     "csf": 3,
     "grey_matter": 1,
     "white_matter": 2
+  },
+  "parameters": {
+    "lambda_blood_brain": 0.9,
+    "t1_arterial_blood": 1.65
   }
 }
