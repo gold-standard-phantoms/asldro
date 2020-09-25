@@ -147,11 +147,17 @@ class AffineMatrixFilter(BaseFilter):
             )
         )
 
+        # inverse of rotation_origin_translation_matrix  doesn't need to be inverted,
+        # it is simply 2*np.eye(4) - rotation_origin_translation_matrix
+        inv_rotation_origin_translation_matrix = (
+            2 * np.eye(4) - rotation_origin_translation_matrix
+        )
+
         # combine
         output_affine: np.ndarray = (
             scale_matrix
             @ translation_matrix
-            @ np.linalg.inv(rotation_origin_translation_matrix)
+            @ inv_rotation_origin_translation_matrix
             @ rotation_z_matrix
             @ rotation_y_matrix
             @ rotation_x_matrix

@@ -212,6 +212,7 @@ def test_affine_matrix_filter_mock_data(
     affine_filter.add_input("scale", scale)
     affine_filter.run()
 
+    # transformed vector and expected should be equal to 15 decimal places
     numpy.testing.assert_array_almost_equal(
-        affine_filter.outputs["affine"] @ vector, expected
+        affine_filter.outputs["affine"] @ vector, expected, 15
     )
