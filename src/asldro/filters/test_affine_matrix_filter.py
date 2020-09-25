@@ -105,7 +105,9 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
 def test_affine_matrix_filter_validate_inputs(validation_data: dict):
-
+    """ Check a FilterInputValidationError is raised when the
+    inputs to the AffineMatrixFilter are incorrect or missing
+    """
     # Check with all data that should pass
     affine_filter = AffineMatrixFilter()
     test_data = deepcopy(validation_data)
@@ -138,7 +140,8 @@ def test_affine_matrix_filter_validate_inputs(validation_data: dict):
 
 
 def test_affine_matrix_filter_default_data():
-
+    """Test the AffineMatrixFilter with default data and check the output
+    """
     # filter with no inputs, should produce a 4x4 identity matrix
     affine_filter = AffineMatrixFilter()
     # add an unused input to set needs_run to True within the filter

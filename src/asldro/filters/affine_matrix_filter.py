@@ -5,43 +5,36 @@ from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
-    greater_than_equal_to_validator,
-    from_list_validator,
     isinstance_validator,
-    list_of_type_validator,
     for_each_validator,
     range_inclusive_validator,
 )
 
 
 class AffineMatrixFilter(BaseFilter):
-    """A filter that creates an affine transformation matrix
-    based on input parameters for rotation, translation, and scaling
+    r"""A filter that creates an affine transformation matrix
+    based on input parameters for rotation, translation, and scaling.
+
     Conventions are for RAS+ coordinate systems only
 
-    Order of transformations is (first to last):
-    translate to rotation origin
-    rotate about x
-    rotate about y
-    rotate about z
-    translate back to original location
-    translate
-    scale
-
-    
     **Inputs**
 
-    Input Parameters are all keyword arguments for the :class:`AffineMatrixFilter.add_inputs()` member function. They are also
-    accessible via class constants, for example :class:`AffineMatrixFilter.KEY_ROTATION`
+    Input Parameters are all keyword arguments for the :class:`AffineMatrixFilter.add_inputs()`
+    member function. They are also accessible via class constants,
+    for example :class:`AffineMatrixFilter.KEY_ROTATION`
 
-    :param 'rotation': angles to rotate about the x, y and z axes in degrees
-        (-180 to 180 degrees inclusive), defaults to (0, 0, 0)
+    :param 'rotation': [:math:`\theta_x`, :math:`\theta_y`, :math:`\theta_z`]
+        angles to rotate about the x, y and z axes in degrees(-180 to 180 degrees inclusive),
+        defaults to (0, 0, 0)
     :type 'rotation': Tuple[float, float, float], optional
-    :param 'rotation_origin': coordinates of the point to perform rotations about, defaults to (0, 0, 0)
+    :param 'rotation_origin': [:math:`x_r`, :math:`y_r`, :math:`z_r`]
+        coordinates of the point to perform rotations about, defaults to (0, 0, 0)
     :type 'rotation_origin': Tuple[float, float, float], optional
-    :param 'translation': amount to translate along the x, y and z axes. defaults to (0, 0, 0)
+    :param 'translation': [:math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z`]
+        amount to translate along the x, y and z axes. defaults to (0, 0, 0)
     :type 'translation': Tuple[float, float, float], optional
-    :param 'scale': scaling factors along each axis, defaults to (1, 1, 1)
+    :param 'scale': [:math:`s_x`, :math:`s_y`, :math:`s_z`]
+        scaling factors along each axis, defaults to (1, 1, 1)
     :type 'scale': Tuple[float, float, float], optional
     :param 'affine': input 4x4 affine matrix to apply transformation to, defaults to `numpy.eye(4)`
     :type 'affine': np.ndarray(4), optional
@@ -53,7 +46,34 @@ class AffineMatrixFilter(BaseFilter):
 
     :param 'affine':  4x4 affine matrix with all transformations combined.
     :type 'affine': np.ndarray(4)
-    
+
+    The output affine matrix is calculated as follows:
+
+    .. math::
+
+        &\mathbf{M} = \mathbf{S}\mathbf{T}\mathbf{T_{r}}^{-1}\mathbf{R_z}
+        \mathbf{R_y}\mathbf{R_x}\mathbf{T_{r}}\mathbf{M_\text{in}}\\
+        \\
+        \text{where,}&\\
+        &\mathbf{M_\text{in}} = \text{Input affine matrix}\\
+        &\mathbf{S} = \begin{pmatrix} s_x & 0 & 0 & 0 \\ 0 & s_y & 0 & 0 \\ 0 & 0 & s_z & 0 \\
+        0& 0 & 0& 1 \end{pmatrix}=\text{scaling matrix}\\
+        &\mathbf{T} = \begin{pmatrix} 1 & 0 & 0 & \Delta x \\ 0 & 1& 0 & \Delta y \\
+        0 & 0 & 1& \Delta z \\
+        0& 0 & 0& 1 \end{pmatrix}=\text{translation matrix}\\
+        &\mathbf{T_r} = \begin{pmatrix} 1 & 0 & 0 & -x_r \\ 0 & 1& 0 & -y_r \\
+        0 & 0 & 1& -z_r \\ 0& 0 & 0& 1 \end{pmatrix}=
+        \text{translation to rotation centre matrix}\\
+        &\mathbf{R_x} = \begin{pmatrix} 1 & 0 & 0 & 0\\ 0 & \cos{\theta_x}& -\sin{\theta_x} & 0\\
+        0 & \sin{\theta_x} & \cos{\theta_x}& 0\\ 0& 0 & 0& 1 \end{pmatrix}=
+        \text{rotation about x matrix}\\
+        &\mathbf{R_y} = \begin{pmatrix} \cos{\theta_y} & 0 & \sin{\theta_y} & 0\\
+        0 & 1 & 0 & 0\\ -\sin{\theta_y} & 0 & \cos{\theta_y}& 0\\ 0& 0 & 0& 1 \end{pmatrix}=
+        \text{rotation about y matrix}\\
+        &\mathbf{R_z} = \begin{pmatrix} \cos{\theta_z}& -\sin{\theta_z} & 0 & 0\\
+        \sin{\theta_z} & \cos{\theta_z}& 0 &0\\ 0& 0& 1 & 0\\ 0& 0 & 0& 1 \end{pmatrix}=
+        \text{rotation about z matrix}\\
+
     """
 
     KEY_ROTATION = "rotation"
@@ -143,7 +163,7 @@ class AffineMatrixFilter(BaseFilter):
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
-        
+
         `'rotation'` (optional) must be a Tuple of floats of length 3, each value -180 to 180
         inclusive,default (optional) = (0.0, 0.0, 0.0)
         `'rotation_origin'` (optional) must be a Tuple of floats of length 3,
