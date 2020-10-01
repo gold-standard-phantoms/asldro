@@ -1,5 +1,7 @@
 """ GroundTruthLoaderFilter tests """
 import os
+import sys
+import pytest
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -16,6 +18,10 @@ from asldro.data.filepaths import (
 )
 
 
+@pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="Nibabel doesn't play nicely with TemporaryDirectory",
+)
 def test_ground_truth_loader_filter_with_mock_data():
     """ Test the ground truth loader filter with some mock data """
     with TemporaryDirectory() as temp_dir:
@@ -115,9 +121,6 @@ def test_ground_truth_loader_filter_with_mock_data():
             ground_truth_filter.outputs["seg_label"].image,
             np.ones((3, 3, 3), dtype=np.uint16) * 6,
         )
-        del img
-        del nifti_image_container
-        del ground_truth_filter
 
 
 def test_ground_truth_loader_filter_with_test_data():
