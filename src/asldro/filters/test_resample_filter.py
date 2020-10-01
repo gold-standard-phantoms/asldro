@@ -6,7 +6,7 @@ import numpy as np
 import numpy.testing
 import nibabel as nib
 import nilearn as nil
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
+from asldro.filters.basefilter import FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer, NumpyImageContainer
 from asldro.filters.resample_filter import ResampleFilter
 from asldro.filters.affine_matrix_filter import AffineMatrixFilter
@@ -136,10 +136,10 @@ def test_resample_filter_mock_data():
 
     # compare outputs: image data
     numpy.testing.assert_array_equal(
-        np.asan_yarray(resampled_image.dataobj), resampled_numpy_container.image,
+        np.asanyarray(resampled_image.dataobj), resampled_numpy_container.image,
     )
     numpy.testing.assert_array_equal(
-        np.asan_yarray(resampled_image.dataobj), resampled_nifti_container.image,
+        np.asanyarray(resampled_image.dataobj), resampled_nifti_container.image,
     )
 
     # compare outputs: affine
@@ -151,7 +151,7 @@ def test_resample_filter_mock_data():
     )
 
 
-# mock data: rotation, rotation_origin, translation, scale, expected_signal, expected_background
+# mock data: rotation, rotation_origin, translation, scale, expected_signal
 MOCK_DATA = (
     (
         (0.0, 90.0, 0.0),  # rotate 90 degrees about y
@@ -159,18 +159,53 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),
         (1.0, 1.0, 1.0),
         (100, 100, 100),
-        [(40), (60), (60)],
-        [
-            (10, 41, 39, 40, 40, 40, 40),
-            (10, 60, 60, 61, 59, 60, 60),
-            (10, 60, 60, 60, 60, 59, 61),
-        ],
+        ([40], [60], [60]),  # i, j, k coordinates where there is signal
+    ),
+    (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (10.0, 0.0, 0.0),  # translate +10 along x
+        (1.0, 1.0, 1.0),
+        (100, 100, 100),
+        ([50], [60], [60]),
+    ),
+    (
+        (0.0, 45.0, 0.0),  # rotate 45 degrees about y
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (1.0, 1.0, 1.0),
+        (100, 100, 100),
+        ([50, 50], [60, 60], [64, 65]),
+    ),
+    (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (2.0, 2.0, 2.0),  # scale by factor 2 isotropically
+        (100, 100, 100),
+        ([55], [55], [55]),
+    ),
+    (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (0.5, 1.0, 1.0),  # scale by factor 0.5 along x
+        (100, 100, 100),
+        ([69, 70, 71], [60, 60, 60], [60, 60, 60]),
+    ),
+    (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (25.0, 25.0, 25.0),  # translate by +25 along each axis to centre the scaling
+        (2.0, 2.0, 2.0),  # scale by factor 2.0 along x
+        (50, 50, 50),  # resize in x direction to 50 voxels
+        ([30], [30], [30]),
     ),
 )
 
 
 @pytest.mark.parametrize(
-    "rotation, rotation_origin, translation, scale, target_shape, expected_signal, expected_background",
+    "rotation, rotation_origin, translation, scale, target_shape, expected_signal",
     MOCK_DATA,
 )
 def test_resample_filter_single_point_transformations(
@@ -180,11 +215,10 @@ def test_resample_filter_single_point_transformations(
     scale: float,
     target_shape: tuple,
     expected_signal: list,
-    expected_background: list,
 ):
     """Tests the ResampleFilter by resampling an image comprising of points based on affines
     that are generated with rotation, translation, and scale parameters.  After resampling,
-    `expected_signal` is a list of tuples defining voxel coordinates where signal should be, 
+    `expected_signal` is a list of tuples defining voxel coordinates where signal should be,
     and `expected_background` is a list of tuples defining voxel coordinates where signal shouldn't
     be.
 
@@ -243,17 +277,12 @@ def test_resample_filter_single_point_transformations(
     resample_filter.run()
     transformed_image = resample_filter.outputs["image"]
 
-    # Compare values with expected
-    np.testing.assert_almost_equal(
-        transformed_image.image[
-            expected_signal[0], expected_signal[1], expected_signal[2]
-        ],
-        1,
-    )
+    # Compare voxels where signal is above a threshold - the resampling will not preserve
+    # exact values
+    signal_threshold = 0.1
 
-    numpy.testing.assert_almost_equal(
-        transformed_image.image[
-            expected_background[0], expected_background[1], expected_background[2]
-        ],
-        0,
-    )
+    signal_detected = transformed_image.image > signal_threshold
+    signal_should_be_present = np.zeros_like(signal_detected, dtype=bool)
+    signal_should_be_present[expected_signal] = True
+
+    numpy.testing.assert_array_equal(signal_detected, signal_should_be_present)

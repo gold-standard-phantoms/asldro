@@ -16,12 +16,12 @@ from asldro.validators.parameters import (
     Parameter,
     isinstance_validator,
     for_each_validator,
-    range_inclusive_validator,
 )
 
 
 class ResampleFilter(BaseFilter):
-    r"""A filter that can resample an image based on a target shape and affine
+    r"""A filter that can resample an image based on a target shape and affine. Note that nilearn
+    actually applies the inverse of the target affine.
 
     **Inputs**
 
@@ -42,7 +42,7 @@ class ResampleFilter(BaseFilter):
 
     :param 'image': The input image, resampled in accordance with the input shape and affine.
     :type 'image': BaseImageContainer
-    
+
     """
     KEY_IMAGE = "image"
     KEY_AFFINE = "affine"
@@ -92,7 +92,7 @@ class ResampleFilter(BaseFilter):
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
-        
+
         `'image'` must be derived from a BaseImageContainer
         `'affine'` must be a numpy.ndarray of shape (4,4)
         `'shape'` must be a Tuple of integers of length 3
