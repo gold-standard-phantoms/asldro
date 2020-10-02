@@ -100,8 +100,6 @@ The output file may be either .zip or .tar.gz. The input parameters file must cu
 {
   "asl_context_array": "m0scan m0scan control label",
   "label_type": "pCASL",
-  "lambda_blood_brain": 0.9,
-  "t1_arterial_blood": 1.65
 }
 ```
 
@@ -116,6 +114,9 @@ Development of this software project must comply with a few code styling/quality
 
 
 * Before committing any files, [black](https://black.readthedocs.io/en/stable/) must be run with the default settings in order perform autoformatting on the project.
+
+
+* Before pushing any code, make sure the CHANGELOG.md is updated as per the instructions in the CHANGELOG.md file.
 
 
 * The project’s software development processes must be used ([found here](https://confluence.goldstandardphantoms.com/display/AD/Software+development+processes)).
