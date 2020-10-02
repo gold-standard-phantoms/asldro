@@ -13,6 +13,8 @@
 import os
 import sys
 
+import sphinx.ext.apidoc
+
 sys.path.append(os.path.join(os.path.dirname(__name__), "../src"))
 
 
@@ -61,3 +63,19 @@ html_static_path = ["_static"]
 
 todo_include_todos = True
 
+
+def run_apidoc(_):
+    """ A hook to run on documentation building which will
+        first generate the API stubs for the Sphinx build """
+
+    sys.path.append(os.path.join(os.path.dirname(__file__)))
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    output_dir = os.path.join(current_dir, "_api")
+    source_dir = os.path.join(current_dir, "..", "src")
+    exclude_pattern = "../src/**/test_*.py"
+    sphinx.ext.apidoc.main(["-f", "-o", output_dir, source_dir, exclude_pattern])
+
+
+def setup(app):
+    """ Hook the apidoc generation on build """
+    app.connect("builder-inited", run_apidoc)
