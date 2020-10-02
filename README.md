@@ -18,6 +18,9 @@ These distributions will be installed automatically when installing Flask.
 
 * [jsonschema](https://python-jsonschema.readthedocs.io/en/stable/) provides an implementation of JSON Schema validation for Python
 
+
+* [nilearn](https://nipy.org/packages/nilearn/index.html) provides image manipulation tools and statistical learning for neuroimaging data
+
 ## Virtual environments
 
 Use a virtual environment to manage the dependencies for your project, both in
