@@ -15,8 +15,6 @@ The output file may be either .zip or .tar.gz. The input parameters file must cu
     {
       "asl_context_array": "m0scan m0scan control label",
       "label_type": "pCASL",
-      "lambda_blood_brain": 0.9,
-      "t1_arterial_blood": 1.65
     }
 
 The parameters may be adjusted as necessary.

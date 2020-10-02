@@ -57,10 +57,14 @@ deploy_development:
 deploy_production:
   stage: deploy
   script:
+    - python3 -m pip install -U twine
     - python3 setup.py sdist bdist_wheel
     # Only public package should be pushed to the public repo
     # - scp dist/* pypi@goldstandardphantoms.com:/var/www/pypi/asldro
     - scp dist/* pypi@goldstandardphantoms.com:/var/www/private-pypi/asldro
+    # Upload to the public PyPI index - assumes env variable TWINE_PASSWORD
+    # is set to the API token
+    - TWINE_USERNAME=__token__ python -m twine upload dist/*
   only:
     - tags
 
