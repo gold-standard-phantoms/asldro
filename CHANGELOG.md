@@ -26,3 +26,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Affine matrix transformation filter
 - README generator
 - PyPI deployment
+- AffineMatrixFilter accepts an affine to apply last
