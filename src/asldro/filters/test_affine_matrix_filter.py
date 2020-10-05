@@ -32,6 +32,7 @@ INPUT_VALIDATION_DICTIONARY = {
         "str",
     ),
     "affine": (np.eye(4), np.eye(5), 0, (0.0, 0.0, 0.0, 0.0), "str"),
+    "affine_last": (np.eye(4), np.eye(5), 0, (0.0, 0.0, 0.0, 0.0), "str"),
 }
 
 # mock data: rotation, rotation_offset, translation, scale, expected
@@ -156,6 +157,7 @@ def test_affine_matrix_filter_default_data():
         "translation": (0.0, 0.0, 0.0),
         "scale": (1.0, 1.0, 1.0),
         "affine": np.eye(4),
+        "affine_last": np.eye(4),
     }
     for key in params:
         affine_filter.add_input(key, params[key])
@@ -165,10 +167,6 @@ def test_affine_matrix_filter_default_data():
     # test that with default parameters, the input affine is preserved
     affine_filter = AffineMatrixFilter()
     params = {
-        "rotation": (0.0, 0.0, 0.0),
-        "rotation_origin": (0.0, 0.0, 0.0),
-        "translation": (0.0, 0.0, 0.0),
-        "scale": (1.0, 1.0, 1.0),
         "affine": np.array(
             ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12), (0, 0, 0, 1),)
         ),
@@ -177,6 +175,20 @@ def test_affine_matrix_filter_default_data():
         affine_filter.add_input(key, params[key])
     affine_filter.run()
     numpy.testing.assert_array_equal(affine_filter.outputs["affine"], params["affine"])
+
+    # test that with default parameters, 'affine_last' is preserved
+    affine_filter = AffineMatrixFilter()
+    params = {
+        "affine_last": np.array(
+            ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12), (0, 0, 0, 1),)
+        ),
+    }
+    for key in params:
+        affine_filter.add_input(key, params[key])
+    affine_filter.run()
+    numpy.testing.assert_array_equal(
+        affine_filter.outputs["affine"], params["affine_last"]
+    )
 
 
 @pytest.mark.parametrize(

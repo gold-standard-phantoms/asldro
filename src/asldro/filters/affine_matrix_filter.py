@@ -1,5 +1,6 @@
 """ Affine Matrix Filter """
 
+from typing import Tuple
 import numpy as np
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -36,8 +37,10 @@ class AffineMatrixFilter(BaseFilter):
     :param 'scale': [:math:`s_x`, :math:`s_y`, :math:`s_z`]
         scaling factors along each axis, defaults to (1, 1, 1)
     :type 'scale': Tuple[float, float, float], optional
-    :param 'affine': input 4x4 affine matrix to apply transformation to, defaults to `numpy.eye(4)`
+    :param 'affine':  4x4 affine matrix to apply transformation to, defaults to `numpy.eye(4)`
     :type 'affine': np.ndarray(4), optional
+    :param 'affine_last': input 4x4 affine matrix that is applied last, defaults to `numpy.eye(4)`
+    :type 'affine_last': np.ndarray(4), optional
 
     **Outputs**
 
@@ -51,11 +54,12 @@ class AffineMatrixFilter(BaseFilter):
 
     .. math::
 
-        &\mathbf{M} = \mathbf{S}\mathbf{T}\mathbf{T_{r}}^{-1}\mathbf{R_z}
+        &\mathbf{M} = \mathbf{B}\mathbf{S}\mathbf{T}\mathbf{T_{r}}^{-1}\mathbf{R_z}
         \mathbf{R_y}\mathbf{R_x}\mathbf{T_{r}}\mathbf{M_\text{in}}\\
         \\
         \text{where,}&\\
-        &\mathbf{M_\text{in}} = \text{Input affine matrix}\\
+        &\mathbf{A} = \text{Existing affine matrix}\\
+        &\mathbf{B} = \test{Affine matrix to combine last}
         &\mathbf{S} = \begin{pmatrix} s_x & 0 & 0 & 0 \\ 0 & s_y & 0 & 0 \\ 0 & 0 & s_z & 0 \\
         0& 0 & 0& 1 \end{pmatrix}=\text{scaling matrix}\\
         &\mathbf{T} = \begin{pmatrix} 1 & 0 & 0 & \Delta x \\ 0 & 1& 0 & \Delta y \\
@@ -81,21 +85,23 @@ class AffineMatrixFilter(BaseFilter):
     KEY_TRANSLATION = "translation"
     KEY_SCALE = "scale"
     KEY_AFFINE = "affine"
+    KEY_AFFINE_LAST = "affine_last"
 
     def __init(self):
         super().__init__(name="Compute Affine Matrix")
 
     def _run(self):
         # construct individual transformation matrices
-        input_affine: np.ndarray = self.inputs[AffineMatrixFilter.KEY_AFFINE]
-        rotation_angles: tuple(float) = np.radians(
-            self.inputs[AffineMatrixFilter.KEY_ROTATION]
+        input_affine: np.ndarray = self.inputs[self.KEY_AFFINE]
+        affine_last: np.ndarray = self.inputs[self.KEY_AFFINE_LAST]
+        rotation_angles: Tuple[float, float, float] = np.radians(
+            self.inputs[self.KEY_ROTATION]
         )
-        rotation_origin: tuple(float) = self.inputs[
-            AffineMatrixFilter.KEY_ROTATION_ORIGIN
+        rotation_origin: Tuple[float, float, float] = self.inputs[
+            self.KEY_ROTATION_ORIGIN
         ]
-        translation: tuple(float) = self.inputs[AffineMatrixFilter.KEY_TRANSLATION]
-        scale: tuple(float) = self.inputs[AffineMatrixFilter.KEY_SCALE]
+        translation: Tuple[float, float, float] = self.inputs[self.KEY_TRANSLATION]
+        scale: Tuple[float, float, float] = self.inputs[self.KEY_SCALE]
 
         scale_matrix = np.array(
             (
@@ -155,7 +161,8 @@ class AffineMatrixFilter(BaseFilter):
 
         # combine
         output_affine: np.ndarray = (
-            scale_matrix
+            affine_last
+            @ scale_matrix
             @ translation_matrix
             @ inv_rotation_origin_translation_matrix
             @ rotation_z_matrix
@@ -165,7 +172,7 @@ class AffineMatrixFilter(BaseFilter):
             @ input_affine
         )
 
-        self.outputs[AffineMatrixFilter.KEY_AFFINE] = output_affine
+        self.outputs[self.KEY_AFFINE] = output_affine
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
@@ -181,7 +188,7 @@ class AffineMatrixFilter(BaseFilter):
 
         input_validator = ParameterValidator(
             parameters={
-                AffineMatrixFilter.KEY_ROTATION: Parameter(
+                self.KEY_ROTATION: Parameter(
                     validators=[
                         isinstance_validator(tuple),
                         for_each_validator(isinstance_validator(float)),
@@ -190,7 +197,7 @@ class AffineMatrixFilter(BaseFilter):
                     optional=True,
                     default_value=(0.0, 0.0, 0.0),
                 ),
-                AffineMatrixFilter.KEY_ROTATION_ORIGIN: Parameter(
+                self.KEY_ROTATION_ORIGIN: Parameter(
                     validators=[
                         isinstance_validator(tuple),
                         for_each_validator(isinstance_validator(float)),
@@ -198,7 +205,7 @@ class AffineMatrixFilter(BaseFilter):
                     optional=True,
                     default_value=(0.0, 0.0, 0.0),
                 ),
-                AffineMatrixFilter.KEY_TRANSLATION: Parameter(
+                self.KEY_TRANSLATION: Parameter(
                     validators=[
                         isinstance_validator(tuple),
                         for_each_validator(isinstance_validator(float)),
@@ -206,7 +213,7 @@ class AffineMatrixFilter(BaseFilter):
                     optional=True,
                     default_value=(0.0, 0.0, 0.0),
                 ),
-                AffineMatrixFilter.KEY_SCALE: Parameter(
+                self.KEY_SCALE: Parameter(
                     validators=[
                         isinstance_validator(tuple),
                         for_each_validator(isinstance_validator(float)),
@@ -214,7 +221,12 @@ class AffineMatrixFilter(BaseFilter):
                     optional=True,
                     default_value=(1.0, 1.0, 1.0),
                 ),
-                AffineMatrixFilter.KEY_AFFINE: Parameter(
+                self.KEY_AFFINE: Parameter(
+                    validators=[isinstance_validator(np.ndarray)],
+                    optional=True,
+                    default_value=np.eye(4),
+                ),
+                self.KEY_AFFINE_LAST: Parameter(
                     validators=[isinstance_validator(np.ndarray)],
                     optional=True,
                     default_value=np.eye(4),
@@ -229,23 +241,26 @@ class AffineMatrixFilter(BaseFilter):
 
         # Further validation that can't be handled by the parameter validator
         # Check that AffineMatrixFilter.KEY_AFFINE is of size 4x4
-        if new_params[AffineMatrixFilter.KEY_AFFINE].shape != (4, 4):
+        if new_params[self.KEY_AFFINE].shape != (4, 4):
+            raise FilterInputValidationError
+        # Check that AffineMatrixFilter.KEY_AFFINE_LAST is of size 4x4
+        if new_params[self.KEY_AFFINE_LAST].shape != (4, 4):
             raise FilterInputValidationError
 
         # Check that the tuple AffineMatrixFilter.KEY_ROTATION's length is 3
-        if len(new_params[AffineMatrixFilter.KEY_ROTATION]) != 3:
+        if len(new_params[self.KEY_ROTATION]) != 3:
             raise FilterInputValidationError
 
         # Check that the tuple AffineMatrixFilter.KEY_ROTATION_ORIGIN's length is 3
-        if len(new_params[AffineMatrixFilter.KEY_ROTATION_ORIGIN]) != 3:
+        if len(new_params[self.KEY_ROTATION_ORIGIN]) != 3:
             raise FilterInputValidationError
 
         # Check that the tuple AffineMatrixFilter.KEY_TRANSLATION's length is 3
-        if len(new_params[AffineMatrixFilter.KEY_TRANSLATION]) != 3:
+        if len(new_params[self.KEY_TRANSLATION]) != 3:
             raise FilterInputValidationError
 
         # Check that the tuple AffineMatrixFilter.KEY_SCALE's length is 3
-        if len(new_params[AffineMatrixFilter.KEY_SCALE]) != 3:
+        if len(new_params[self.KEY_SCALE]) != 3:
             raise FilterInputValidationError
 
         # merge the updated parameters from the output with the input parameters
