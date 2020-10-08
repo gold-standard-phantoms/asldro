@@ -1,7 +1,7 @@
-"""Transform resample object filter"""
+"""Transform resample image filter"""
 
 import numpy as np
-from typing import Tuple, List
+from typing import Tuple
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import FilterBlock
 from asldro.filters.affine_matrix_filter import AffineMatrixFilter
@@ -17,9 +17,8 @@ from asldro.validators.parameters import (
 )
 
 
-class TransformResampleObjectFilter(FilterBlock):
+class TransformResampleImageFilter(FilterBlock):
 
-    KEY_OBJECT = "object"
     KEY_ACQUISITION_SHAPE = "acquisition_shape"
     KEY_ROTATION_ORIGIN = "rotation_origin"
     KEY_ROTATION = "rotation"
@@ -33,43 +32,33 @@ class TransformResampleObjectFilter(FilterBlock):
         """ Transforms the object in world-space, then creates a resampled image at 
         with the specified acquisition shape """
 
-        object_image: BaseImageContainer = self.inputs[self.KEY_OBJECT]
+        input_image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
 
         translation = self.inputs[self.KEY_TRANSLATION]
         rotation = self.inputs[self.KEY_ROTATION]
         rotation_origin = self.inputs[self.KEY_ROTATION_ORIGIN]
 
-        affine_object_transform_filter = AffineMatrixFilter()
-        # we are moving the object, so the affine needs to be constructed using the inverse of the
-        # transformation parameters
-        # use the inverse of the object affine to move to world-space
+        affine_image_transform_filter = AffineMatrixFilter()
 
-        # affine_object_transform_filter.add_input(
-        #    AffineMatrixFilter.KEY_AFFINE, np.linalg.inv(object_image.affine)
-        # )
-        affine_object_transform_filter.add_input(
-            AffineMatrixFilter.KEY_ROTATION, tuple(-1 * np.array(rotation))
+        affine_image_transform_filter.add_input(
+            AffineMatrixFilter.KEY_ROTATION, rotation
         )
-        affine_object_transform_filter.add_input(
-            AffineMatrixFilter.KEY_ROTATION_ORIGIN,
-            tuple(-1 * np.array(rotation_origin)),
+        affine_image_transform_filter.add_input(
+            AffineMatrixFilter.KEY_ROTATION_ORIGIN, rotation_origin,
         )
-        affine_object_transform_filter.add_input(
-            AffineMatrixFilter.KEY_TRANSLATION, tuple(-1 * np.array(translation))
+        affine_image_transform_filter.add_input(
+            AffineMatrixFilter.KEY_TRANSLATION, translation
         )
-        # affine_object_transform_filter.add_input(
-        #    AffineMatrixFilter.KEY_AFFINE_LAST, (object_image.affine)
-        # )
 
         affine_acquisition_filter = AffineMatrixFilter()
         scale: np.array = (
-            np.array(object_image.shape)
+            np.array(input_image.shape)
             / np.array(self.inputs[self.KEY_ACQUISITION_SHAPE])
         )
-        acquisition_offset: np.array = np.array(object_image.affine[:3, 3] / scale)
+        acquisition_offset: np.array = np.array(input_image.affine[:3, 3] / scale)
 
         affine_acquisition_filter.add_parent_filter(
-            affine_object_transform_filter, io_map={"affine": "affine_last"}
+            affine_image_transform_filter, io_map={"affine": "affine_last"}
         )
         affine_acquisition_filter.add_input(AffineMatrixFilter.KEY_SCALE, tuple(scale))
         affine_acquisition_filter.add_input(
@@ -81,9 +70,7 @@ class TransformResampleObjectFilter(FilterBlock):
         resample_filter.add_input(
             ResampleFilter.KEY_SHAPE, self.inputs[self.KEY_ACQUISITION_SHAPE]
         )
-        resample_filter.add_input(
-            ResampleFilter.KEY_IMAGE, self.inputs[self.KEY_OBJECT]
-        )
+        resample_filter.add_input(ResampleFilter.KEY_IMAGE, self.inputs[self.KEY_IMAGE])
 
         return resample_filter
 
@@ -100,7 +87,7 @@ class TransformResampleObjectFilter(FilterBlock):
 
         input_validator = ParameterValidator(
             parameters={
-                self.KEY_OBJECT: Parameter(
+                self.KEY_IMAGE: Parameter(
                     validators=isinstance_validator(BaseImageContainer)
                 ),
                 self.KEY_ROTATION: Parameter(
@@ -148,7 +135,7 @@ class TransformResampleObjectFilter(FilterBlock):
         # Further validation that can't be handled by the parameter validator
 
         if new_params[self.KEY_ACQUISITION_SHAPE] == (9999, 9999, 9999):
-            new_params[self.KEY_ACQUISITION_SHAPE] = self.inputs[self.KEY_OBJECT].shape
+            new_params[self.KEY_ACQUISITION_SHAPE] = self.inputs[self.KEY_IMAGE].shape
 
         # Check that the tuple self.KEY_ROTATION's length is 3
         if len(new_params[self.KEY_ROTATION]) != 3:
