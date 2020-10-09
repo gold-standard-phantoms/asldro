@@ -230,16 +230,13 @@ def transform_resample_image_function(
     resampling_affine = scale_mat(1 / output_voxel_size)
 
     # Specifies where we want to centre the FOV w.r.t. the original image.
-    # Currently, this is set to the centre of the image, but this could
-    # be changed, for example, to (0,0,0) for the source image origin
-    source_image_space_fov_centre = np.array(
-        [*(np.array(image.shape) / 2), 1]
-    )  # source image centre as homogeneous coordinate
+    # This is set to the source origin translated into world space
+    # NOTE: the target image FOV will always be centred around the source image origin
 
     # The desired FOV centre in world coordinates
-    desired_world_space_target_image_centre = (
-        source_image_to_world @ source_image_space_fov_centre
-    )
+    desired_world_space_target_image_centre = np.array(
+        [0, 0, 0, 1]
+    )  # source image origin as homogeneous coordinate
 
     # The current FOV centre in world coordinates
     # This is calculated using the centre of the target image and
@@ -252,18 +249,11 @@ def transform_resample_image_function(
         [*(np.array(target_shape)) / 2, 1]
     )  # target image centre as homogeneous coordinate
 
-    desired_world_space_target_image_centre[
-        2
-    ] = 0  # TODO: remove this hack for 2D test data
-    current_world_space_target_image_centre[
-        2
-    ] = 0  # TODO: remove this hack for 2D test data
-
     # Need to create our FOV such that the FOV centre is at the centre of the source image
     fov_offset = (
         desired_world_space_target_image_centre
         - current_world_space_target_image_centre
-    )  # in world space, from world to target
+    )  # in world space, from world can be setto target
 
     # The full transformation from world space to target image space, in order:
     # - the motion model is applied
@@ -278,10 +268,6 @@ def transform_resample_image_function(
     )
     # Invert to get target to world space, as per the `affine` nifti specification
     target_affine = inv(world_to_target_affine)
-
-    # import pdb
-
-    # pdb.set_trace()
 
     sampled_image = nil.image.resample_img(
         image, target_affine=target_affine, target_shape=target_shape
@@ -315,7 +301,7 @@ def test_transform_resample_image_filter_mock_data():
     # and 1 voxel == 1mm isotropically
     # therefore according to RAS+:
     source_affine = np.array(
-        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, 0), (0, 0, 0, 1))
+        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, -0.5), (0, 0, 0, 1))
     )
 
     nifti_image = nib.Nifti2Image(image, affine=source_affine)
