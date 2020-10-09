@@ -231,8 +231,8 @@ def transform_resample_image_function(
 
     # The full transformation from world space to target image space, in order:
     # - the motion model is applied
-    # - the FOV is created at the correct location (the motion model must be excluded)
     # - the resampling is applied
+    # - the FOV is created at the correct location by image-space translation
     world_to_target_affine = (
         translate_mat(
             np.array(target_shape) / 2
