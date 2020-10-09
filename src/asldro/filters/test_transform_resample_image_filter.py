@@ -5,11 +5,12 @@ from typing import Tuple
 import pytest
 import numpy as np
 import numpy.testing
+import logging
+from numpy.linalg import inv
 import nibabel as nib
 import nilearn as nil
 import matplotlib.pylab as plt
 from nilearn.plotting import show
-
 
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.containers.image import (
@@ -18,6 +19,8 @@ from asldro.containers.image import (
     BaseImageContainer,
 )
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
+
+logger = logging.getLogger(__name__)
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = NiftiImageContainer(
@@ -185,34 +188,105 @@ def transform_resample_image_function(
     :rtype: BaseImageContainer
     """
     scale = np.array(image.shape) / np.array(target_shape)
-    target_image_origin = -image.affine[:3, 3]
-    affine_1 = image.affine
-    affine_1_inv = np.linalg.inv(affine_1)
+    output_voxel_size = scale  # Perhaps `output_voxel_size` should be a parameter?
+    source_image_to_world = image.affine
 
-    R = rot_x_mat(rotation[0]) @ rot_y_mat(rotation[1]) @ rot_z_mat(rotation[2])
-    R_inv = np.linalg.inv(R)
-    Tm = translate_mat(translation)
-    Tm_inv = translate_mat((-translation[0], -translation[1], -translation[2]))
-    Tr = translate_mat(rotation_origin)
-    Tr_inv = translate_mat(
+    # The affine matrices used in rotation and translation
+    # for the motion model
+    motion_model_rotation_affine = (
+        rot_x_mat(rotation[0]) @ rot_y_mat(rotation[1]) @ rot_z_mat(rotation[2])
+    )
+    inverse_motion_model_rotation_affine = np.linalg.inv(motion_model_rotation_affine)
+    motion_model_translation_affine = translate_mat(translation)
+    rotation_centre_translation_affine = translate_mat(rotation_origin)
+    inverse_rotation_centre_translation_affine = translate_mat(
         (-rotation_origin[0], -rotation_origin[1], -rotation_origin[2])
     )
-    affine_2 = R @ Tm @ R_inv @ Tr @ R @ Tr_inv
 
-    world_space_affine = affine_2 @ affine_1
-
-    sampling_space_affine = (
-        scale_mat(scale) @ translate_mat(-target_image_origin) @ world_space_affine
+    # Assuming coordinates are in world space, will perform the rotation component
+    # of the motion model
+    world_space_rotation_affine = (
+        rotation_centre_translation_affine
+        @ motion_model_rotation_affine
+        @ inverse_rotation_centre_translation_affine
     )
+
+    # Assuming coordinates are in rotated world space, will perform the translation
+    # component of the motion model
+    rotated_world_space_translation_affine = (
+        motion_model_rotation_affine
+        @ motion_model_translation_affine
+        @ inverse_motion_model_rotation_affine
+    )
+
+    # Assuming coordinates are in world space, will perform the rotation and
+    # translation components of the motion model
+    translated_rotated_world_space_affine = (
+        rotated_world_space_translation_affine @ world_space_rotation_affine
+    )
+
+    # Will perform a voxel sampling as per the desired output_voxel_size (must be in
+    # some form of world space coordinates system)
+    resampling_affine = scale_mat(1 / output_voxel_size)
+
+    # Specifies where we want to centre the FOV w.r.t. the original image.
+    # Currently, this is set to the centre of the image, but this could
+    # be changed, for example, to (0,0,0) for the source image origin
+    source_image_space_fov_centre = np.array(
+        [*(np.array(image.shape) / 2), 1]
+    )  # source image centre as homogeneous coordinate
+
+    # The desired FOV centre in world coordinates
+    desired_world_space_target_image_centre = (
+        source_image_to_world @ source_image_space_fov_centre
+    )
+
+    # The current FOV centre in world coordinates
+    # This is calculated using the centre of the target image and
+    # applying the inverse of (motion model rotation and the voxel resampling)
+    # NOTE: the motion model translation is not applied, as this would re-centre
+    # the image
+    current_world_space_target_image_centre = inv(
+        resampling_affine @ world_space_rotation_affine
+    ) @ np.array(
+        [*(np.array(target_shape)) / 2, 1]
+    )  # target image centre as homogeneous coordinate
+
+    desired_world_space_target_image_centre[
+        2
+    ] = 0  # TODO: remove this hack for 2D test data
+    current_world_space_target_image_centre[
+        2
+    ] = 0  # TODO: remove this hack for 2D test data
+
+    # Need to create our FOV such that the FOV centre is at the centre of the source image
+    fov_offset = (
+        desired_world_space_target_image_centre
+        - current_world_space_target_image_centre
+    )  # in world space, from world to target
+
+    # The full transformation from world space to target image space, in order:
+    # - the motion model is applied
+    # - the FOV is created at the correct location (the motion model must be excluded)
+    # - the resampling is applied
+    world_to_target_affine = (
+        resampling_affine
+        @ motion_model_rotation_affine
+        @ translate_mat(-fov_offset[:3])
+        @ inverse_motion_model_rotation_affine
+        @ translated_rotated_world_space_affine
+    )
+    # Invert to get target to world space, as per the `affine` nifti specification
+    target_affine = inv(world_to_target_affine)
+
+    # import pdb
+
+    # pdb.set_trace()
 
     sampled_image = nil.image.resample_img(
-        image, target_affine=sampling_space_affine, target_shape=target_shape
+        image, target_affine=target_affine, target_shape=target_shape
     )
-    ## break here to look at the variables
-    return (
-        sampled_image,
-        sampling_space_affine,
-    )
+    return (sampled_image, target_affine)
 
 
 def test_transform_resample_image_filter_mock_data():
@@ -241,14 +315,14 @@ def test_transform_resample_image_filter_mock_data():
     # and 1 voxel == 1mm isotropically
     # therefore according to RAS+:
     source_affine = np.array(
-        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, 0), (0, 0, 0, 1),)
+        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, 0), (0, 0, 0, 1))
     )
 
     nifti_image = nib.Nifti2Image(image, affine=source_affine)
 
     rotation = (0.0, 0.0, 45.0)
     rotation_origin = tuple(
-        np.array(nil.image.coord_transform(75, 32, 0, source_affine)).astype(float)
+        np.array(nil.image.coord_transform(64, 64, 0, source_affine)).astype(float)
     )
     # rotation_origin = (0.0, 0.0, 0.0)
     translation = (10.0, 0.0, 0.0)
@@ -354,7 +428,7 @@ def test_transform_resample_image_filter_mock_data():
     # plt.imshow(np.fliplr(np.rot90(xr_nifti_reverse.dataobj, axes=(1, 0))))
     # plt.title("transformed and resampled with reverse function")
     # plt.axis("image")
-    show()
+    plt.show()
 
     assert 0
 
@@ -443,7 +517,7 @@ def scale_mat(scale: Tuple[float, float, float]) -> np.array:
     :rtype: np.array
     """
     return np.array(
-        ((scale[0], 0, 0, 0), (0, scale[1], 0, 0), (0, 0, scale[2], 0), (0, 0, 0, 1),)
+        ((scale[0], 0, 0, 0), (0, scale[1], 0, 0), (0, 0, scale[2], 0), (0, 0, 0, 1))
     )
 
 
