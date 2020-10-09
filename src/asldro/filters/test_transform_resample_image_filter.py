@@ -229,41 +229,15 @@ def transform_resample_image_function(
     # some form of world space coordinates system)
     resampling_affine = scale_mat(1 / output_voxel_size)
 
-    # Specifies where we want to centre the FOV w.r.t. the original image.
-    # This is set to the source origin translated into world space
-    # NOTE: the target image FOV will always be centred around the source image origin
-
-    # The desired FOV centre in world coordinates
-    desired_world_space_target_image_centre = np.array(
-        [0, 0, 0, 1]
-    )  # source image origin as homogeneous coordinate
-
-    # The current FOV centre in world coordinates
-    # This is calculated using the centre of the target image and
-    # applying the inverse of (motion model rotation and the voxel resampling)
-    # NOTE: the motion model translation is not applied, as this would re-centre
-    # the image
-    current_world_space_target_image_centre = inv(
-        resampling_affine @ world_space_rotation_affine
-    ) @ np.array(
-        [*(np.array(target_shape)) / 2, 1]
-    )  # target image centre as homogeneous coordinate
-
-    # Need to create our FOV such that the FOV centre is at the centre of the source image
-    fov_offset = (
-        desired_world_space_target_image_centre
-        - current_world_space_target_image_centre
-    )  # in world space, from world can be setto target
-
     # The full transformation from world space to target image space, in order:
     # - the motion model is applied
     # - the FOV is created at the correct location (the motion model must be excluded)
     # - the resampling is applied
     world_to_target_affine = (
-        resampling_affine
-        @ motion_model_rotation_affine
-        @ translate_mat(-fov_offset[:3])
-        @ inverse_motion_model_rotation_affine
+        translate_mat(
+            np.array(target_shape) / 2
+        )  # Set the target origin to the image centre (in image space)
+        @ resampling_affine
         @ translated_rotated_world_space_affine
     )
     # Invert to get target to world space, as per the `affine` nifti specification
@@ -308,10 +282,10 @@ def test_transform_resample_image_filter_mock_data():
 
     rotation = (0.0, 0.0, 45.0)
     rotation_origin = tuple(
-        np.array(nil.image.coord_transform(64, 64, 0, source_affine)).astype(float)
+        np.array(nil.image.coord_transform(30, 30, 0, source_affine)).astype(float)
     )
     # rotation_origin = (0.0, 0.0, 0.0)
-    translation = (10.0, 0.0, 0.0)
+    translation = (0.0, 10.0, 0.0)
     target_shape = (64, 64, 1)
 
     image[
