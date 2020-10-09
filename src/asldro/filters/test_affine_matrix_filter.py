@@ -190,6 +190,12 @@ def test_affine_matrix_filter_default_data():
         affine_filter.outputs["affine"], params["affine_last"]
     )
 
+    # Check that the 'affine_inverse' is the inverse of 'affine'
+    numpy.testing.assert_array_equal(
+        affine_filter.outputs["affine_inverse"],
+        np.linalg.inv(affine_filter.outputs["affine"]),
+    )
+
 
 @pytest.mark.parametrize(
     "rotation, rotation_origin, translation, scale, vector, expected", MOCK_DATA
@@ -227,4 +233,8 @@ def test_affine_matrix_filter_mock_data(
     # transformed vector and expected should be equal to 15 decimal places
     numpy.testing.assert_array_almost_equal(
         affine_filter.outputs["affine"] @ vector, expected, 15
+    )
+    numpy.testing.assert_array_equal(
+        affine_filter.outputs["affine_inverse"],
+        np.linalg.inv(affine_filter.outputs["affine"]),
     )
