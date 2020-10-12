@@ -2,23 +2,21 @@
 
 from copy import deepcopy
 from typing import Tuple
+import logging
 import pytest
 import numpy as np
 import numpy.testing
-import logging
+
 from numpy.linalg import inv
 import nibabel as nib
 import nilearn as nil
-import matplotlib.pylab as plt
-from nilearn.plotting import show
 
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.containers.image import (
-    NiftiImageContainer,
-    NumpyImageContainer,
-    BaseImageContainer,
-)
+from asldro.containers.image import NiftiImageContainer
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
+
+# import matplotlib.pyplot as plt
+# from nilearn.plotting import show
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +27,7 @@ TEST_NIFTI_ONES = NiftiImageContainer(
 
 INPUT_VALIDATION_DICTIONARY = {
     "image": (TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
-    "acquisition_shape": (
+    "target_shape": (
         TEST_VOLUME_DIMENSIONS,
         (16.0, 16.0, 16.0),
         (1, 2, 3, 4),
@@ -102,67 +100,6 @@ def test_transform_resample_image_filter_validate_inputs(validation_data: dict):
             xr_obj_filter.add_input(inputs_key, test_value)
             with pytest.raises(FilterInputValidationError):
                 xr_obj_filter.run()
-
-
-def transform_resample_image_function_long(
-    image: nib.Nifti2Image,
-    translation: tuple,
-    rotation: tuple,
-    rotation_origin: tuple,
-    target_shape: tuple,
-) -> Tuple[nib.Nifti2Image, nib.Nifti2Image, nib.Nifti2Image, np.array]:
-    """[summary]
-
-    :param image: [description]
-    :type image: BaseImageContainer
-    :param translation: [description]
-    :type translation: tuple
-    :param rotation: [description]
-    :type rotation: tuple
-    :param rotation_origin: [description]
-    :type rotation_origin: tuple
-    :param target_shape: [description]
-    :type target_shape: tuple
-    :return: [description]
-    :rtype: BaseImageContainer
-    """
-    scale = np.array(image.shape) / np.array(target_shape)
-    acquisition_offset = image.affine[:3, 3] / scale
-    affine_1 = image.affine
-    affine_1_inv = np.linalg.inv(affine_1)
-
-    rot_mat = rot_x_mat(rotation[0]) @ rot_y_mat(rotation[1]) @ rot_z_mat(rotation[2])
-    tr_rot_or = translate_mat(rotation_origin)
-    affine_2 = (
-        translate_mat(rotation_origin)
-        @ rot_mat
-        @ translate_mat((-rotation_origin[0], -rotation_origin[1], -rotation_origin[2]))
-        @ affine_1
-    )
-
-    image_rotated: nib.Nifti2Image = nil.image.resample_img(
-        image, target_affine=affine_2, target_shape=image.dataobj.shape
-    )
-    image_rotated.set_sform(affine_1)
-
-    affine_3 = translate_mat(translation) @ affine_1
-
-    image_translated_rotated: nib.Nifti2Image = nil.image.resample_img(
-        image_rotated, target_affine=affine_3, target_shape=image.dataobj.shape
-    )
-
-    image_translated_rotated.set_sform(affine_1)
-
-    affine_4 = scale_mat(scale) @ translate_mat(acquisition_offset) @ affine_1
-
-    return (
-        nil.image.resample_img(
-            image_translated_rotated, target_affine=affine_4, target_shape=target_shape
-        ),
-        image_translated_rotated,
-        image_rotated,
-        affine_4,
-    )
 
 
 def transform_resample_image_function(
@@ -243,9 +180,12 @@ def transform_resample_image_function(
     # Invert to get target to world space, as per the `affine` nifti specification
     target_affine = inv(world_to_target_affine)
 
-    sampled_image = nil.image.resample_img(
+    sampled_image: nib.Nifti2Image = nil.image.resample_img(
         image, target_affine=target_affine, target_shape=target_shape
     )
+    # Calculate the new affine, which only takes into account the
+    sampled_image_affine = inv(resampling_affine @ inv(image.affine))
+    sampled_image.set_sform(sampled_image_affine)
     return (sampled_image, target_affine)
 
 
@@ -313,62 +253,45 @@ def test_transform_resample_image_filter_mock_data():
         TransformResampleImageFilter.KEY_ROTATION_ORIGIN, rotation_origin
     )
     xr_obj_filter.add_input(TransformResampleImageFilter.KEY_TRANSLATION, translation)
-    xr_obj_filter.add_input(
-        TransformResampleImageFilter.KEY_ACQUISITION_SHAPE, target_shape
-    )
+    xr_obj_filter.add_input(TransformResampleImageFilter.KEY_TARGET_SHAPE, target_shape)
 
     xr_obj_filter.run()
     new_nifti_container: NiftiImageContainer = xr_obj_filter.outputs[
         TransformResampleImageFilter.KEY_IMAGE
     ]
 
-    # str_nifti, tr_nifti, r_nifti, target_affine = transform_resample_image_function_long(
-    #    nifti_image, translation, rotation, rotation_origin, target_shape
-    # )
-
     ### function called here
     str_nifti, target_affine = transform_resample_image_function(
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
     # visually check
-
+    """
     plt.figure()
     plt.imshow(np.fliplr(np.rot90(nifti_image_container.image, axes=(1, 0))))
     plt.title("original image")
     plt.axis("image")
-    # plt.figure()
-    # plt.imshow(np.fliplr(np.rot90(new_nifti_container.image, axes=(1, 0))))
-    # plt.title("transformed and resampled with filter")
-    # plt.axis("image")
-    # plt.figure()
-    # plt.imshow(np.fliplr(np.rot90(r_nifti.dataobj, axes=(1, 0))))
-    # plt.title("rotated with function")
-    # plt.axis("image")
-    # plt.text(
-    #     0,
-    #     r_nifti.dataobj.shape[1],
-    #     f"rotation={rotation}" "\n" f"rotation origin {rotation_origin}" "\n",
-    #     {"color": "white"},
-    # )
-    # plt.figure()
-    # plt.imshow(np.fliplr(np.rot90(tr_nifti.dataobj, axes=(1, 0))))
-    # plt.title("rotated and translated with function")
-    # plt.axis("image")
-    # plt.text(
-    #     0,
-    #     tr_nifti.dataobj.shape[1],
-    #     f"rotation={rotation}"
-    #     "\n"
-    #     f"rotation origin-{rotation_origin}"
-    #     "\n"
-    #     f"translation={translation}"
-    #     "\n",
-    #     {"color": "white"},
-    # )
+
+    plt.figure()
+    plt.imshow(np.fliplr(np.rot90(new_nifti_container.image, axes=(1, 0))))
+    plt.title("transformed and resampled with filter")
+    plt.axis("image")
+    plt.text(
+        0,
+        new_nifti_container.shape[1],
+        f"rotation={rotation}"
+        "\n"
+        f"rotation origin-{rotation_origin}"
+        "\n"
+        f"translation={translation}"
+        "\n"
+        f"shape = {new_nifti_container.shape}"
+        "\n",
+        {"color": "white"},
+    )
 
     plt.figure()
     plt.imshow(np.fliplr(np.rot90(str_nifti.dataobj, axes=(1, 0))))
-    plt.title("rotated, translated and resampled with function")
+    plt.title("transformed and resampled with function")
     plt.axis("image")
     plt.text(
         0,
@@ -379,18 +302,15 @@ def test_transform_resample_image_filter_mock_data():
         "\n"
         f"translation={translation}"
         "\n"
-        f"shape = {target_shape}"
+        f"shape = {str_nifti.dataobj.shape}"
         "\n",
         {"color": "white"},
     )
-
-    # plt.figure()
-    # plt.imshow(np.fliplr(np.rot90(xr_nifti_reverse.dataobj, axes=(1, 0))))
-    # plt.title("transformed and resampled with reverse function")
-    # plt.axis("image")
     plt.show()
-
-    assert 0
+    """
+    numpy.testing.assert_array_equal(str_nifti.dataobj, new_nifti_container.image)
+    # Affines do not yet match because extra functionality is required
+    # numpy.testing.assert_array_equal(str_nifti.affine, new_nifti_container.affine)
 
 
 def rot_x_mat(theta: float) -> np.array:
