@@ -49,24 +49,26 @@ class AffineMatrixFilter(BaseFilter):
 
     :param 'affine':  4x4 affine matrix with all transformations combined.
     :type 'affine': np.ndarray(4)
+    :param 'affine_inverse': 4x4 affine matrix that is the inverse of `'affine'`
+    :type 'affine_inverse': np.ndarray(4)
 
     The output affine matrix is calculated as follows:
 
     .. math::
 
-        &\mathbf{M} = \mathbf{B}\mathbf{S}\mathbf{T}\mathbf{T_{r}}^{-1}\mathbf{R_z}
-        \mathbf{R_y}\mathbf{R_x}\mathbf{T_{r}}\mathbf{M_\text{in}}\\
+        &\mathbf{M} = \mathbf{B}\mathbf{S}\mathbf{T}\mathbf{T_{r}}\mathbf{R_z}
+        \mathbf{R_y}\mathbf{R_x}\mathbf{T_{r}}^{-1}\mathbf{M_\text{in}}\\
         \\
         \text{where,}&\\
         &\mathbf{A} = \text{Existing affine matrix}\\
-        &\mathbf{B} = \test{Affine matrix to combine last}
+        &\mathbf{B} = \text{Affine matrix to combine last}\\
         &\mathbf{S} = \begin{pmatrix} s_x & 0 & 0 & 0 \\ 0 & s_y & 0 & 0 \\ 0 & 0 & s_z & 0 \\
         0& 0 & 0& 1 \end{pmatrix}=\text{scaling matrix}\\
         &\mathbf{T} = \begin{pmatrix} 1 & 0 & 0 & \Delta x \\ 0 & 1& 0 & \Delta y \\
         0 & 0 & 1& \Delta z \\
         0& 0 & 0& 1 \end{pmatrix}=\text{translation matrix}\\
-        &\mathbf{T_r} = \begin{pmatrix} 1 & 0 & 0 & -x_r \\ 0 & 1& 0 & -y_r \\
-        0 & 0 & 1& -z_r \\ 0& 0 & 0& 1 \end{pmatrix}=
+        &\mathbf{T_r} = \begin{pmatrix} 1 & 0 & 0 & x_r \\ 0 & 1& 0 & y_r \\
+        0 & 0 & 1& z_r \\ 0& 0 & 0& 1 \end{pmatrix}=
         \text{translation to rotation centre matrix}\\
         &\mathbf{R_x} = \begin{pmatrix} 1 & 0 & 0 & 0\\ 0 & \cos{\theta_x}& -\sin{\theta_x} & 0\\
         0 & \sin{\theta_x} & \cos{\theta_x}& 0\\ 0& 0 & 0& 1 \end{pmatrix}=
@@ -86,6 +88,7 @@ class AffineMatrixFilter(BaseFilter):
     KEY_SCALE = "scale"
     KEY_AFFINE = "affine"
     KEY_AFFINE_LAST = "affine_last"
+    KEY_AFFINE_INVERSE = "affine_inverse"
 
     def __init(self):
         super().__init__(name="Compute Affine Matrix")
@@ -121,9 +124,9 @@ class AffineMatrixFilter(BaseFilter):
         )
         rotation_origin_translation_matrix = np.array(
             (
-                (1, 0, 0, -rotation_origin[0]),
-                (0, 1, 0, -rotation_origin[1]),
-                (0, 0, 1, -rotation_origin[2]),
+                (1, 0, 0, rotation_origin[0]),
+                (0, 1, 0, rotation_origin[1]),
+                (0, 0, 1, rotation_origin[2]),
                 (0, 0, 0, 1),
             )
         )
@@ -164,15 +167,16 @@ class AffineMatrixFilter(BaseFilter):
             affine_last
             @ scale_matrix
             @ translation_matrix
-            @ inv_rotation_origin_translation_matrix
+            @ rotation_origin_translation_matrix
             @ rotation_z_matrix
             @ rotation_y_matrix
             @ rotation_x_matrix
-            @ rotation_origin_translation_matrix
+            @ inv_rotation_origin_translation_matrix
             @ input_affine
         )
 
         self.outputs[self.KEY_AFFINE] = output_affine
+        self.outputs[self.KEY_AFFINE_INVERSE] = np.linalg.inv(output_affine)
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria

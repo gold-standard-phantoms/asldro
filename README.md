@@ -82,7 +82,6 @@ $ pip install asldro
 
 ASL DRO is now installed. Check out the Quickstart or go to the
 Documentation Overview.
-
 # Quickstart
 
 Eager to get started? This page gives a good introduction to ASL DRO.
@@ -104,7 +103,6 @@ The output file may be either .zip or .tar.gz. The input parameters file must cu
 ```
 
 The parameters may be adjusted as necessary.
-
 # Development
 
 Development of this software project must comply with a few code styling/quality rules and processes:
