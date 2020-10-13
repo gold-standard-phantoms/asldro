@@ -3,11 +3,14 @@ import pprint
 import os
 import logging
 import shutil
+import pdb
 from copy import deepcopy
+from typing import List
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import nibabel as nib
+import nilearn as nil
 
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
@@ -16,6 +19,8 @@ from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
 from asldro.filters.invert_image_filter import InvertImageFilter
+from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
+from asldro.filters.add_complex_noise_filter import AddComplexNoiseFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -25,8 +30,22 @@ from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
 logger = logging.getLogger(__name__)
 
 EXAMPLE_INPUT_PARAMS = {
-    "asl_context_array": "m0scan m0scan control label",
+    "asl_context_array": "m0scan control label",
     "label_type": "pCASL",
+    "label_duration": 1.8,
+    "signal_time": 3.6,
+    "label_efficiency": 0.85,
+    "acquisition_contrast": "se",
+    "te_array": [10e-3, 10e-3, 10e-3],
+    "tr_array": [10.0, 5.0, 5.0],
+    "rot_yaw_array": [0.0, 0.0, 0.0],
+    "rot_pitch_array": [0.0, 0.0, 0.0],
+    "rot_roll_array": [0.0, 0.0, 0.0],
+    "transl_x_array": [0.0, 0.0, 0.0],
+    "transl_y_array": [0.0, 0.0, 0.0],
+    "transl_z_array": [0.0, 0.0, 0.0],
+    "acq_matrix": [64, 64, 20],
+    "desired_snr": 10.0,
 }
 
 SUPPORTED_EXTENSIONS = [".zip", ".tar.gz"]
@@ -62,7 +81,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     # Validate parameter and update defaults
     input_params = USER_INPUT_VALIDATOR.validate(input_params)
-
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)
 
@@ -82,12 +100,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         pprint.pformat(ground_truth_filter.outputs),
     )
 
-    # Create an image container in the INVERSE_DOMAIN
-    image_container = NumpyImageContainer(
-        image=np.zeros((3, 3, 3)), data_domain=INVERSE_DOMAIN
-    )
-    logger.info("NumpyImageContainer:\n%s", pprint.pformat(image_container))
-
     # Run the GkmFilter on the ground_truth data
     gkm_filter = GkmFilter()
     gkm_filter.add_parent_filter(
@@ -101,81 +113,175 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
         },
     )
-    gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, gkm_filter.PCASL)
+    gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, input_params["label_type"])
     gkm_filter.add_input(gkm_filter.KEY_SIGNAL_TIME, input_params["signal_time"])
     gkm_filter.add_input(gkm_filter.KEY_LABEL_DURATION, input_params["label_duration"])
     gkm_filter.add_input(
         gkm_filter.KEY_LABEL_EFFICIENCY, input_params["label_efficiency"]
     )
 
-    # Run the MriSignalFilter to obtain control, label and m0scan
-    # control: gradient echo, TE=10ms, TR = 5000ms
-    control_filter = MriSignalFilter()
-    control_filter.add_parent_filter(
-        parent=ground_truth_filter,
-        io_map={
-            "t1": control_filter.KEY_T1,
-            "t2": control_filter.KEY_T2,
-            "t2_star": control_filter.KEY_T2_STAR,
-            "m0": control_filter.KEY_M0,
-        },
-    )
-    control_filter.add_input(control_filter.KEY_ACQ_CONTRAST, "ge")
-    control_filter.add_input(control_filter.KEY_ACQ_TE, 10e-3)
-    control_filter.add_input(control_filter.KEY_ACQ_TR, 5.0)
-
-    # label: gradient echo, TE=10ms, TR = 5000ms
     # reverse the polarity of delta_m.image for encoding it into the label signal
     invert_delta_m_filter = InvertImageFilter()
     invert_delta_m_filter.add_parent_filter(
         parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
     )
 
-    label_filter = MriSignalFilter()
-    label_filter.add_parent_filter(
-        parent=ground_truth_filter,
-        io_map={
-            "t1": label_filter.KEY_T1,
-            "t2": label_filter.KEY_T2,
-            "t2_star": label_filter.KEY_T2_STAR,
-            "m0": label_filter.KEY_M0,
-        },
+    # Create one-time data that is required by the Acquisition Loop
+    # 1. m0 resampled at the acquisition resolution
+    m0_resample_filter = TransformResampleImageFilter()
+    m0_resample_filter.add_parent_filter(
+        ground_truth_filter, io_map={"m0": TransformResampleImageFilter.KEY_IMAGE}
     )
-    label_filter.add_parent_filter(
-        parent=invert_delta_m_filter, io_map={"image": label_filter.KEY_MAG_ENC}
+    m0_resample_filter.add_input(
+        TransformResampleImageFilter.KEY_TARGET_SHAPE, tuple(input_params["acq_matrix"])
     )
-    label_filter.add_input(label_filter.KEY_ACQ_CONTRAST, "ge")
-    label_filter.add_input(label_filter.KEY_ACQ_TE, 10e-3)
-    label_filter.add_input(label_filter.KEY_ACQ_TR, 5.0)
 
-    # m0scan: gradient echo, TE=10ms, TR=10000ms
-    m0scan_filter = MriSignalFilter()
-    m0scan_filter.add_parent_filter(
-        parent=ground_truth_filter,
-        io_map={
-            "t1": m0scan_filter.KEY_T1,
-            "t2": m0scan_filter.KEY_T2,
-            "t2_star": m0scan_filter.KEY_T2_STAR,
-            "m0": m0scan_filter.KEY_M0,
-        },
+    # 2. CBF resampled at the acquisition resolution
+    cbf_resample_filter = TransformResampleImageFilter()
+    cbf_resample_filter.add_parent_filter(
+        ground_truth_filter,
+        io_map={"perfusion_rate": TransformResampleImageFilter.KEY_IMAGE},
     )
-    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_CONTRAST, "ge")
-    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TE, 10e-3)
-    m0scan_filter.add_input(m0scan_filter.KEY_ACQ_TR, 10.0)
+    cbf_resample_filter.add_input(
+        TransformResampleImageFilter.KEY_TARGET_SHAPE, tuple(input_params["acq_matrix"])
+    )
 
-    control_filter.run()
-    label_filter.run()
-    m0scan_filter.run()
-    control_label_difference = (
-        control_filter.outputs[control_filter.KEY_IMAGE].image
-        - label_filter.outputs[label_filter.KEY_IMAGE].image
+    # 3. tissue label masks resampled at the acquisition resolution
+    labelmask_resample_filter = TransformResampleImageFilter()
+    labelmask_resample_filter.add_parent_filter(
+        ground_truth_filter,
+        io_map={"seg_label": TransformResampleImageFilter.KEY_IMAGE},
     )
+    labelmask_resample_filter.add_input(
+        TransformResampleImageFilter.KEY_TARGET_SHAPE, tuple(input_params["acq_matrix"])
+    )
+
+    # Acquisition Loop
+    acquired_images_list: List[nib.Nifti2Image] = []
+    for idx, asl_context in enumerate(input_params["asl_context_array"].split()):
+
+        # Calculate MRI signal based on asl_context
+        mri_signal_filter = MriSignalFilter()
+        mri_signal_filter.add_parent_filter(
+            parent=ground_truth_filter,
+            io_map={
+                "t1": MriSignalFilter.KEY_T1,
+                "t2": MriSignalFilter.KEY_T2,
+                "t2_star": MriSignalFilter.KEY_T2_STAR,
+                "m0": MriSignalFilter.KEY_M0,
+            },
+        )
+        mri_signal_filter.add_input(
+            MriSignalFilter.KEY_ACQ_CONTRAST, input_params["acquisition_contrast"]
+        )
+        mri_signal_filter.add_input(
+            MriSignalFilter.KEY_ACQ_TE, input_params["te_array"][idx]
+        )
+        mri_signal_filter.add_input(
+            MriSignalFilter.KEY_ACQ_TR, input_params["tr_array"][idx]
+        )
+
+        # for ASL context == "label" use the inverted delta_m as
+        # the input MriSignalFilter.KEY_MAG_ENC
+        if asl_context.lower() == "label":
+            mri_signal_filter.add_parent_filter(
+                parent=invert_delta_m_filter,
+                io_map={"image": MriSignalFilter.KEY_MAG_ENC},
+            )
+
+        # Transform and resample
+        rotation = (
+            input_params["rot_roll_array"][idx],
+            input_params["rot_pitch_array"][idx],
+            input_params["rot_yaw_array"][idx],
+        )
+        # use default for rotation origin (0.0, 0.0, 0.0)
+        translation = (
+            input_params["transl_x_array"][idx],
+            input_params["transl_y_array"][idx],
+            input_params["transl_z_array"][idx],
+        )
+        motion_resample_filter = TransformResampleImageFilter()
+        motion_resample_filter.add_parent_filter(mri_signal_filter)
+        motion_resample_filter.add_input(
+            TransformResampleImageFilter.KEY_ROTATION, rotation
+        )
+        motion_resample_filter.add_input(
+            TransformResampleImageFilter.KEY_TRANSLATION, translation
+        )
+        motion_resample_filter.add_input(
+            TransformResampleImageFilter.KEY_TARGET_SHAPE,
+            tuple(input_params["acq_matrix"]),
+        )
+
+        # Add noise based on SNR
+        add_complex_noise_filter = AddComplexNoiseFilter()
+        add_complex_noise_filter.add_parent_filter(
+            m0_resample_filter,
+            io_map={
+                TransformResampleImageFilter.KEY_IMAGE: AddComplexNoiseFilter.KEY_REF_IMAGE
+            },
+        )
+        add_complex_noise_filter.add_parent_filter(
+            motion_resample_filter,
+            io_map={
+                TransformResampleImageFilter.KEY_IMAGE: AddComplexNoiseFilter.KEY_IMAGE
+            },
+        )
+        add_complex_noise_filter.add_input(
+            AddComplexNoiseFilter.KEY_SNR, input_params["desired_snr"]
+        )
+
+        # Run the add_complex_noise_filter
+        add_complex_noise_filter.run()
+
+        # Append list of the output images
+
+        acquired_images_list.append(
+            add_complex_noise_filter.outputs[
+                AddComplexNoiseFilter.KEY_IMAGE
+            ]._nifti_image
+        )
+
+    # concatenate along the time axis (4th)
+    # acquired_timeseries = nil.image.concat_imgs(acquired_images_list)
+    image_shape = acquired_images_list[0].dataobj.shape
+    acquired_timeseries_dataobj = np.ndarray(
+        (image_shape[0], image_shape[1], image_shape[2], len(acquired_images_list))
+    )
+    for idx, im in enumerate(acquired_images_list):
+        acquired_timeseries_dataobj[:, :, :, idx]: np.ndarray = np.absolute(
+            np.asanyarray(im.dataobj)
+        )
+
+    # construct timeseries header
+    # header: nib.Nifti2Header=acquired_images_list[0].header
+    # header.set_data_shape(4)
+    # header.set
+    acquired_timeseries = type(acquired_images_list[0])(
+        dataobj=acquired_timeseries_dataobj, affine=acquired_images_list[0].affine,
+    )
+    acquired_timeseries.update_header()
+    acquired_timeseries.header["descrip"] = "ASLDRO generated magnitude source data"
+
+    cbf_resample_filter.run()
+    labelmask_resample_filter.run()
+
     # logging
     logger.info("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
-    logger.info("control_filter outputs: \n %s", pprint.pformat(control_filter.outputs))
-    logger.info("label_filter outputs: \n %s", pprint.pformat(label_filter.outputs))
-    logger.info("m0scan_filter outputs: \n %s", pprint.pformat(m0scan_filter.outputs))
+    logger.info(
+        "add_complex_noise_filter outputs: \n %s",
+        pprint.pformat(add_complex_noise_filter.outputs),
+    )
+    logger.info(
+        "motion_resample_filter outputs: \n %s",
+        pprint.pformat(motion_resample_filter.outputs),
+    )
+    logger.info(
+        "mri_signal_filter outputs: \n %s", pprint.pformat(mri_signal_filter.outputs)
+    )
 
+    """
     delta_m_array: np.ndarray = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].image
 
     # Compare control - label with delta m from the GkmFilter.  Note that delta m must be multiplied
@@ -200,30 +306,25 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         "residual = %s",
         np.sqrt(np.mean((control_label_difference - delta_m_array) ** 2)),
     )
+    """
 
     # Output everything to a temporary directory
     with TemporaryDirectory() as temp_dir:
 
         nib.save(
-            control_filter.outputs[control_filter.KEY_IMAGE]._nifti_image,
-            os.path.join(temp_dir, "control.nii.gz"),
+            acquired_timeseries, os.path.join(temp_dir, "asl_source_magnitude.nii.gz"),
         )
         nib.save(
-            label_filter.outputs[label_filter.KEY_IMAGE]._nifti_image,
-            os.path.join(temp_dir, "label.nii.gz"),
+            cbf_resample_filter.outputs[cbf_resample_filter.KEY_IMAGE]._nifti_image,
+            os.path.join(temp_dir, "gt_cbf_acq_res.nii.gz"),
         )
         nib.save(
-            m0scan_filter.outputs[m0scan_filter.KEY_IMAGE]._nifti_image,
-            os.path.join(temp_dir, "m0scan.nii.gz"),
+            labelmask_resample_filter.outputs[
+                labelmask_resample_filter.KEY_IMAGE
+            ]._nifti_image,
+            os.path.join(temp_dir, "gt_labelmask_acq_res.nii.gz"),
         )
-        nib.save(
-            ground_truth_filter.outputs["m0"]._nifti_image,
-            os.path.join(temp_dir, "m0scan_ground_truth.nii.gz"),
-        )
-        nib.save(
-            gkm_filter.outputs[gkm_filter.KEY_DELTA_M]._nifti_image,
-            os.path.join(temp_dir, "delta_m.nii.gz"),
-        )
+
         if output_filename is not None:
             filename, file_extension = splitext(output_filename)
             # output the file archive

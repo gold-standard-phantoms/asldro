@@ -1,3 +1,5 @@
+""" Utility Functions for the ASL DRO """
+
 from typing import Tuple, Union
 import numpy as np
 from numpy.linalg import inv
@@ -13,7 +15,26 @@ def transform_resample_image(
     rotation: Tuple[float, float, float],
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
-) -> Tuple[nib.Nifti2Image, np.array]:
+) -> Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]:
+    """
+    Transforms and resamples a nibabel NIFTI image in world-space
+
+    :param image: The input image
+    :type image: Union[nib.Nifti1Image, nib.Nifti2Image]
+    :param translation: vector to translate in the image by in world space
+    :type translation: Tuple[float, float, float]
+    :param rotation: angles to rotate the object by in world space
+    :type rotation: Tuple[float, float, float]
+    :param rotation_origin: coordinates for the centre point of rotation in world space
+    :type rotation_origin: Tuple[float, float, float]
+    :param target_shape: target shape for the resampled image
+    :type target_shape: Tuple[int, int, int]
+    :return: [`resampled_image`, `target_affine`]. `resampled_image` is the input image with the
+        transformation and resampling applied. `target_affine` is the affine that was used to
+        resample the image. Note `resampled_image` has an affine that only corresponds to voxel
+        scaling and not motion, i.e. the image FOV is the same as the input image FOV.
+    :rtype: Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]
+    """
     (target_affine, sampled_image_affine) = transform_resample_affine(
         image, translation, rotation, rotation_origin, target_shape
     )
@@ -32,20 +53,25 @@ def transform_resample_affine(
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
 ) -> (np.array, np.array):
-    """[summary]
+    """
+    Calculates the affine matrices that transform and resample an image in world-space. Note that
+    while an image (NIFTI or BaseImageContainer derived) is accepted an an argument, the image
+    is not acutally resampled.
 
-    :param image: [description]
-    :type image: nib.Nifti2Image
-    :param translation: [description]
+    :param image: The input image
+    :type image: Union[nib.Nifti1Image, nib.Nifti2Image, BaseImageContainer]
+    :param translation: vector to translate in the image by in world space
     :type translation: Tuple[float, float, float]
-    :param rotation: [description]
+    :param rotation: angles to rotate the object by in world space
     :type rotation: Tuple[float, float, float]
-    :param rotation_origin: [description]
+    :param rotation_origin: coordinates for the centre point of rotation in world space
     :type rotation_origin: Tuple[float, float, float]
-    :param target_shape: [description]
+    :param target_shape: target shape for the resampled image
     :type target_shape: Tuple[int, int, int]
-    :return: [description]
-    :rtype: Tuple[nib.Nifti2Image, np.array]
+    :return: [`target_affine`, `resampled_image_affine`]. `target_affine` is the affine to supply to
+        a resampling function. Set the resampled image's affine to `resampled_image_affine` so that it
+        only has the resampling operation performed (not the motion)
+    :rtype: Tuple[np.array, np.array]
     """
     scale = np.array(image.shape) / np.array(target_shape)
     output_voxel_size = scale  # Perhaps `output_voxel_size` should be a parameter?

@@ -7,7 +7,6 @@ import pytest
 import numpy as np
 import numpy.testing
 
-from numpy.linalg import inv
 import nibabel as nib
 import nilearn as nil
 
@@ -178,8 +177,9 @@ def test_transform_resample_image_filter_mock_data():
     str_nifti, target_affine = transform_resample_image(
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
-    # visually check
+
     """
+    # visually check
     plt.figure()
     plt.imshow(np.fliplr(np.rot90(nifti_image_container.image, axes=(1, 0))))
     plt.title("original image")
@@ -225,4 +225,3 @@ def test_transform_resample_image_filter_mock_data():
     numpy.testing.assert_array_equal(str_nifti.dataobj, new_nifti_container.image)
     # Affines do not yet match because extra functionality is required
     numpy.testing.assert_array_equal(str_nifti.affine, new_nifti_container.affine)
-
