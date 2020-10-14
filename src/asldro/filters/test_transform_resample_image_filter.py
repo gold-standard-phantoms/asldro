@@ -178,6 +178,8 @@ def test_transform_resample_image_filter_mock_data():
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
 
+    # Uncomment section below to view results
+    # This also requires matplotlib, which is not a dependency and so the import is commented
     """
     # visually check
     plt.figure()

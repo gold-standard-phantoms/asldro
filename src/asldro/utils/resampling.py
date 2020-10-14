@@ -69,8 +69,8 @@ def transform_resample_affine(
     :param target_shape: target shape for the resampled image
     :type target_shape: Tuple[int, int, int]
     :return: [`target_affine`, `resampled_image_affine`]. `target_affine` is the affine to supply to
-        a resampling function. Set the resampled image's affine to `resampled_image_affine` so that it
-        only has the resampling operation performed (not the motion)
+        a resampling function. Set the resampled image's affine to `resampled_image_affine`
+        so that it only has the resampling operation performed (not the motion)
     :rtype: Tuple[np.array, np.array]
     """
     scale = np.array(image.shape) / np.array(target_shape)
@@ -192,7 +192,7 @@ def rot_z_mat(theta: float) -> np.array:
 def translate_mat(translation: Tuple[float, float, float]) -> np.array:
     """Creates a 4x4 affine performing translations
 
-    :param vector: describes (x, y, z) to translate along respective axes 
+    :param vector: describes (x, y, z) to translate along respective axes
     :type vector: Tuple[float, float, float]
     :return: 4x4 affine for translation
     :rtype: np.array
@@ -210,7 +210,7 @@ def translate_mat(translation: Tuple[float, float, float]) -> np.array:
 def scale_mat(scale: Tuple[float, float, float]) -> np.array:
     """Creates a 4x4 affine performing scaling
 
-    :param vector: describes (sx, sy, sz) scaling factors 
+    :param vector: describes (sx, sy, sz) scaling factors
     :type vector: Tuple[float, float, float]
     :return: 4x4 affine for scaling
     :rtype: np.array
