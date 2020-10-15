@@ -11,7 +11,7 @@ We recommend using the latest version of Python. ASL DRO supports Python
 Dependencies
 ------------
 
-These distributions will be installed automatically when installing Flask.
+These distributions will be installed automatically when installing ASL DRO.
 
 * `nibabel`_ provides read / write access to some common neuroimaging file formats
 * `numpy`_ provides efficient calculations with arrays and matrices
