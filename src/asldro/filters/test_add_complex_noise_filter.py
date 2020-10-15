@@ -219,7 +219,21 @@ def test_add_complex_noise_filter_with_test_data():
     numpy.testing.assert_array_almost_equal(calculated_snr, snr, 0)
 
 
-if __name__ == "__main__":
-    test_add_complex_noise_filter_wrong_input_type_error()
-    # test_add_complex_noise_filter_with_mock_data()
-    # test_add_complex_noise_filter_with_test_data()
+def test_add_complex_noise_filter_snr_zero():
+    """ Checks that the output image is equal to the input image when snr=0 """
+    signal_level = 100.0
+    np.random.seed(0)
+    image = np.random.normal(signal_level, 10, (32, 32, 32))
+    image_container = NumpyImageContainer(image=image)
+
+    # calculate using the filter
+    add_complex_noise_filter = AddComplexNoiseFilter()
+    add_complex_noise_filter.add_input("image", image_container)
+    add_complex_noise_filter.add_input("snr", 0.0)
+    add_complex_noise_filter.run()
+
+    # image_with_noise and image_with_noise_container.image should be equal
+    numpy.testing.assert_array_equal(
+        image_container.image, add_complex_noise_filter.outputs["image"].image
+    )
+
