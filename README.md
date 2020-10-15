@@ -171,12 +171,23 @@ have the same number of entries as there are defined volumes:
 The DRO currently runs using the default ground truth.
 Future releases will allow this to be configured.  The pipeline comprises of:
 
-# Loading in the ground truth volumes.
-# Producing $\Delta M$ using the General Kinetic Model for the specified ASL parameters.
-# Generating synthetic M0, Control and Label volumes.
-# Applying motion
-# Sampling at the acquisition resolution
-# Adding instrument and physiological pseudorandom noise.
+
+1. Loading in the ground truth volumes.
+
+
+2. Producing $\Delta M$ using the General Kinetic Model for the specified ASL parameters.
+
+
+3. Generating synthetic M0, Control and Label volumes.
+
+
+4. Applying motion
+
+
+5. Sampling at the acquisition resolution
+
+
+6. Adding instrument and physiological pseudorandom noise.
 
 Each volume described in `asl_context` has the motion, resampling and noise processes applied
 independently. The rotation and translation arrays in the input parameters describe this motion, and
