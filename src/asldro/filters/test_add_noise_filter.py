@@ -475,6 +475,16 @@ def test_add_noise_filter_with_mock_data_complex_image_inverse_reference_spatial
         numpy.testing.assert_array_almost_equal(measured_snr, SNR_VALUE, 0)
 
 
-if __name__ == "__main__":
-    # test_add_noise_filter_validate_inputs()
-    test_add_noise_filter_with_mock_data_mag_image_only(image_container_function())
+def test_add_noise_filter_snr_zero(image_container):
+    """ Checks that the output image is equal to the input image when snr=0 """
+    # calculate using the filter
+    add_noise_filter = AddNoiseFilter()
+    add_noise_filter.add_input("image", image_container)
+    add_noise_filter.add_input("snr", 0.0)
+    np.random.seed(RANDOM_SEED)  # set seed so RNG is in the same state
+    add_noise_filter.run()
+
+    # image_with_noise and image_with_noise_container.image should be equal
+    numpy.testing.assert_array_equal(
+        image_container.image, add_noise_filter.outputs["image"].image
+    )
