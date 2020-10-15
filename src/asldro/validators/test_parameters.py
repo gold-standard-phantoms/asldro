@@ -9,6 +9,7 @@ from asldro.validators.parameters import (
     range_inclusive_validator,
     from_list_validator,
     list_of_type_validator,
+    of_length_validator,
     non_empty_list_validator,
     regex_validator,
     reserved_string_list_validator,
@@ -245,6 +246,36 @@ def test_isinstance_validator():
     assert not validator([1, 2])
     assert not validator("foo")
     assert not validator(["foo", "bar"])
+
+
+def test_of_length_validator_creator():
+    """ Test the of length validator creator """
+    of_length_validator(1)
+    of_length_validator(100)
+    with pytest.raises(ValueError):
+        of_length_validator(0)
+    with pytest.raises(ValueError):
+        of_length_validator(-1)
+    with pytest.raises(ValueError):
+        of_length_validator(100.1)
+    with pytest.raises(ValueError):
+        of_length_validator("foo")
+
+
+def test_of_length_validator():
+    """ Test the of length validator """
+    validator = of_length_validator(5)
+    assert str(validator) == "Value (string or list) must have length 5"
+    assert not validator(5)
+    assert not validator(1.0)
+    assert not validator("foo")
+    assert not validator([1, 2, 3])
+    assert not validator([1.0, 2.0, 3.0, 4.0])
+    assert not validator([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    assert validator("fooba")
+    assert validator(["foobar", "foobar", "foobar", "foobar", "foobar"])
+    assert validator([1, 2, 3, 4, 5])
+    assert validator([1.0, 2.0, 3.0, 4.0, 5.0])
 
 
 def test_list_of_type_validator_creator():

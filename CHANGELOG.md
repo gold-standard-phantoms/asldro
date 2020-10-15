@@ -27,3 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README generator
 - PyPI deployment
 - AffineMatrixFilter accepts an affine to apply last
+- User input parameter validation

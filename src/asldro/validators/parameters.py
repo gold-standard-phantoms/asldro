@@ -1,7 +1,6 @@
 """
-Used to perform parameter validation. The most useful documentatio: {}, result: undefined 
-is on the class:
-'ParameterValidator'
+Used to perform parameter validation. The most useful documentation can
+be found on the class 'ParameterValidator'
 """
 import re
 from copy import deepcopy
@@ -159,6 +158,22 @@ def from_list_validator(options: list, case_insensitive: bool = False) -> Valida
     return Validator(lambda value: value in options, f"Value must be in {options}")
 
 
+def of_length_validator(length: int) -> Validator:
+    """
+    Validates that a given value has a given length.
+    Might be, for example, a list or a string.
+    :param length: the required length of the value
+    """
+    if not isinstance(length, int) or length <= 0:
+        raise ValueError("Required length must be a positive integer")
+
+    msg = f"Value (string or list) must have length {length}"
+
+    return Validator(
+        lambda value: hasattr(value, "__len__") and len(value) == length, msg
+    )
+
+
 def list_of_type_validator(a_type: Union[type, Tuple[type]]) -> Validator:
     """
     Validates that a given value is a list of the given type(s).
@@ -197,8 +212,8 @@ def regex_validator(pattern: str, case_insensitive: bool = False) -> Validator:
     """
     try:
         re.compile(pattern)
-    except re.error:
-        raise ValueError(f"{pattern} is not a valid python regex pattern")
+    except re.error as exc:
+        raise ValueError(f"{pattern} is not a valid python regex pattern") from exc
     return Validator(
         lambda value: re.match(
             pattern, value, flags=re.IGNORECASE if case_insensitive else 0
@@ -295,23 +310,36 @@ class Parameter:
 class ParameterValidator:
     """ Used to validate a dictionary of parameters specified with the Parameter class against
     an input dictionary. Will also insert any default values that are missing from the input
-    dictionary
+    dictionary.
     """
 
-    def __init__(self, parameters: Dict[str, Parameter]):
+    def __init__(
+        self, parameters: Dict[str, Parameter], post_validators: List[Validator] = None
+    ):
         """
         :param parameters: a dictionary of input parameters. An example might be:
         {
             "foo": Parameter(reserved_string_list_validator(["foo", "bar"])),
             "bar": Parameter(non_empty_list_validator(), default_value=[1, 2, 3]),
         }
+        :param post_validators: a list of additional validators, which will be executed
+        after the parameters have been validated and defaults inserted.
         """
+        if post_validators is None:
+            post_validators = []
+
         for parameter in parameters.values():
             if not isinstance(parameter, Parameter):
                 raise TypeError(
                     "All values passed to InputParameters must be of Parameter type, {key} is not"
                 )
+
+        for post_validator in post_validators:
+            if not isinstance(post_validator, Validator):
+                raise TypeError("All items in post_validators must be a Validator")
+
         self.parameters: Dict[Parameter] = parameters
+        self.post_validators: List[Validator] = post_validators
 
     def validate(self, d: dict, error_type: type = ValidationError) -> dict:
         """
@@ -353,6 +381,11 @@ class ParameterValidator:
                             f"Parameter {parameter_name} with value {d[parameter_name]} "
                             f"does not meet the following criterion: {validator}"
                         )
+
+        # Check all of the post_validators
+        for post_validator in self.post_validators:
+            if not post_validator(return_dict):
+                errors.append(str(post_validator))
 
         if errors:
             raise error_type(". ".join(errors))
