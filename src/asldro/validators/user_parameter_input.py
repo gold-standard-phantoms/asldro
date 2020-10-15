@@ -17,6 +17,7 @@ from asldro.validators.parameters import (
     reserved_string_list_validator,
     non_empty_list_validator,
     list_of_type_validator,
+    of_length_validator,
     for_each_validator,
 )
 
@@ -85,6 +86,14 @@ USER_INPUT_VALIDATOR = ParameterValidator(
         "transl_z_array": Parameter(
             validators=for_each_validator(range_inclusive_validator(-1000, 1000)),
             optional=True,
+        ),
+        "acq_matrix": Parameter(
+            validators=[list_of_type_validator(int), of_length_validator(3)],
+            default_value=[64, 64, 12],
+        ),
+        "acq_contrast": Parameter(
+            validators=from_list_validator(["ge", "se"], case_insensitive=True),
+            default_value="se",
         ),
         "desired_snr": Parameter(
             validators=greater_than_validator(0), default_value=10

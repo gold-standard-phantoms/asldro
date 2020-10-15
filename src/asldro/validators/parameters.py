@@ -159,6 +159,22 @@ def from_list_validator(options: list, case_insensitive: bool = False) -> Valida
     return Validator(lambda value: value in options, f"Value must be in {options}")
 
 
+def of_length_validator(length: int) -> Validator:
+    """
+    Validates that a given value has a given length.
+    Might be, for example, a list or a string.
+    :param length: the required length of the value
+    """
+    if not isinstance(length, int) or length <= 0:
+        raise ValueError("Required length must be a positive integer")
+
+    msg = f"Value (string or list) must have length {length}"
+
+    return Validator(
+        lambda value: hasattr(value, "__len__") and len(value) == length, msg
+    )
+
+
 def list_of_type_validator(a_type: Union[type, Tuple[type]]) -> Validator:
     """
     Validates that a given value is a list of the given type(s).

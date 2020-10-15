@@ -24,6 +24,8 @@ def test_user_input_valid():
         "transl_y_array": [0.0, 1000.0],
         "transl_z_array": [5.6],
         "desired_snr": 5.0,
+        "acq_matrix": [8, 9, 10],
+        "acq_contrast": "se",
     }
     assert d == USER_INPUT_VALIDATOR.validate(
         d
@@ -43,6 +45,8 @@ def test_user_input_defaults_created():
         "signal_time": 3.6,
         "label_efficiency": 1.0,
         "desired_snr": 10,
+        "acq_matrix": [64, 64, 12],
+        "acq_contrast": "se",
     }
 
 
