@@ -15,9 +15,6 @@ from asldro.containers.image import NiftiImageContainer
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.utils.resampling import transform_resample_image
 
-# import matplotlib.pyplot as plt
-# from nilearn.plotting import show
-
 logger = logging.getLogger(__name__)
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
@@ -178,52 +175,7 @@ def test_transform_resample_image_filter_mock_data():
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
 
-    # Uncomment section below to view results
-    # This also requires matplotlib, which is not a dependency and so the import is commented
-    """
-    # visually check
-    plt.figure()
-    plt.imshow(np.fliplr(np.rot90(nifti_image_container.image, axes=(1, 0))))
-    plt.title("original image")
-    plt.axis("image")
-
-    plt.figure()
-    plt.imshow(np.fliplr(np.rot90(new_nifti_container.image, axes=(1, 0))))
-    plt.title("transformed and resampled with filter")
-    plt.axis("image")
-    plt.text(
-        0,
-        new_nifti_container.shape[1],
-        f"rotation={rotation}"
-        "\n"
-        f"rotation origin-{rotation_origin}"
-        "\n"
-        f"translation={translation}"
-        "\n"
-        f"shape = {new_nifti_container.shape}"
-        "\n",
-        {"color": "white"},
-    )
-
-    plt.figure()
-    plt.imshow(np.fliplr(np.rot90(str_nifti.dataobj, axes=(1, 0))))
-    plt.title("transformed and resampled with function")
-    plt.axis("image")
-    plt.text(
-        0,
-        str_nifti.dataobj.shape[1],
-        f"rotation={rotation}"
-        "\n"
-        f"rotation origin-{rotation_origin}"
-        "\n"
-        f"translation={translation}"
-        "\n"
-        f"shape = {str_nifti.dataobj.shape}"
-        "\n",
-        {"color": "white"},
-    )
-    plt.show()
-    """
+    # data should match
     numpy.testing.assert_array_equal(str_nifti.dataobj, new_nifti_container.image)
-    # Affines do not yet match because extra functionality is required
+    # Affines should match
     numpy.testing.assert_array_equal(str_nifti.affine, new_nifti_container.affine)

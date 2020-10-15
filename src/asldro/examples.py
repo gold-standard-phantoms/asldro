@@ -30,21 +30,21 @@ from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
 logger = logging.getLogger(__name__)
 
 EXAMPLE_INPUT_PARAMS = {
-    "asl_context_array": "m0scan control label",
-    "label_type": "pCASL",
+    "asl_context": "m0scan control label",
+    "label_type": "pcasl",
     "label_duration": 1.8,
     "signal_time": 3.6,
     "label_efficiency": 0.85,
-    "acquisition_contrast": "se",
-    "te_array": [10e-3, 10e-3, 10e-3],
-    "tr_array": [10.0, 5.0, 5.0],
-    "rot_yaw_array": [0.0, 0.0, 0.0],
-    "rot_pitch_array": [0.0, 0.0, 0.0],
-    "rot_roll_array": [0.0, 0.0, 0.0],
-    "transl_x_array": [0.0, 0.0, 0.0],
-    "transl_y_array": [0.0, 0.0, 0.0],
-    "transl_z_array": [0.0, 0.0, 0.0],
+    "echo_time": [0.01, 0.01, 0.01],
+    "repetition_time": [10.0, 5.0, 5.0],
+    "rot_z": [0.0, 0.0, 0.0],
+    "rot_y": [0.0, 0.0, 0.0],
+    "rot_x": [0.0, 0.0, 0.0],
+    "transl_x": [0.0, 0.0, 0.0],
+    "transl_y": [0.0, 0.0, 0.0],
+    "transl_z": [0.0, 0.0, 0.0],
     "acq_matrix": [64, 64, 20],
+    "acq_contrast": "se",
     "desired_snr": 10.0,
 }
 
@@ -158,7 +158,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     # Acquisition Loop
     acquired_images_list: List[nib.Nifti2Image] = []
-    for idx, asl_context in enumerate(input_params["asl_context_array"].split()):
+    for idx, asl_context in enumerate(input_params["asl_context"].split()):
 
         # Calculate MRI signal based on asl_context
         mri_signal_filter = MriSignalFilter()
@@ -172,13 +172,13 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             },
         )
         mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_CONTRAST, input_params["acquisition_contrast"]
+            MriSignalFilter.KEY_ACQ_CONTRAST, input_params["acq_contrast"]
         )
         mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_TE, input_params["te_array"][idx]
+            MriSignalFilter.KEY_ACQ_TE, input_params["echo_time"][idx]
         )
         mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_TR, input_params["tr_array"][idx]
+            MriSignalFilter.KEY_ACQ_TR, input_params["repetition_time"][idx]
         )
 
         # for ASL context == "label" use the inverted delta_m as
@@ -191,15 +191,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
         # Transform and resample
         rotation = (
-            input_params["rot_roll_array"][idx],
-            input_params["rot_pitch_array"][idx],
-            input_params["rot_yaw_array"][idx],
+            input_params["rot_x"][idx],
+            input_params["rot_y"][idx],
+            input_params["rot_z"][idx],
         )
         # use default for rotation origin (0.0, 0.0, 0.0)
         translation = (
-            input_params["transl_x_array"][idx],
-            input_params["transl_y_array"][idx],
-            input_params["transl_z_array"][idx],
+            input_params["transl_x"][idx],
+            input_params["transl_y"][idx],
+            input_params["transl_z"][idx],
         )
         motion_resample_filter = TransformResampleImageFilter()
         motion_resample_filter.add_parent_filter(mri_signal_filter)
@@ -280,33 +280,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     logger.info(
         "mri_signal_filter outputs: \n %s", pprint.pformat(mri_signal_filter.outputs)
     )
-
-    """
-    delta_m_array: np.ndarray = gkm_filter.outputs[gkm_filter.KEY_DELTA_M].image
-
-    # Compare control - label with delta m from the GkmFilter.  Note that delta m must be multiplied
-    # by exp(-TE/T2*) because control - label is transverse mangetisation and subject to T2* decay
-    # and the output of the GkmFilter is longitudinal magnetisation
-    t2_star_array: np.ndarray = ground_truth_filter.outputs["t2_star"].image
-    comparison = np.allclose(
-        control_label_difference,
-        delta_m_array
-        * np.exp(
-            -np.divide(
-                control_filter.inputs[control_filter.KEY_ACQ_TE],
-                t2_star_array,
-                out=np.zeros_like(t2_star_array),
-                where=t2_star_array != 0,
-            )
-        ),
-    )
-
-    logger.info("control - label == delta_m? %s", comparison)
-    logger.info(
-        "residual = %s",
-        np.sqrt(np.mean((control_label_difference - delta_m_array) ** 2)),
-    )
-    """
 
     # Output everything to a temporary directory
     with TemporaryDirectory() as temp_dir:
