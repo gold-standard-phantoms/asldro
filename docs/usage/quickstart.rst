@@ -53,9 +53,10 @@ necessary and used with the 'generate' command. The input parameters will includ
       "transl_x": [0.0, 0.0, 0.0],
       "transl_y": [0.0, 0.0, 0.0],
       "transl_z": [0.0, 0.0, 0.0],
-      "acq_matrix": [64, 64, 20],
+      "acq_matrix": [64, 64, 12],
       "acq_contrast": "se",
-      "desired_snr": 10.0
+      "desired_snr": 10.0,
+      "random_seed": 0
     }
 
 The parameters may be adjusted as necessary. The parameter `asl_context` defines the number of 
@@ -91,7 +92,7 @@ independently. The rotation and translation arrays in the input parameters descr
 the the random number generator is initialised with the same seed each time the DRO is run, so each
 volume will have noise that is unique, but statistically the same.
 
-If ``desired_snr`` is set to 0, the resultant images will not have any noise applied. 
+If ``desired_snr`` is set to ``0``, the resultant images will not have any noise applied. 
 
 Once the pipeline is run, the following images are created:
 
@@ -99,7 +100,7 @@ Once the pipeline is run, the following images are created:
 * Ground truth perfusion rate, resampled to ``acq_matrix`` (gt_cbf_acq_res_nii.gz)
 * Ground truth tissue segmentation mask, resampled to ``acq_matrix`` (gt_labelmask_acq_res.nii.gz)
 
-The flow through the pipeline is summarised in this schematic (click to view full-size):
+The DRO pipeline is summarised in this schematic (click to view full-size):
 
 .. image:: /images/asldro.png
   :scale: 50

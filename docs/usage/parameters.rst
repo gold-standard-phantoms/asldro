@@ -20,7 +20,7 @@ command-line-interface as a json file, for example:
       "transl_x": [0.0, 0.0, 0.0],
       "transl_y": [0.0, 0.0, 0.0],
       "transl_z": [0.0, 0.0, 0.0],
-      "acq_matrix": [64, 64, 20],
+      "acq_matrix": [64, 64, 12],
       "acq_contrast": "se",
       "desired_snr": 10.0,
       "random_seed": 0

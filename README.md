@@ -107,15 +107,29 @@ on input ground truth maps for:
 Eager to get started? This page gives a good introduction to ASL DRO.
 Follow Installation to set up a project and install ASL DRO first.
 
-After installation the command line tool asldro will be made available. You can run:
+After installation the command line tool `asldro` will be made available. You can run:
 
 ```
-asldro path/to/input_params.json path/to/output_file.zip
+asldro generate path/to/output_file.zip
 ```
 
-This runs the full pipeline to create synthetic ASL data, which are saved in NIFTI format in
-the output archive. The output file may be either .zip or .tar.gz.
-The input parameters file must currently include, at minimum.
+to run the DRO generation as-per the ASL White Paper specification. The output file may
+be either .zip or .tar.gz.
+
+Is it also possible to specify a parameter file, which will override any of the default values:
+
+```
+asldro generate --params path/to/input_params.json path/to/output_file.zip
+```
+
+It is possible to create an example parameters file containing the model defaults by running:
+
+```
+asldro output params /path/to/input_params.json
+```
+
+which will create the `/path/to/input_params.json` file. The parameters may be adjusted as
+necessary and used with the ‘generate’ command. The input parameters will include, as default:
 
 ```
 {
@@ -132,9 +146,10 @@ The input parameters file must currently include, at minimum.
   "transl_x": [0.0, 0.0, 0.0],
   "transl_y": [0.0, 0.0, 0.0],
   "transl_z": [0.0, 0.0, 0.0],
-  "acq_matrix": [64, 64, 20],
+  "acq_matrix": [64, 64, 12],
   "acq_contrast": "se",
-  "desired_snr": 10.0
+  "desired_snr": 10.0,
+  "random_seed": 0
 }
 ```
 
@@ -196,7 +211,7 @@ independently. The rotation and translation arrays in the input parameters descr
 the the random number generator is initialised with the same seed each time the DRO is run, so each
 volume will have noise that is unique, but statistically the same.
 
-If `desired_snr` is set to 0, the resultant images will not have any noise applied.
+If `desired_snr` is set to `0`, the resultant images will not have any noise applied.
 
 Once the pipeline is run, the following images are created:
 
@@ -209,7 +224,7 @@ Once the pipeline is run, the following images are created:
 
 * Ground truth tissue segmentation mask, resampled to `acq_matrix` (gt_labelmask_acq_res.nii.gz)
 
-The flow through the pipeline is summarised in this schematic (click to view full-size):
+The DRO pipeline is summarised in this schematic (click to view full-size):
 
 
 
