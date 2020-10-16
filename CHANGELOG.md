@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2020-10-16
 ### Added
 - Project repository set up with Continuous integration,
   Continuous testing (pytest, tox), Repository structure,
@@ -23,9 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MRI signal filter
 - Sphinx documentation generation (and documentation)
 - Command line interface
-- Affine matrix transformation filter
+- Affine matrix transformation filter (output sampling)
 - README generator
 - PyPI deployment
-- AffineMatrixFilter accepts an affine to apply last
-- User input parameter validation
-- CLI tool to create model input parameter file
+- CLI tool to output example model parameter file

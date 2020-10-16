@@ -82,6 +82,7 @@ $ pip install asldro
 
 ASL DRO is now installed. Check out the Quickstart or go to the
 Documentation Overview.
+
 # Quickstart
 
 ## Overview
@@ -229,6 +230,7 @@ The DRO pipeline is summarised in this schematic (click to view full-size):
 
 
 ![image](docs/images/asldro.png)
+
 # Development
 
 Development of this software project must comply with a few code styling/quality rules and processes:
