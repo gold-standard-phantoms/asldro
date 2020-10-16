@@ -8,7 +8,7 @@ from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
 def test_user_input_valid():
     """ Tests a valid set of inputs """
     d = {
-        "label_type": "pCASL",
+        "label_type": "PASL",
         "label_duration": 2.0,
         "signal_time": 2.5,
         "label_efficiency": 0.8,
@@ -36,9 +36,9 @@ def test_user_input_valid():
 
 def test_user_input_defaults_created():
     """ Test default values are created for missing inputs """
-    d = {"label_type": "pCASL"}
+    d = {}
     assert USER_INPUT_VALIDATOR.validate(d) == {
-        "label_type": "pCASL",
+        "label_type": "pcasl",
         "asl_context": "m0scan control label",
         "echo_time": [0.01, 0.01, 0.01],
         "repetition_time": [10.0, 5.0, 5.0],
@@ -56,16 +56,6 @@ def test_user_input_defaults_created():
         "acq_contrast": "se",
         "random_seed": 0,
     }
-
-
-def test_user_input_missing_values():
-    """ Check that missing non-optional values throws an exception """
-    with pytest.raises(ValidationError):
-        USER_INPUT_VALIDATOR.validate(
-            {
-                "asl_context": "m0scan control label control label control label control label"
-            }
-        )  # missing label_type
 
 
 def test_mismatch_asl_context_array_sizes():

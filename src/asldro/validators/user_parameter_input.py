@@ -46,7 +46,8 @@ USER_INPUT_VALIDATOR = ParameterValidator(
         "label_type": Parameter(
             validators=from_list_validator(
                 ["CASL", "PCASL", "PASL"], case_insensitive=True
-            )
+            ),
+            default_value="pcasl",
         ),
         "label_duration": Parameter(
             validators=range_inclusive_validator(0, 100), default_value=1.8
