@@ -211,7 +211,7 @@ The flow through the pipeline is summarised in this schematic (click to view ful
 
 
 
-![image](images/asldro.png)
+![image](docs/images/asldro.png)
 # Development
 
 Development of this software project must comply with a few code styling/quality rules and processes:
