@@ -51,7 +51,7 @@ class AddComplexNoiseFilter(FilterBlock):
     KEY_SNR = AddNoiseFilter.KEY_SNR
 
     def __init__(self):
-        super().__init__(name="add complex noise")
+        super().__init__(name="Add Complex Noise")
 
     def _create_filter_block(self):
         """ Fourier transforms the input and reference images, calculates

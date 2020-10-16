@@ -69,7 +69,7 @@ class AddNoiseFilter(BaseFilter):
     KEY_REF_IMAGE = "reference_image"
 
     def __init__(self):
-        super().__init__(name="add noise")
+        super().__init__(name="Add Noise")
 
     def _run(self):
         """ Calculate the noise amplitude, adds input image, and
@@ -107,7 +107,7 @@ class AddNoiseFilter(BaseFilter):
 
             # Calculate the noise amplitude (i.e. its standard deviation) using the non-zero voxels
             # in the magnitude of the reference image (in case it is complex)
-            logger.debug("noise amplitude scaling %s", noise_amplitude_scaling)
+            logger.debug("Noise amplitude scaling: %s", noise_amplitude_scaling)
             noise_amplitude = (
                 noise_amplitude_scaling
                 * np.mean(
@@ -116,7 +116,7 @@ class AddNoiseFilter(BaseFilter):
                 / (snr)
             )
 
-            logger.info("noise amplitude %s", noise_amplitude)
+            logger.debug("Noise amplitude: %s", noise_amplitude)
 
             # Make an image container for the image with noise
             image_with_noise: BaseImageContainer = input_image.clone()

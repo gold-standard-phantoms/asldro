@@ -21,7 +21,15 @@ from asldro.validators.parameters import (
     for_each_validator,
 )
 
+# String constants
 ASL_CONTEXT = "asl_context"
+LABEL_TYPE = "label_type"
+LABEL_DURATION = "label_duration"
+SIGNAL_TIME = "signal_time"
+LABEL_EFFICIENCY = "label_efficiency"
+LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
+T1_ARTERIAL_BLOOD = "t1_arterial_blood"
+M0 = "m0"
 ECHO_TIME = "echo_time"
 REPETITION_TIME = "repetition_time"
 ROT_Z = "rot_z"
@@ -30,6 +38,10 @@ ROT_X = "rot_x"
 TRANSL_X = "transl_x"
 TRANSL_Y = "transl_y"
 TRANSL_Z = "transl_z"
+ACQ_MATRIX = "acq_matrix"
+ACQ_CONTRAST = "acq_contrast"
+DESIRED_SNR = "desired_snr"
+RANDOM_SEED = "random_seed"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -41,87 +53,118 @@ asl_context_length_validator_generator = lambda other: Validator(
     f"number of entries as {ASL_CONTEXT}",
 )
 
+# Default parameters
+DEFAULT_PARAMS = {
+    ASL_CONTEXT: "m0scan control label",
+    LABEL_TYPE: "pcasl",
+    LABEL_DURATION: 1.8,
+    SIGNAL_TIME: 3.6,
+    LABEL_EFFICIENCY: 0.85,
+    ECHO_TIME: [0.01, 0.01, 0.01],
+    REPETITION_TIME: [10.0, 5.0, 5.0],
+    ROT_Z: [0.0, 0.0, 0.0],
+    ROT_Y: [0.0, 0.0, 0.0],
+    ROT_X: [0.0, 0.0, 0.0],
+    TRANSL_X: [0.0, 0.0, 0.0],
+    TRANSL_Y: [0.0, 0.0, 0.0],
+    TRANSL_Z: [0.0, 0.0, 0.0],
+    ACQ_MATRIX: [64, 64, 12],
+    ACQ_CONTRAST: "se",
+    DESIRED_SNR: 10.0,
+    RANDOM_SEED: 0,
+}
+
+# Input validator
 USER_INPUT_VALIDATOR = ParameterValidator(
     parameters={
-        "label_type": Parameter(
+        LABEL_TYPE: Parameter(
             validators=from_list_validator(
                 ["CASL", "PCASL", "PASL"], case_insensitive=True
             ),
-            default_value="pcasl",
+            default_value=DEFAULT_PARAMS.get(LABEL_TYPE),
         ),
-        "label_duration": Parameter(
-            validators=range_inclusive_validator(0, 100), default_value=1.8
+        LABEL_DURATION: Parameter(
+            validators=range_inclusive_validator(0, 100),
+            default_value=DEFAULT_PARAMS.get(LABEL_DURATION),
         ),
-        "signal_time": Parameter(
-            validators=range_inclusive_validator(0, 100), default_value=3.6
+        SIGNAL_TIME: Parameter(
+            validators=range_inclusive_validator(0, 100),
+            default_value=DEFAULT_PARAMS.get(SIGNAL_TIME),
         ),
-        "label_efficiency": Parameter(
-            validators=range_inclusive_validator(0, 1), default_value=1.0
+        LABEL_EFFICIENCY: Parameter(
+            validators=range_inclusive_validator(0, 1),
+            default_value=DEFAULT_PARAMS.get(LABEL_EFFICIENCY),
         ),
-        "lambda_blood_brain": Parameter(
-            validators=range_inclusive_validator(0, 1), optional=True
+        LAMBDA_BLOOD_BRAIN: Parameter(
+            validators=range_inclusive_validator(0, 1),
+            optional=True,
+            default_value=DEFAULT_PARAMS.get(LAMBDA_BLOOD_BRAIN),
         ),
-        "t1_arterial_blood": Parameter(
-            validators=range_inclusive_validator(0, 100), optional=True
+        T1_ARTERIAL_BLOOD: Parameter(
+            validators=range_inclusive_validator(0, 100),
+            optional=True,
+            default_value=DEFAULT_PARAMS.get(T1_ARTERIAL_BLOOD),
         ),
-        "m0": Parameter(validators=greater_than_equal_to_validator(0), optional=True),
+        M0: Parameter(validators=greater_than_equal_to_validator(0), optional=True),
         ASL_CONTEXT: Parameter(
             validators=reserved_string_list_validator(
                 ["m0scan", "control", "label"], case_insensitive=True
             ),
-            default_value="m0scan control label",
+            default_value=DEFAULT_PARAMS.get(ASL_CONTEXT),
         ),
         ECHO_TIME: Parameter(
             validators=[
                 list_of_type_validator((int, float)),
                 non_empty_list_validator(),
             ],
-            default_value=[0.01, 0.01, 0.01],
+            default_value=DEFAULT_PARAMS.get(ECHO_TIME),
         ),
         REPETITION_TIME: Parameter(
             validators=[
                 list_of_type_validator((int, float)),
                 non_empty_list_validator(),
             ],
-            default_value=[10.0, 5.0, 5.0],
+            default_value=DEFAULT_PARAMS.get(REPETITION_TIME),
         ),
         ROT_Z: Parameter(
             validators=for_each_validator(range_inclusive_validator(-180, 180)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(ROT_Z),
         ),
         ROT_Y: Parameter(
             validators=for_each_validator(range_inclusive_validator(-180, 180)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(ROT_Y),
         ),
         ROT_X: Parameter(
             validators=for_each_validator(range_inclusive_validator(-180, 180)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(ROT_X),
         ),
         TRANSL_Z: Parameter(
             validators=for_each_validator(range_inclusive_validator(-1000, 1000)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(TRANSL_Z),
         ),
         TRANSL_Y: Parameter(
             validators=for_each_validator(range_inclusive_validator(-1000, 1000)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(TRANSL_Y),
         ),
         TRANSL_X: Parameter(
             validators=for_each_validator(range_inclusive_validator(-1000, 1000)),
-            default_value=[0.0, 0.0, 0.0],
+            default_value=DEFAULT_PARAMS.get(TRANSL_X),
         ),
-        "acq_matrix": Parameter(
+        ACQ_MATRIX: Parameter(
             validators=[list_of_type_validator(int), of_length_validator(3)],
-            default_value=[64, 64, 12],
+            default_value=DEFAULT_PARAMS.get(ACQ_MATRIX),
         ),
-        "acq_contrast": Parameter(
+        ACQ_CONTRAST: Parameter(
             validators=from_list_validator(["ge", "se"], case_insensitive=True),
-            default_value="se",
+            default_value=DEFAULT_PARAMS.get(ACQ_CONTRAST),
         ),
-        "desired_snr": Parameter(
-            validators=greater_than_equal_to_validator(0), default_value=10
+        DESIRED_SNR: Parameter(
+            validators=greater_than_equal_to_validator(0),
+            default_value=DEFAULT_PARAMS.get(DESIRED_SNR),
         ),
-        "random_seed": Parameter(
-            validators=greater_than_equal_to_validator(0), default_value=0
+        RANDOM_SEED: Parameter(
+            validators=greater_than_equal_to_validator(0),
+            default_value=DEFAULT_PARAMS.get(RANDOM_SEED),
         ),
     },
     post_validators=[

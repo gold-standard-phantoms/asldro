@@ -50,7 +50,7 @@ def test_user_input_defaults_created():
         "transl_z": [0.0, 0.0, 0.0],
         "label_duration": 1.8,
         "signal_time": 3.6,
-        "label_efficiency": 1.0,
+        "label_efficiency": 0.85,
         "desired_snr": 10,
         "acq_matrix": [64, 64, 12],
         "acq_contrast": "se",
