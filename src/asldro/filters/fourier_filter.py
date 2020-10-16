@@ -19,7 +19,7 @@ class FftFilter(BaseFilter):
     KEY_IMAGE = "image"
 
     def __init__(self):
-        super().__init__(name="fft")
+        super().__init__(name="FFT")
 
     def _run(self):
         """ performs a n-dimensional fast fourier transform on the input Image Container
@@ -60,7 +60,7 @@ class IfftFilter(BaseFilter):
     KEY_IMAGE = "image"
 
     def __init__(self):
-        super().__init__(name="ifft")
+        super().__init__(name="IFFT")
 
     def _run(self):
         """ performs a n-dimensional inverse fast fourier transform on the input Image Container

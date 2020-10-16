@@ -48,7 +48,7 @@ class ResampleFilter(BaseFilter):
     KEY_AFFINE = "affine"
     KEY_SHAPE = "shape"
 
-    def __init(self):
+    def __init__(self):
         super().__init__(name="Resample image")
 
     def _run(self):

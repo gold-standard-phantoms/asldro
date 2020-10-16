@@ -29,25 +29,6 @@ from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
 
 logger = logging.getLogger(__name__)
 
-EXAMPLE_INPUT_PARAMS = {
-    "asl_context": "m0scan control label",
-    "label_type": "pcasl",
-    "label_duration": 1.8,
-    "signal_time": 3.6,
-    "label_efficiency": 0.85,
-    "echo_time": [0.01, 0.01, 0.01],
-    "repetition_time": [10.0, 5.0, 5.0],
-    "rot_z": [0.0, 0.0, 0.0],
-    "rot_y": [0.0, 0.0, 0.0],
-    "rot_x": [0.0, 0.0, 0.0],
-    "transl_x": [0.0, 0.0, 0.0],
-    "transl_y": [0.0, 0.0, 0.0],
-    "transl_z": [0.0, 0.0, 0.0],
-    "acq_matrix": [64, 64, 20],
-    "acq_contrast": "se",
-    "desired_snr": 10.0,
-}
-
 SUPPORTED_EXTENSIONS = [".zip", ".tar.gz"]
 # Used in shutil.make_archive
 EXTENSION_MAPPING = {".zip": "zip", ".tar.gz": "gztar"}
@@ -71,7 +52,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     operation, inputs and outputs of individual filters. """
 
     if input_params is None:
-        input_params = deepcopy(EXAMPLE_INPUT_PARAMS)
+        input_params = {}  # Empty dictionary - will get populated with defaults
+
     if output_filename is not None:
         _, output_filename_extension = splitext(output_filename)
         if output_filename_extension not in SUPPORTED_EXTENSIONS:
@@ -81,6 +63,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     # Validate parameter and update defaults
     input_params = USER_INPUT_VALIDATOR.validate(input_params)
+
+    logger.info(
+        "Running DRO generation with the following parameters:\n%s",
+        pprint.pformat(input_params),
+    )
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)
 
@@ -94,8 +81,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     ground_truth_filter.run()
 
     logger.info("JsonLoaderFilter outputs:\n%s", pprint.pformat(json_filter.outputs))
-    logger.info("NiftiLoaderFilter outputs:\n%s", pprint.pformat(nifti_filter.outputs))
-    logger.info(
+    logger.debug("NiftiLoaderFilter outputs:\n%s", pprint.pformat(nifti_filter.outputs))
+    logger.debug(
         "GroundTruthLoaderFilter outputs:\n%s",
         pprint.pformat(ground_truth_filter.outputs),
     )
@@ -259,7 +246,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     # header.set_data_shape(4)
     # header.set
     acquired_timeseries = type(acquired_images_list[0])(
-        dataobj=acquired_timeseries_dataobj, affine=acquired_images_list[0].affine,
+        dataobj=acquired_timeseries_dataobj, affine=acquired_images_list[0].affine
     )
     acquired_timeseries.update_header()
     acquired_timeseries.header["descrip"] = "ASLDRO generated magnitude source data"
@@ -268,16 +255,16 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     labelmask_resample_filter.run()
 
     # logging
-    logger.info("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
-    logger.info(
+    logger.debug("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
+    logger.debug(
         "add_complex_noise_filter outputs: \n %s",
         pprint.pformat(add_complex_noise_filter.outputs),
     )
-    logger.info(
+    logger.debug(
         "motion_resample_filter outputs: \n %s",
         pprint.pformat(motion_resample_filter.outputs),
     )
-    logger.info(
+    logger.debug(
         "mri_signal_filter outputs: \n %s", pprint.pformat(mri_signal_filter.outputs)
     )
 
@@ -285,7 +272,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     with TemporaryDirectory() as temp_dir:
 
         nib.save(
-            acquired_timeseries, os.path.join(temp_dir, "asl_source_magnitude.nii.gz"),
+            acquired_timeseries, os.path.join(temp_dir, "asl_source_magnitude.nii.gz")
         )
         nib.save(
             cbf_resample_filter.outputs[cbf_resample_filter.KEY_IMAGE]._nifti_image,
@@ -301,6 +288,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         if output_filename is not None:
             filename, file_extension = splitext(output_filename)
             # output the file archive
+            logger.info("Creating output archive: %s", output_filename)
             shutil.make_archive(
                 filename, EXTENSION_MAPPING[file_extension], root_dir=temp_dir
             )
