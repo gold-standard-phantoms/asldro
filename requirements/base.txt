@@ -1,0 +1,4 @@
+nibabel==3.1.1
+numpy==1.19.0
+jsonschema==3.2.0
+nilearn==0.6.2

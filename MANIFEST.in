@@ -1,0 +1,3 @@
+include *.md
+recursive-include src/asldro/data *.json *.nii.gz
+recursive-include requirements *.txt
