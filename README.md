@@ -87,14 +87,14 @@ Documentation Overview.
 ## Overview
 
 ASL DRO is software that can generate digital reference objects for Arterial Spin Labelling (ASL) MRI.
-It generates synthetic raw ASL data according to set acquisition and data format parameters, based
+It creates synthetic raw ASL data according to set acquisition and data format parameters, based
 on input ground truth maps for:
 
 
-* perfusion rate
+* Perfusion rate
 
 
-* transit time
+* Transit time
 
 
 * Intrinsic MRI parameters: M0, T1, T2, T2\*
@@ -165,6 +165,8 @@ have the same number of entries as there are defined volumes:
 
 
 * `transl_z`
+
+For more details on input parameters see Parameters
 
 ## Pipeline details
 
