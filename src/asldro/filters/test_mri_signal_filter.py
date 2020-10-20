@@ -25,7 +25,8 @@ TEST_DATA_DICT_GE = {
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("ge", "gradient echo", "str", 435),
     "echo_time": (0.01, -0.01, "echo"),
-    "repetition_time": (1.0, -1.0, "repeat"),
+    "repetition_time": (1.0, -1.0, 0.009, "repeat"),
+    "excitation_flip_angle": (90.0, "str", 90),
 }
 
 TEST_DATA_DICT_SE = {
@@ -34,7 +35,19 @@ TEST_DATA_DICT_SE = {
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("se", "spin echo", "str", 435),
     "echo_time": (0.01, -0.01, "echo"),
-    "repetition_time": (1.0, -1.0, "repeat"),
+    "repetition_time": (1.0, -1.0, 0.009, "repeat"),
+}
+
+TEST_DATA_DICT_IR = {
+    "t1": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "t2": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "acq_contrast": ("ir", "inversion recovery", "str", 435),
+    "echo_time": (0.01, -0.01, "echo"),
+    "repetition_time": (1.5, -1.0, 1.0, "repeat"),
+    "excitation_flip_angle": (90.0, "str", 90),
+    "inversion_flip_angle": (180.0, "str", 90),
+    "inversion_time": (1.0, -1.0, 1, "str"),
 }
 
 # t1, t2, m0, t2_star, acq_contrast, acq_type, echo_time, repetition_time, expected
@@ -48,17 +61,17 @@ TIMECOURSE_PARAMS = (
         np.linspace(0, 0.1, 11),
         1.0,
         [
-            5.10458340443e-01,
-            4.42505054073e-01,
-            3.83597851904e-01,
-            3.32532500207e-01,
-            2.88265075378e-01,
-            2.49890623115e-01,
-            2.16624658533e-01,
-            1.87787129023e-01,
-            1.62788512008e-01,
-            1.41117763393e-01,
-            1.22331870348e-01,
+            5.10469685712e-01,
+            4.42514889036e-01,
+            3.83606377616e-01,
+            3.32539890958e-01,
+            2.88271482257e-01,
+            2.49896177097e-01,
+            2.16629473157e-01,
+            1.87791302715e-01,
+            1.62792130089e-01,
+            1.41120899827e-01,
+            1.22334589253e-01,
         ],
     ),
     (
@@ -109,10 +122,13 @@ def mock_data_fixture() -> dict:
         "acq_contrast": "ge",
         "echo_time": 0.01,
         "repetition_time": 1.0,
+        "excitation_flip_angle": 90.0,
     }
 
 
-@pytest.mark.parametrize("validation_data", [TEST_DATA_DICT_GE, TEST_DATA_DICT_SE])
+@pytest.mark.parametrize(
+    "validation_data", [TEST_DATA_DICT_GE, TEST_DATA_DICT_SE, TEST_DATA_DICT_IR]
+)
 def test_mri_signal_filter_validate_inputs(validation_data: dict):
     """ Check a FilterInputValidationError is raised when the
     inputs to the MriSignalFilter are incorrect or missing
@@ -210,13 +226,27 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 def mri_signal_gradient_echo_function(input_data: dict) -> np.ndarray:
     """ Function that calculates the gradient echo signal """
     t1: np.ndarray = input_data["t1"].image
+    t2: np.ndarray = input_data["t2"].image
     m0: np.ndarray = input_data["m0"].image
     t2_star: np.ndarray = input_data["t2_star"].image
     mag_enc: np.ndarray = input_data["mag_enc"].image
     echo_time: float = input_data["echo_time"]
     repetition_time: float = input_data["repetition_time"]
-    return (m0 * (1 - np.exp(-repetition_time / t1)) + mag_enc) * np.exp(
-        -echo_time / t2_star
+    flip_angle: float = np.radians(input_data["excitation_flip_angle"])
+
+    return (
+        np.sin(flip_angle)
+        * (
+            (m0 * (1 - np.exp(-repetition_time / t1)))
+            / (
+                1
+                - np.cos(flip_angle) * np.exp(-repetition_time / t1)
+                - np.exp(-repetition_time / t2)
+                * (np.exp(-repetition_time / t1) - np.cos(flip_angle))
+            )
+            + mag_enc
+        )
+        * np.exp(-echo_time / t2_star)
     )
 
 
@@ -299,6 +329,7 @@ def test_mri_signal_timecourse(
             "acq_contrast": acq_contrast,
             "echo_time": te,
             "repetition_time": repetition_time,
+            "excitation_flip_angle": 90.0,
         }
 
         mri_signal_filter = MriSignalFilter()

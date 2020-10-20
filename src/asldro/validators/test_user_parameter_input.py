@@ -28,6 +28,7 @@ def test_user_input_valid():
         "acq_matrix": [8, 9, 10],
         "acq_contrast": "se",
         "random_seed": 123_871_263,
+        "excitation_flip_angle": 35.6,
     }
     assert d == USER_INPUT_VALIDATOR.validate(
         d
@@ -55,6 +56,7 @@ def test_user_input_defaults_created():
         "acq_matrix": [64, 64, 12],
         "acq_contrast": "se",
         "random_seed": 0,
+        "excitation_flip_angle": 90.0,
     }
 
 

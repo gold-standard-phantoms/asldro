@@ -42,6 +42,7 @@ ACQ_MATRIX = "acq_matrix"
 ACQ_CONTRAST = "acq_contrast"
 DESIRED_SNR = "desired_snr"
 RANDOM_SEED = "random_seed"
+EXCITATION_FLIP_ANGLE = "excitation_flip_angle"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -70,6 +71,7 @@ DEFAULT_PARAMS = {
     TRANSL_Z: [0.0, 0.0, 0.0],
     ACQ_MATRIX: [64, 64, 12],
     ACQ_CONTRAST: "se",
+    EXCITATION_FLIP_ANGLE: 90.0,
     DESIRED_SNR: 10.0,
     RANDOM_SEED: 0,
 }
@@ -165,6 +167,10 @@ USER_INPUT_VALIDATOR = ParameterValidator(
         RANDOM_SEED: Parameter(
             validators=greater_than_equal_to_validator(0),
             default_value=DEFAULT_PARAMS.get(RANDOM_SEED),
+        ),
+        EXCITATION_FLIP_ANGLE: Parameter(
+            validators=range_inclusive_validator(-180.0, 180.0),
+            default_value=DEFAULT_PARAMS.get(EXCITATION_FLIP_ANGLE),
         ),
     },
     post_validators=[

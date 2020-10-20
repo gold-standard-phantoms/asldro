@@ -167,6 +167,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         mri_signal_filter.add_input(
             MriSignalFilter.KEY_REPETITION_TIME, input_params["repetition_time"][idx]
         )
+        mri_signal_filter.add_input(
+            MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE,
+            input_params["excitation_flip_angle"],
+        )
 
         # for ASL context == "label" use the inverted delta_m as
         # the input MriSignalFilter.KEY_MAG_ENC
