@@ -24,8 +24,8 @@ TEST_DATA_DICT_GE = {
     "t2_star": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("ge", "gradient echo", "str", 435),
-    "acq_te": (0.01, -0.01, "echo"),
-    "acq_tr": (1.0, -1.0, "repeat"),
+    "echo_time": (0.01, -0.01, "echo"),
+    "repetition_time": (1.0, -1.0, "repeat"),
 }
 
 TEST_DATA_DICT_SE = {
@@ -33,11 +33,11 @@ TEST_DATA_DICT_SE = {
     "t2": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("se", "spin echo", "str", 435),
-    "acq_te": (0.01, -0.01, "echo"),
-    "acq_tr": (1.0, -1.0, "repeat"),
+    "echo_time": (0.01, -0.01, "echo"),
+    "repetition_time": (1.0, -1.0, "repeat"),
 }
 
-# t1, t2, m0, t2_star, acq_contrast, acq_type, acq_te, acq_tr, expected
+# t1, t2, m0, t2_star, acq_contrast, acq_type, echo_time, repetition_time, expected
 TIMECOURSE_PARAMS = (
     (
         1.4,
@@ -107,8 +107,8 @@ def mock_data_fixture() -> dict:
             image=np.random.normal(1, 0.1, TEST_VOLUME_DIMENSIONS)
         ),
         "acq_contrast": "ge",
-        "acq_te": 0.01,
-        "acq_tr": 1.0,
+        "echo_time": 0.01,
+        "repetition_time": 1.0,
     }
 
 
@@ -213,9 +213,11 @@ def mri_signal_gradient_echo_function(input_data: dict) -> np.ndarray:
     m0: np.ndarray = input_data["m0"].image
     t2_star: np.ndarray = input_data["t2_star"].image
     mag_enc: np.ndarray = input_data["mag_enc"].image
-    acq_te: float = input_data["acq_te"]
-    acq_tr: float = input_data["acq_tr"]
-    return (m0 * (1 - np.exp(-acq_tr / t1)) + mag_enc) * np.exp(-acq_te / t2_star)
+    echo_time: float = input_data["echo_time"]
+    repetition_time: float = input_data["repetition_time"]
+    return (m0 * (1 - np.exp(-repetition_time / t1)) + mag_enc) * np.exp(
+        -echo_time / t2_star
+    )
 
 
 def mri_signal_spin_echo_function(input_data: dict) -> np.ndarray:
@@ -224,9 +226,11 @@ def mri_signal_spin_echo_function(input_data: dict) -> np.ndarray:
     t2: np.ndarray = input_data["t2"].image
     m0: np.ndarray = input_data["m0"].image
     mag_enc: np.ndarray = input_data["mag_enc"].image
-    acq_te: float = input_data["acq_te"]
-    acq_tr: float = input_data["acq_tr"]
-    return (m0 * (1 - np.exp(-acq_tr / t1)) + mag_enc) * np.exp(-acq_te / t2)
+    echo_time: float = input_data["echo_time"]
+    repetition_time: float = input_data["repetition_time"]
+    return (m0 * (1 - np.exp(-repetition_time / t1)) + mag_enc) * np.exp(
+        -echo_time / t2
+    )
 
 
 def test_mri_signal_filter_gradient_echo(mock_data):
@@ -258,7 +262,8 @@ def test_mri_signal_filter_spin_echo(mock_data):
 
 
 @pytest.mark.parametrize(
-    "t1, t2, m0, t2_star, acq_contrast, acq_te, acq_tr, expected", TIMECOURSE_PARAMS,
+    "t1, t2, m0, t2_star, acq_contrast, echo_time, repetition_time, expected",
+    TIMECOURSE_PARAMS,
 )
 def test_mri_signal_timecourse(
     t1: float,
@@ -266,8 +271,8 @@ def test_mri_signal_timecourse(
     m0: float,
     t2_star: float,
     acq_contrast: str,
-    acq_te: float,
-    acq_tr: float,
+    echo_time: float,
+    repetition_time: float,
     expected: float,
 ):
     """Tests the MriSignalFilter with timecourse data that is generated at multiple echo times
@@ -278,13 +283,13 @@ def test_mri_signal_timecourse(
         m0 (float): equilibrium magnetisation
         t2_star (float): transverse relaxation time inc. time invariant fields, s
         acq_contrast (str): signal model to use: 'ge' or 'se'
-        acq_te (float): array of echo times, s
-        acq_tr (float): repeat time, s
+        echo_time (float): array of echo times, s
+        repetition_time (float): repeat time, s
         expected (float): Array of expected values that the MriSignalFilter should generate
-        Should be the same size and shape as 'acq_te'
+        Should be the same size and shape as 'echo_time'
     """
-    mri_signal_timecourse = np.ndarray(acq_te.shape)
-    for idx, te in np.ndenumerate(acq_te):
+    mri_signal_timecourse = np.ndarray(echo_time.shape)
+    for idx, te in np.ndenumerate(echo_time):
         params = {
             "t1": NumpyImageContainer(image=np.full((1, 1, 1), t1)),
             "t2": NumpyImageContainer(image=np.full((1, 1, 1), t2)),
@@ -292,8 +297,8 @@ def test_mri_signal_timecourse(
             "m0": NumpyImageContainer(image=np.full((1, 1, 1), m0)),
             "mag_enc": NumpyImageContainer(image=np.zeros((1, 1, 1))),
             "acq_contrast": acq_contrast,
-            "acq_te": te,
-            "acq_tr": acq_tr,
+            "echo_time": te,
+            "repetition_time": repetition_time,
         }
 
         mri_signal_filter = MriSignalFilter()

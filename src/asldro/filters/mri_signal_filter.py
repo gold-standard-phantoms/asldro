@@ -43,8 +43,8 @@ class MriSignalFilter(BaseFilter):
     KEY_M0 = "m0"
     KEY_MAG_ENC = "mag_enc"
     KEY_ACQ_CONTRAST = "acq_contrast"
-    KEY_ACQ_TE = "acq_te"
-    KEY_ACQ_TR = "acq_tr"
+    KEY_ECHO_TIME = "echo_time"
+    KEY_REPETITION_TIME = "repetition_time"
     KEY_IMAGE = "image"
 
     # Value constants
@@ -66,8 +66,8 @@ class MriSignalFilter(BaseFilter):
         else:
             mag_enc: np.ndarray = np.zeros(t1.shape)
         acq_contrast: str = self.inputs[self.KEY_ACQ_CONTRAST]
-        acq_te: float = self.inputs[self.KEY_ACQ_TE]
-        acq_tr: float = self.inputs[self.KEY_ACQ_TR]
+        acq_te: float = self.inputs[self.KEY_ECHO_TIME]
+        acq_tr: float = self.inputs[self.KEY_REPETITION_TIME]
 
         mri_signal: np.ndarray = np.zeros(t1.shape)
 
@@ -167,13 +167,13 @@ class MriSignalFilter(BaseFilter):
                         ),
                     ]
                 ),
-                self.KEY_ACQ_TE: Parameter(
+                self.KEY_ECHO_TIME: Parameter(
                     validators=[
                         isinstance_validator(float),
                         greater_than_equal_to_validator(0),
                     ]
                 ),
-                self.KEY_ACQ_TR: Parameter(
+                self.KEY_REPETITION_TIME: Parameter(
                     validators=[
                         isinstance_validator(float),
                         greater_than_equal_to_validator(0),

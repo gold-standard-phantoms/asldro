@@ -162,10 +162,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             MriSignalFilter.KEY_ACQ_CONTRAST, input_params["acq_contrast"]
         )
         mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_TE, input_params["echo_time"][idx]
+            MriSignalFilter.KEY_ECHO_TIME, input_params["echo_time"][idx]
         )
         mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_TR, input_params["repetition_time"][idx]
+            MriSignalFilter.KEY_REPETITION_TIME, input_params["repetition_time"][idx]
         )
 
         # for ASL context == "label" use the inverted delta_m as
