@@ -50,7 +50,7 @@ TEST_DATA_DICT_IR = {
     "inversion_time": (1.0, -1.0, 1, "str"),
 }
 
-# t1, t2, m0, t2_star, acq_contrast, acq_type, echo_time, repetition_time, expected
+# t1, t2, m0, t2_star, acq_contrast, echo_time, repetition_time, expected
 TIMECOURSE_PARAMS = (
     (
         1.4,
@@ -78,7 +78,7 @@ TIMECOURSE_PARAMS = (
         2.0,
         0.5,
         1,
-        0.35,
+        0.07,
         "se",
         np.linspace(0, 1.0, 11),
         6.0,
@@ -94,6 +94,42 @@ TIMECOURSE_PARAMS = (
             1.91844682250e-01,
             1.57069141173e-01,
             1.28597336238e-01,
+        ],
+    ),
+)
+
+# t1, t2, m0, t2_star,  echo_time, repetition_time,
+# excitation_angle, inversion_angle, inversion_time, expected
+IR_TIMECOURSE_PARAMS = (
+    (
+        1.4,
+        0.1,
+        1.0,
+        0.07,
+        0.01,
+        10.0,
+        90.0,
+        180.0,
+        np.concatenate([np.linspace(0, 1.0, 11), np.linspace(2.0, 8.0, 7)]),
+        [
+            -9.04122152813005e-01,
+            -7.79368199974629e-01,
+            -6.63214437865866e-01,
+            -5.55067993243801e-01,
+            -4.54376863898874e-01,
+            -3.60627101119449e-01,
+            -2.73340186389445e-01,
+            -1.92070588929139e-01,
+            -1.16403491612320e-01,
+            -4.59526736523874e-02,
+            1.96414607498095e-02,
+            4.71862233171678e-01,
+            6.93243140589206e-01,
+            8.01618317400608e-01,
+            8.54672481311639e-01,
+            8.80644704759052e-01,
+            8.93359190127883e-01,
+            8.99583460395753e-01,
         ],
     ),
 )
@@ -202,7 +238,7 @@ def test_mri_signal_filter_validate_inputs(validation_data: dict):
 
 
 def test_mri_signal_filter_validate_inputs_ge_no_t2_star():
-    """ Checks a FilterInputValidationError is raised when 
+    """ Checks a FilterInputValidationError is raised when
     'acq_contrast' == 'ge' and 't2_star' is not supplied """
     test_data = deepcopy(TEST_DATA_DICT_GE)
     # remove the 't2_star' entry
@@ -263,6 +299,42 @@ def mri_signal_spin_echo_function(input_data: dict) -> np.ndarray:
     )
 
 
+def mri_signal_inversion_recovery_function(input_data: dict) -> np.ndarray:
+    """ Function that calculates the inversion recovery signal """
+    t1: np.ndarray = input_data["t1"].image
+    t2: np.ndarray = input_data["t2"].image
+    m0: np.ndarray = input_data["m0"].image
+
+    mag_enc: np.ndarray = input_data["mag_enc"].image
+    echo_time: float = input_data["echo_time"]
+    repetition_time: float = input_data["repetition_time"]
+    flip_angle: float = np.radians(input_data["excitation_flip_angle"])
+    inversion_angle: float = np.radians(input_data["inversion_flip_angle"])
+    inversion_time: float = input_data["inversion_time"]
+
+    return (
+        np.sin(flip_angle)
+        * (
+            (
+                m0
+                * (
+                    1
+                    - (1 - np.cos(inversion_angle)) * np.exp(-inversion_time / t1)
+                    - np.cos(inversion_angle) * np.exp(-repetition_time / t1)
+                )
+                / (
+                    1
+                    - np.cos(flip_angle)
+                    * np.cos(inversion_angle)
+                    * np.exp(-repetition_time / t1)
+                )
+            )
+            + mag_enc
+        )
+        * np.exp(-echo_time / t2)
+    )
+
+
 def test_mri_signal_filter_gradient_echo(mock_data):
     """ Tests the MriSignalFilter for 'acq_contrast' == 'ge':
     Gradient Echo """
@@ -288,6 +360,23 @@ def test_mri_signal_filter_spin_echo(mock_data):
     se_signal = mri_signal_spin_echo_function(mock_data)
     numpy.testing.assert_array_equal(
         se_signal, mri_signal_filter.outputs["image"].image
+    )
+
+
+def test_mri_signal_filter_inversion_recovery(mock_data):
+    """ Tests the MriSignalFilter for 'acq_contrast' == 'ir':
+    Inversion Recovery """
+    mock_data["acq_contrast"] = "ir"
+    mock_data["inversion_flip_angle"] = 180.0
+    mock_data["inversion_time"] = 1.0
+    mock_data["repetition_time"] = 1.1
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+
+    ir_signal = mri_signal_inversion_recovery_function(mock_data)
+    numpy.testing.assert_array_equal(
+        ir_signal, mri_signal_filter.outputs["image"].image
     )
 
 
@@ -339,3 +428,73 @@ def test_mri_signal_timecourse(
     # arrays should be equal to 9 decimal places
     numpy.testing.assert_array_almost_equal(mri_signal_timecourse, expected, 9)
 
+
+# t1, t2, m0, t2_star, echo_time, repetition_time,
+# excitation_angle, inversion_angle, inversion_time, expected
+
+
+@pytest.mark.parametrize(
+    "t1, t2, m0, t2_star, echo_time, repetition_time,"
+    " flip_angle, inversion_angle, inversion_time, expected",
+    IR_TIMECOURSE_PARAMS,
+)
+def test_mri_signal_timecourse_inversion_recovery(
+    t1: float,
+    t2: float,
+    m0: float,
+    t2_star: float,
+    echo_time: float,
+    repetition_time: float,
+    flip_angle: float,
+    inversion_angle: float,
+    inversion_time: float,
+    expected: float,
+):
+    """Tests the MriSignalFilter inversion recovery signal over a range of TI's.
+
+    :param t1: longitudinal relaxation time, s
+    :type t1: float
+    :param t2: transverse relaxation time, s
+    :type t2: float
+    :param m0: equilibrium magnetisation
+    :type m0: float
+    :param t2_star: transverse relaxation time inc. time invariant fields, s
+    :type t2_star: float
+
+
+    :param echo_time: the echo time, s
+    :type echo_time: float
+    :param repetition_time: the repetition time, s
+    :type repetition_time: float
+    :param flip_angle: the excitation pulse flip angle, degrees
+    :type flip_angle: float
+    :param inversion_angle: the inversion pulse flip angle, degrees
+    :type inversion_angle: float
+    :param inversion_time: array of durations between the inversion pulse and excitation pulse, s
+    :type inversion_time: float
+    :param expected: array of expected valuesm, same length as `inversion_time`
+    :type expected: float
+
+    """
+
+    mri_signal_timecourse = np.ndarray(inversion_time.shape)
+    for idx, ti in np.ndenumerate(inversion_time):
+        params = {
+            "t1": NumpyImageContainer(image=np.full((1, 1, 1), t1)),
+            "t2": NumpyImageContainer(image=np.full((1, 1, 1), t2)),
+            "t2_star": NumpyImageContainer(image=np.full((1, 1, 1), t2_star)),
+            "m0": NumpyImageContainer(image=np.full((1, 1, 1), m0)),
+            "acq_contrast": "ir",
+            "echo_time": echo_time,
+            "repetition_time": repetition_time,
+            "excitation_flip_angle": flip_angle,
+            "inversion_flip_angle": inversion_angle,
+            "inversion_time": ti,
+        }
+
+        mri_signal_filter = MriSignalFilter()
+        mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, params)
+        mri_signal_filter.run()
+        mri_signal_timecourse[idx] = mri_signal_filter.outputs["image"].image
+    # arrays should be equal to 9 decimal places
+    numpy.testing.assert_array_almost_equal(mri_signal_timecourse, expected, 9)

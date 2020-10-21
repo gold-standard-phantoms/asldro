@@ -43,6 +43,8 @@ ACQ_CONTRAST = "acq_contrast"
 DESIRED_SNR = "desired_snr"
 RANDOM_SEED = "random_seed"
 EXCITATION_FLIP_ANGLE = "excitation_flip_angle"
+INVERSION_FLIP_ANGLE = "inversion_flip_angle"
+INVERSION_TIME = "inversion_time"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -72,6 +74,8 @@ DEFAULT_PARAMS = {
     ACQ_MATRIX: [64, 64, 12],
     ACQ_CONTRAST: "se",
     EXCITATION_FLIP_ANGLE: 90.0,
+    INVERSION_FLIP_ANGLE: 180.0,
+    INVERSION_TIME: 1.0,
     DESIRED_SNR: 10.0,
     RANDOM_SEED: 0,
 }
@@ -157,7 +161,7 @@ USER_INPUT_VALIDATOR = ParameterValidator(
             default_value=DEFAULT_PARAMS.get(ACQ_MATRIX),
         ),
         ACQ_CONTRAST: Parameter(
-            validators=from_list_validator(["ge", "se"], case_insensitive=True),
+            validators=from_list_validator(["ge", "se", "ir"], case_insensitive=True),
             default_value=DEFAULT_PARAMS.get(ACQ_CONTRAST),
         ),
         DESIRED_SNR: Parameter(
@@ -171,6 +175,14 @@ USER_INPUT_VALIDATOR = ParameterValidator(
         EXCITATION_FLIP_ANGLE: Parameter(
             validators=range_inclusive_validator(-180.0, 180.0),
             default_value=DEFAULT_PARAMS.get(EXCITATION_FLIP_ANGLE),
+        ),
+        INVERSION_FLIP_ANGLE: Parameter(
+            validators=range_inclusive_validator(-180.0, 180.0),
+            default_value=DEFAULT_PARAMS.get(INVERSION_FLIP_ANGLE),
+        ),
+        INVERSION_TIME: Parameter(
+            validators=greater_than_equal_to_validator(0.0),
+            default_value=DEFAULT_PARAMS.get(INVERSION_TIME),
         ),
     },
     post_validators=[

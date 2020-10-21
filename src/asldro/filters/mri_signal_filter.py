@@ -13,8 +13,9 @@ from asldro.validators.parameters import (
 
 
 class MriSignalFilter(BaseFilter):
-    r""" A filter that generates either the Gradient Echo, Spin Echo or Inversion Recovery MRI signal.
-  
+    r""" A filter that generates either the Gradient Echo, Spin Echo or
+    Inversion Recovery MRI signal.
+
     * Gradient echo is with arbitrary excitation flip angle.
     * Spin echo assumes perfect 90° excitation and 180° refocusing pulses.
     * Inversion recovery can have arbitrary inversion pulse and excitation pulse flip angles.
@@ -38,59 +39,62 @@ class MriSignalFilter(BaseFilter):
         provides a means to encode another signal into the MRI signal (non-complex data)
     :type 'mag_enc': BaseImageContainer, optional.
     :param 'acq_contrast': Determines which signal model to use:
-        "ge" (case insensitive) for Gradient Echo
-        "se" (case insensitive) for Spin Echo
-        "ir" (case insensitive) for Inversion Recovery
+      ``"ge"`` (case insensitive) for Gradient Echo, ``"se"`` (case insensitive) for Spin Echo,
+      ``"ir"`` (case insensitive) for Inversion Recovery.
     :type 'acq_contrast': str
     :param 'echo_time': The echo time in seconds (>=0)
     :type 'echo_time': float
     :param 'repetition_time': The repeat time in seconds (>=0)
     :type 'repetition_time': float
-    :param 'excitation_flip_angle': Excitation pulse flip angle in degrees. Only used when 
-        `acq_contrast` is `ge` or `ir`.  Defaults to 90.0
+    :param 'excitation_flip_angle': Excitation pulse flip angle in degrees. Only used when
+        ``"acq_contrast"`` is ``"ge"`` or ``"ir"``.  Defaults to 90.0
     :type 'excitation_flip_angle': float, optional
-    :param 'inversion_flip_angle': Inversion pulse flip angle in degrees. Only used when 
-        `acq_contrast` is `ir`. Defaults to 180.0
+    :param 'inversion_flip_angle': Inversion pulse flip angle in degrees. Only used when
+        ``"acq_contrast"`` is ``"ir"``. Defaults to 180.0
     :type 'inversion_flip_angle': float, optional
-    :param 'inversion_time': The inversion time in seconds. Only used when 
-        `acq_contrast` is `ir`. Defaults to 1.0.
+    :param 'inversion_time': The inversion time in seconds. Only used when
+        ``"acq_contrast"`` is ``"ir"``. Defaults to 1.0.
 
     **Outputs**
 
     Once run, the filter will populate the dictionary :class:`MriSignalFilter.outputs` with the
     following entries
 
-    :param 'image': An image of the generated MRI signal. Will be of the same class as the input 't1'
+    :param 'image': An image of the generated MRI signal. Will be of the same class
+      as the input ``"t1"``
     :type 'image': BaseImageContainer
+
 
     The following equations are used to compute the MRI signal:
 
 
-    Gradient Echo
+    *Gradient Echo*
 
     .. math::
-        S(\text{TE},\text{TR}, \theta) = \sin\theta_1\cdot(\frac{M_0\cdot(1-e^{-\frac{TR}{T_{1}}})}
+        S(\text{TE},\text{TR}, \theta_1) = \sin\theta_1\cdot(\frac{M_0
+        \cdot(1-e^{-\frac{TR}{T_{1}}})}
         {1-\cos\theta_1 e^{-\frac{TR}{T_{1}}}-e^{-\frac{TR}{T_{2}}}\cdot
         \left(e^{-\frac{TR}{T_{1}}}-\cos\theta_1\right)}  + M_{\text{enc}})
         \cdot e^{-\frac{\text{TE}}{T^{*}_2}}
 
-    
-    Spin Echo
+
+    *Spin Echo*
 
     .. math::
        S(\text{TE},\text{TR}) = (M_0 \cdot (1-e^{-\frac{\text{TR}}{T_1}}) + M_{\text{enc}})
        \cdot e^{-\frac{\text{TE}}{T_2}}
 
-    
-    Inversion Recovery
+
+    *Inversion Recovery*
 
     .. math::
-        S(\text{TE},\text{TR}, \text{TI}, \theta_1, \theta_2) = 
+        &S(\text{TE},\text{TR}, \text{TI}, \theta_1, \theta_2) =
         \sin\theta_1 \cdot (\frac{M_0(1-\left(1-\cos\theta_{2}\right)
         e^{-\frac{TI}{T_{1}}}-\cos\theta_{2}e^{-\frac{TR}{T_{1}}})}
         {1-\cos\theta_{1}\cos\theta_{2}e^{-\frac{TR}{T_{1}}}}+ M_\text{enc})
-        \cdot e^{-\frac{TE}{T_{2}}}
-
+        \cdot e^{-\frac{TE}{T_{2}}}\\
+        &\theta_1 = \text{excitation pulse flip angle}\\
+        &\theta_2 = \text{inversion pulse flip angle}
 
     """
 
@@ -145,13 +149,13 @@ class MriSignalFilter(BaseFilter):
         if acq_contrast.lower() == self.CONTRAST_GE:
             t2_star: np.ndarray = self.inputs[self.KEY_T2_STAR].image
             flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
-            # pre-calculate the exponent exp(-echo_time/t2_star) as it is used multiple times
+            # pre-calculate the exponent exp(-echo_time/t2_star)
             exp_t2_star = np.exp(
                 -np.divide(
                     echo_time, t2_star, out=np.zeros_like(t2_star), where=t2_star != 0
                 )
             )
-
+            # pre-calculate the exponent exp(-repetition_time/t2)
             exp_tr_t2 = np.exp(
                 -np.divide(repetition_time, t2, out=np.zeros_like(t2), where=t2 != 0)
             )
@@ -187,6 +191,38 @@ class MriSignalFilter(BaseFilter):
                 )
                 + mag_enc
             ) * exp_te_t2
+
+        elif acq_contrast.lower() == self.CONTRAST_IR:
+            flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
+            inversion_time = self.inputs.get(self.KEY_INVERSION_TIME)
+            inversion_flip_angle = np.radians(
+                self.inputs.get(self.KEY_INVERSION_FLIP_ANGLE)
+            )
+            # pre-calculate the exponent exp(-inversion_time/t1)
+            exp_ti_t1 = np.exp(
+                -np.divide(inversion_time, t1, out=np.zeros_like(t1), where=t1 != 0)
+            )
+            mri_signal = (
+                np.sin(flip_angle)
+                * (
+                    (
+                        m0
+                        * (
+                            1
+                            - (1 - np.cos(inversion_flip_angle)) * exp_ti_t1
+                            - np.cos(inversion_flip_angle) * exp_tr_t1
+                        )
+                        / (
+                            1
+                            - np.cos(flip_angle)
+                            * np.cos(inversion_flip_angle)
+                            * exp_tr_t1
+                        )
+                    )
+                    + mag_enc
+                )
+                * exp_te_t2
+            )
 
         self.outputs[self.KEY_IMAGE]: BaseImageContainer = self.inputs[
             self.KEY_T1
@@ -281,14 +317,17 @@ class MriSignalFilter(BaseFilter):
 
         # Parameters that are conditionally required based on the value of "acq_contrast"
         # if the acquisition contrast is gradient echo ("ge")
-        if self.inputs[self.KEY_ACQ_CONTRAST] == self.CONTRAST_GE:
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() == self.CONTRAST_GE:
             # 't2_star' must be present in inputs
             if self.inputs.get(self.KEY_T2_STAR) is None:
                 raise FilterInputValidationError(
                     "Acquisition contrast is ge, 't2_star' image required"
                 )
         # if the acquisition contrast is gradient echo ("ge") or inversion recovery ("ir")
-        if self.inputs[self.KEY_ACQ_CONTRAST] in (self.CONTRAST_GE, self.CONTRAST_IR):
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() in (
+            self.CONTRAST_GE,
+            self.CONTRAST_IR,
+        ):
             # 'excitation_flip_angle' must be present in inputs
             if self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE) is None:
                 raise FilterInputValidationError(
@@ -297,7 +336,7 @@ class MriSignalFilter(BaseFilter):
                 )
 
         # if the acquisition contrast is inversion recovery ("ir")
-        if self.inputs[self.KEY_ACQ_CONTRAST] == self.CONTRAST_IR:
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() == self.CONTRAST_IR:
             if self.inputs.get(self.KEY_INVERSION_FLIP_ANGLE) is None:
                 raise FilterInputValidationError(
                     f"Acquisition contrast is {self.inputs[self.KEY_ACQ_CONTRAST]},"

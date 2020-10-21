@@ -29,6 +29,8 @@ def test_user_input_valid():
         "acq_contrast": "se",
         "random_seed": 123_871_263,
         "excitation_flip_angle": 35.6,
+        "inversion_flip_angle": 164.0,
+        "inversion_time": 1.0,
     }
     assert d == USER_INPUT_VALIDATOR.validate(
         d
@@ -57,6 +59,8 @@ def test_user_input_defaults_created():
         "acq_contrast": "se",
         "random_seed": 0,
         "excitation_flip_angle": 90.0,
+        "inversion_flip_angle": 180.0,
+        "inversion_time": 1.0,
     }
 
 
