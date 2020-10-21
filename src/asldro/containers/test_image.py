@@ -470,6 +470,7 @@ def general_image_container_clone_tests(
     )
 
     assert image_container.time_step_seconds == cloned_image_container.time_step_seconds
+    assert image_container.metadata == cloned_image_container.metadata
 
 
 def test_numpy_image_container_clone():
@@ -577,3 +578,46 @@ def test_nifti_image_container_image_set_different_dtype(
         new_image = np.ones(shape=(4, 4, 4), dtype=np.float64)
         image_container.image = new_image
         assert image_container.header["datatype"] == 64
+
+
+def test_image_container_metadata_init():
+    """ Test the metadata initialisation on the Image Container classes """
+    numpy = NumpyImageContainer(image=np.ones((1, 1, 1)), affine=np.eye(4))
+    assert numpy.metadata == {}
+    nifti = NiftiImageContainer(
+        nifti_img=nib.Nifti1Image(np.ones((1, 1, 1)), affine=np.eye(4))
+    )
+    assert nifti.metadata == {}
+
+    numpy = NumpyImageContainer(
+        image=np.ones((1, 1, 1)), affine=np.eye(4), metadata={"foo": "bar"}
+    )
+    assert numpy.metadata == {"foo": "bar"}
+    nifti = NiftiImageContainer(
+        nifti_img=nib.Nifti1Image(np.ones((1, 1, 1)), affine=np.eye(4)),
+        metadata={"bar": "foo"},
+    )
+    assert nifti.metadata == {"bar": "foo"}
+
+    with pytest.raises(TypeError):
+        NumpyImageContainer(
+            image=np.ones((1, 1, 1)), affine=np.eye(4), metadata=1
+        )  # non-dict
+    with pytest.raises(TypeError):
+        NiftiImageContainer(
+            nifti_img=nib.Nifti1Image(np.ones((1, 1, 1)), affine=np.eye(4)),
+            metadata="foobar",  # non-dict
+        )
+
+
+def test_image_container_metadata_get_set():
+    """ Test the Image Container metadata getting and setting """
+    numpy = NumpyImageContainer(image=np.ones((1, 1, 1)), affine=np.eye(4))
+    assert numpy.metadata == {}
+    numpy.metadata = {"one": 1, "two": 2}
+    assert numpy.metadata == {"one": 1, "two": 2}
+    numpy.metadata["three"] = 3
+    assert numpy.metadata == {"one": 1, "two": 2, "three": 3}
+    with pytest.raises(TypeError):
+        numpy.metadata = "not a dict"
+

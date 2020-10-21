@@ -42,9 +42,18 @@ class BaseImageContainer(ABC):
     - COMPLEX_IMAGE_TYPE
     if this is not specified, it will be set to MAGNITUDE_IMAGE_TYPE for scalar
     image dtypes and COMPLEX_IMAGE_TYPE for complex dtypes
+    :param metadata: a metadata dictionary which is associated with the image data.
+    This might contain, for example, timing parameters associated with the image
+    acquisition.
     """
 
-    def __init__(self, data_domain: str = SPATIAL_DOMAIN, image_type=None, **kwargs):
+    def __init__(
+        self,
+        data_domain: str = SPATIAL_DOMAIN,
+        image_type=None,
+        metadata=None,
+        **kwargs,
+    ):
         if data_domain not in [SPATIAL_DOMAIN, INVERSE_DOMAIN]:
             raise ValueError(
                 "data_domain is not of of SPATIAL_DOMAIN or INVERSE_DOMAIN"
@@ -84,11 +93,32 @@ class BaseImageContainer(ABC):
 
         self.image_type = image_type
 
+        if metadata is None:
+            metadata = {}
+
+        if not isinstance(metadata, dict):
+            raise TypeError(f"metadata should be a dict, not {metadata}")
+        self._metadata = metadata
+
         # Check we aren't passed unexpected parameters
         if len(kwargs) != 0:
             raise TypeError(
                 f"BaseImageContainer received unexpected arguments {kwargs}"
             )
+
+    @property
+    def metadata(self) -> dict:
+        """ Get the metadata """
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, value: dict):
+        """ metadata setter
+        :param value: a dictionary. Will overwrite previous metadata
+        """
+        if not isinstance(value, dict):
+            raise TypeError(f"New metadata must be a dict, not {value}")
+        self._metadata = value
 
     def clone(self) -> "BaseImageContainer":
         """ Makes a deep copy of all member variables in a new ImageContainer """
