@@ -471,3 +471,19 @@ def test_gkm_timecourse(
         delta_m_timecourse[idx] = gkm_filter.outputs["delta_m"].image
     # arrays should be equal to 9 decimal places
     numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 10)
+
+
+def test_gkm_filter_metadata(casl_input):
+    """ Test the metadata output from GkmFilter """
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
+
+    assert gkm_filter.outputs["delta_m"].metadata == {
+        "label_type": casl_input["label_type"].lower(),
+        "label_duration": casl_input["label_duration"],
+        "post_label_delay": casl_input["signal_time"] - casl_input["label_duration"],
+        "label_efficiency": casl_input["label_efficiency"],
+        "lambda_blood_brain": casl_input["lambda_blood_brain"],
+        "t1_arterial_blood": casl_input["t1_arterial_blood"],
+    }
