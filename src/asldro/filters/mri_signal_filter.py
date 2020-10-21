@@ -13,27 +13,89 @@ from asldro.validators.parameters import (
 
 
 class MriSignalFilter(BaseFilter):
-    """ A filter that generates either the Gradient Echo or Spin Echo MRI signal. The
-    Gradient Echo assumes a perfect 90° excitation, and the Spin Echo perfect 90° excitation
-    and 180° refocusing pulses.
+    r""" A filter that generates either the Gradient Echo, Spin Echo or
+    Inversion Recovery MRI signal.
 
-    ### Inputs:
-        't1' (BaseImageContainer): Longitudinal relaxation time in seconds (>=0, non-complex data)
-        't2' (BaseImageContainer): Transverse relaxation time in seconds (>=0, non-complex data)
-        't2_star' (BaseImageContainer): Transverse relaxation time including time-invariant magnetic
+    * Gradient echo is with arbitrary excitation flip angle.
+    * Spin echo assumes perfect 90° excitation and 180° refocusing pulses.
+    * Inversion recovery can have arbitrary inversion pulse and excitation pulse flip angles.
+
+    **Inputs**
+
+    Input Parameters are all keyword arguments for the :class:`MriSignalFilter.add_inputs()`
+    member function. They are also accessible via class constants,
+    for example :class:`MriSignalFilter.KEY_T1`
+
+    :param 't1':  Longitudinal relaxation time in seconds (>=0, non-complex data)
+    :type 't1': BaseImageContainer
+    :param 't2': Transverse relaxation time in seconds (>=0, non-complex data)
+    :type 't2': BaseImageContainer
+    :param 't2_star': Transverse relaxation time including time-invariant magnetic
         field inhomogeneities, only required for gradient echo (>=0, non-complex data)
-        'm0' (BaseImageContainer): Equilibrium magnetisation (>=0, non-complex data)
-        'mag_eng' (BaseImageContainer), optional: Added to M0 before relaxation is calculated,
+    :type 't2_star': BaseImageContainer
+    :param 'm0': Equilibrium magnetisation (>=0, non-complex data)
+    :type 'm0': BaseImageContainer
+    :param 'mag_eng': Added to M0 before relaxation is calculated,
         provides a means to encode another signal into the MRI signal (non-complex data)
-        'acq_contrast' (str): Determines which signal model to use:
-            "ge" (case insensitive) for Gradient Echo
-            "se" (case insensitive) for Spin Echo
-        'acq_te' (float): The echo time in seconds (>=0)
-        'acq_tr' (float): The repeat time in seconds (>=0)
+    :type 'mag_enc': BaseImageContainer, optional.
+    :param 'acq_contrast': Determines which signal model to use:
+      ``"ge"`` (case insensitive) for Gradient Echo, ``"se"`` (case insensitive) for Spin Echo,
+      ``"ir"`` (case insensitive) for Inversion Recovery.
+    :type 'acq_contrast': str
+    :param 'echo_time': The echo time in seconds (>=0)
+    :type 'echo_time': float
+    :param 'repetition_time': The repeat time in seconds (>=0)
+    :type 'repetition_time': float
+    :param 'excitation_flip_angle': Excitation pulse flip angle in degrees. Only used when
+        ``"acq_contrast"`` is ``"ge"`` or ``"ir"``.  Defaults to 90.0
+    :type 'excitation_flip_angle': float, optional
+    :param 'inversion_flip_angle': Inversion pulse flip angle in degrees. Only used when
+        ``"acq_contrast"`` is ``"ir"``. Defaults to 180.0
+    :type 'inversion_flip_angle': float, optional
+    :param 'inversion_time': The inversion time in seconds. Only used when
+        ``"acq_contrast"`` is ``"ir"``. Defaults to 1.0.
 
-    ### Output:
-        'image' (BaseImageContainer): An image with the MRI signal.  This will be the same class
-        as the input 't1'
+    **Outputs**
+
+    Once run, the filter will populate the dictionary :class:`MriSignalFilter.outputs` with the
+    following entries
+
+    :param 'image': An image of the generated MRI signal. Will be of the same class
+      as the input ``"t1"``
+    :type 'image': BaseImageContainer
+
+
+    The following equations are used to compute the MRI signal:
+
+
+    *Gradient Echo*
+
+    .. math::
+        S(\text{TE},\text{TR}, \theta_1) = \sin\theta_1\cdot(\frac{M_0
+        \cdot(1-e^{-\frac{TR}{T_{1}}})}
+        {1-\cos\theta_1 e^{-\frac{TR}{T_{1}}}-e^{-\frac{TR}{T_{2}}}\cdot
+        \left(e^{-\frac{TR}{T_{1}}}-\cos\theta_1\right)}  + M_{\text{enc}})
+        \cdot e^{-\frac{\text{TE}}{T^{*}_2}}
+
+
+    *Spin Echo*
+
+    .. math::
+       S(\text{TE},\text{TR}) = (M_0 \cdot (1-e^{-\frac{\text{TR}}{T_1}}) + M_{\text{enc}})
+       \cdot e^{-\frac{\text{TE}}{T_2}}
+
+
+    *Inversion Recovery*
+
+    .. math::
+        &S(\text{TE},\text{TR}, \text{TI}, \theta_1, \theta_2) =
+        \sin\theta_1 \cdot (\frac{M_0(1-\left(1-\cos\theta_{2}\right)
+        e^{-\frac{TI}{T_{1}}}-\cos\theta_{2}e^{-\frac{TR}{T_{1}}})}
+        {1-\cos\theta_{1}\cos\theta_{2}e^{-\frac{TR}{T_{1}}}}+ M_\text{enc})
+        \cdot e^{-\frac{TE}{T_{2}}}\\
+        &\theta_1 = \text{excitation pulse flip angle}\\
+        &\theta_2 = \text{inversion pulse flip angle}
+
     """
 
     # Key constants
@@ -43,13 +105,17 @@ class MriSignalFilter(BaseFilter):
     KEY_M0 = "m0"
     KEY_MAG_ENC = "mag_enc"
     KEY_ACQ_CONTRAST = "acq_contrast"
-    KEY_ACQ_TE = "acq_te"
-    KEY_ACQ_TR = "acq_tr"
+    KEY_ECHO_TIME = "echo_time"
+    KEY_REPETITION_TIME = "repetition_time"
+    KEY_EXCITATION_FLIP_ANGLE = "excitation_flip_angle"
+    KEY_INVERSION_FLIP_ANGLE = "inversion_flip_angle"
+    KEY_INVERSION_TIME = "inversion_time"
     KEY_IMAGE = "image"
 
     # Value constants
     CONTRAST_GE = "ge"
     CONTRAST_SE = "se"
+    CONTRAST_IR = "ir"
 
     def __init__(self):
         super().__init__(name="MRI Signal Model")
@@ -59,51 +125,104 @@ class MriSignalFilter(BaseFilter):
         t1: np.ndarray = self.inputs[self.KEY_T1].image
         t2: np.ndarray = self.inputs[self.KEY_T2].image
         m0: np.ndarray = self.inputs[self.KEY_M0].image
-        if self.inputs.get(self.KEY_T2_STAR) is not None:
-            t2_star: np.ndarray = self.inputs[self.KEY_T2_STAR].image
         if self.inputs.get(self.KEY_MAG_ENC) is not None:
             mag_enc: np.ndarray = self.inputs[self.KEY_MAG_ENC].image
         else:
             mag_enc: np.ndarray = np.zeros(t1.shape)
+
         acq_contrast: str = self.inputs[self.KEY_ACQ_CONTRAST]
-        acq_te: float = self.inputs[self.KEY_ACQ_TE]
-        acq_tr: float = self.inputs[self.KEY_ACQ_TR]
+        echo_time: float = self.inputs[self.KEY_ECHO_TIME]
+        repetition_time: float = self.inputs[self.KEY_REPETITION_TIME]
 
         mri_signal: np.ndarray = np.zeros(t1.shape)
 
+        # pre-calculate the exponent exp(-echo_time/t2) as it is used multiple times
+        exp_te_t2 = np.exp(
+            -np.divide(echo_time, t2, out=np.zeros_like(t2), where=t2 != 0)
+        )
+
+        # pre-calculate the exponent exp(-repetition_time/t1) as it is used multiple times
+        exp_tr_t1 = np.exp(
+            -np.divide(repetition_time, t1, out=np.zeros_like(t1), where=t1 != 0)
+        )
+
         if acq_contrast.lower() == self.CONTRAST_GE:
-            # pre-calculate the exponent exp(-acq_te/t2_star) as it is used multiple times
+            t2_star: np.ndarray = self.inputs[self.KEY_T2_STAR].image
+            flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
+            # pre-calculate the exponent exp(-echo_time/t2_star)
             exp_t2_star = np.exp(
                 -np.divide(
-                    acq_te, t2_star, out=np.zeros_like(t2_star), where=t2_star != 0
+                    echo_time, t2_star, out=np.zeros_like(t2_star), where=t2_star != 0
                 )
             )
+            # pre-calculate the exponent exp(-repetition_time/t2)
+            exp_tr_t2 = np.exp(
+                -np.divide(repetition_time, t2, out=np.zeros_like(t2), where=t2 != 0)
+            )
+
             mri_signal = (
-                m0
+                np.sin(flip_angle)
                 * (
-                    1
-                    - np.exp(
-                        -np.divide(acq_tr, t1, out=np.zeros_like(t1), where=t1 != 0)
+                    (
+                        m0
+                        * (1 - exp_tr_t1)
+                        / (
+                            1
+                            - np.cos(flip_angle) * exp_tr_t1
+                            - exp_tr_t2 * (exp_tr_t1 - np.cos(flip_angle))
+                        )
                     )
+                    + mag_enc
                 )
-                + mag_enc
-            ) * exp_t2_star
+                * exp_t2_star
+            )
 
         elif acq_contrast.lower() == self.CONTRAST_SE:
-            # pre-calculate the exponent exp(-acq_te/t2) as it is used multiple times
-            exp_t2 = np.exp(
-                -np.divide(acq_te, t2, out=np.zeros_like(t2), where=t2 != 0)
-            )
+
             mri_signal = (
                 m0
                 * (
                     1
                     - np.exp(
-                        -np.divide(acq_tr, t1, out=np.zeros_like(t1), where=t1 != 0)
+                        -np.divide(
+                            repetition_time, t1, out=np.zeros_like(t1), where=t1 != 0
+                        )
                     )
                 )
                 + mag_enc
-            ) * exp_t2
+            ) * exp_te_t2
+
+        elif acq_contrast.lower() == self.CONTRAST_IR:
+            flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
+            inversion_time = self.inputs.get(self.KEY_INVERSION_TIME)
+            inversion_flip_angle = np.radians(
+                self.inputs.get(self.KEY_INVERSION_FLIP_ANGLE)
+            )
+            # pre-calculate the exponent exp(-inversion_time/t1)
+            exp_ti_t1 = np.exp(
+                -np.divide(inversion_time, t1, out=np.zeros_like(t1), where=t1 != 0)
+            )
+            mri_signal = (
+                np.sin(flip_angle)
+                * (
+                    (
+                        m0
+                        * (
+                            1
+                            - (1 - np.cos(inversion_flip_angle)) * exp_ti_t1
+                            - np.cos(inversion_flip_angle) * exp_tr_t1
+                        )
+                        / (
+                            1
+                            - np.cos(flip_angle)
+                            * np.cos(inversion_flip_angle)
+                            * exp_tr_t1
+                        )
+                    )
+                    + mag_enc
+                )
+                * exp_te_t2
+            )
 
         self.outputs[self.KEY_IMAGE]: BaseImageContainer = self.inputs[
             self.KEY_T1
@@ -115,18 +234,17 @@ class MriSignalFilter(BaseFilter):
         't1' must be derived from BaseImageContainer, >=0, and non-complex
         't2' must be derived from BaseImageContainer, >=0, and non-complex
         't2_star' must be derived from BaseImageContainer, >=0, and non-complex
-        Only required is 'acq_contrast' == 'ge'
+            Only required if 'acq_contrast' == 'ge'
         'm0' must be derived from BaseImageContainer, >=0, and non-complex
         'mag_enc' (optional) must be derived from BaseImageContainer and non-complex
-        'acq_type' must be a string and equal to "2d" or "3d" (case insensitive)
         'acq_contrast' must be a string and equal to "ge" or "se" (case insensitive)
-        'acq_te' must be a float and >= 0
-        'acq_tr' must be a float and >= 0
+        'echo_time' must be a float and >= 0
+        'repetition_time' must be a float and >= 0
+        'excitation_flip_angle' must be a float and >=0
+        'inversion_flip_angle' must be a float and >=0
+        'inversion_time' must be a float and >=0
 
         All images must have the same dimensions
-
-        2D is not currently supported, so if 'acq_type' == "2d" a FilterInputValidationError
-        will be raised
 
         """
         input_validator = ParameterValidator(
@@ -163,33 +281,87 @@ class MriSignalFilter(BaseFilter):
                     validators=[
                         isinstance_validator(str),
                         from_list_validator(
-                            [self.CONTRAST_GE, self.CONTRAST_SE], case_insensitive=True
+                            [self.CONTRAST_GE, self.CONTRAST_SE, self.CONTRAST_IR],
+                            case_insensitive=True,
                         ),
                     ]
                 ),
-                self.KEY_ACQ_TE: Parameter(
+                self.KEY_ECHO_TIME: Parameter(
                     validators=[
                         isinstance_validator(float),
                         greater_than_equal_to_validator(0),
                     ]
                 ),
-                self.KEY_ACQ_TR: Parameter(
+                self.KEY_REPETITION_TIME: Parameter(
                     validators=[
                         isinstance_validator(float),
                         greater_than_equal_to_validator(0),
                     ]
+                ),
+                self.KEY_EXCITATION_FLIP_ANGLE: Parameter(
+                    validators=[isinstance_validator(float),], optional=True,
+                ),
+                self.KEY_INVERSION_FLIP_ANGLE: Parameter(
+                    validators=[isinstance_validator(float),], optional=True,
+                ),
+                self.KEY_INVERSION_TIME: Parameter(
+                    validators=[
+                        isinstance_validator(float),
+                        greater_than_equal_to_validator(0),
+                    ],
+                    optional=True,
                 ),
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
 
-        # if the acquisition contrast is gradient echo ("ge") then 't2_star' must be present
-        # in inputs
-        if self.inputs[self.KEY_ACQ_CONTRAST] == self.CONTRAST_GE:
+        # Parameters that are conditionally required based on the value of "acq_contrast"
+        # if the acquisition contrast is gradient echo ("ge")
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() == self.CONTRAST_GE:
+            # 't2_star' must be present in inputs
             if self.inputs.get(self.KEY_T2_STAR) is None:
                 raise FilterInputValidationError(
                     "Acquisition contrast is ge, 't2_star' image required"
                 )
+        # if the acquisition contrast is gradient echo ("ge") or inversion recovery ("ir")
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() in (
+            self.CONTRAST_GE,
+            self.CONTRAST_IR,
+        ):
+            # 'excitation_flip_angle' must be present in inputs
+            if self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE) is None:
+                raise FilterInputValidationError(
+                    f"Acquisition contrast is {self.inputs[self.KEY_ACQ_CONTRAST]},"
+                    " 'excitation_flip_angle' required"
+                )
+
+        # if the acquisition contrast is inversion recovery ("ir")
+        if self.inputs[self.KEY_ACQ_CONTRAST].lower() == self.CONTRAST_IR:
+            if self.inputs.get(self.KEY_INVERSION_FLIP_ANGLE) is None:
+                raise FilterInputValidationError(
+                    f"Acquisition contrast is {self.inputs[self.KEY_ACQ_CONTRAST]},"
+                    " 'inversion_flip_angle' required"
+                )
+            if self.inputs.get(self.KEY_INVERSION_TIME) is None:
+                raise FilterInputValidationError(
+                    f"Acquisition contrast is {self.inputs[self.KEY_ACQ_CONTRAST]},"
+                    " 'inversion_time' required"
+                )
+            if self.inputs.get(self.KEY_REPETITION_TIME) < (
+                self.inputs.get(self.KEY_ECHO_TIME)
+                + self.inputs.get(self.KEY_INVERSION_TIME)
+            ):
+                raise FilterInputValidationError(
+                    "repetition_time must be greater than echo_time + inversion_time"
+                )
+
+        # Check repetition_time is not < echo_time for ge and se
+        if self.inputs.get(self.KEY_REPETITION_TIME) < self.inputs.get(
+            self.KEY_ECHO_TIME
+        ):
+            raise FilterInputValidationError(
+                "repetition_time must be greater than echo_time"
+            )
 
         # Check that all the input images are all the same dimensions
         input_keys = self.inputs.keys()
