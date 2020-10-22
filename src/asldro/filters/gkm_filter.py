@@ -1,7 +1,7 @@
 """ General Kinetic Model Filter """
 
-import numpy as np
 import logging
+import numpy as np
 from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -9,6 +9,7 @@ from asldro.validators.parameters import (
     Parameter,
     range_inclusive_validator,
     greater_than_equal_to_validator,
+    range_exclusive_validator,
     from_list_validator,
     isinstance_validator,
 )
@@ -23,29 +24,58 @@ class GkmFilter(BaseFilter):
     spin labeling', Magnetic Resonance in Medicine, vol. 40, no. 3, pp. 383-396, 1998.
     https://doi.org/10.1002/mrm.1910400308
 
-    ### Inputs:
-        'perfusion_rate' (BaseImageContainer): Map of perfusion rate, in ml/100g/min (>=0)
-        'transit_time' (BaseImageContainer):  Map of the time taken for the labelled bolus
-        to reach the voxel, seconds (>=0).
-        'm0' (BaseImageContainer or float): The tissue equilibrium magnetisation, can be a map or
-        single value (>=0).
-        'label_type' (str): Determines which GKM equations to use:
-             "casl" OR "pcasl" (case insensitive) for the continuous model
-             "pasl" (case insensitive) for the pulsed model
-        'label_duration' (float): The length of the labelling pulse, seconds (0 to 100 inclusive)
-        'signal_time' (float): The time after labelling commences to generate signal,
-        seconds (0 to 100 inclusive)
-        'label_efficiency' (float): The degree of inversion of the labelling (0 to 1 inclusive)
-        'lambda_blood_brain' (float): The blood-brain-partition-coefficient (0 to 1 inclusive)
-        't1_arterial_blood' (float): Longitudinal relaxation time of arterial blood,
-        seconds (>0, to 100)
-        't1_tissue' (BaseImageContainer): Longitudinal relaxation time of the tissue,
-        seconds (>0, to 100)
+    **Inputs**
 
-    ### Outputs:
-        'delta_m' (BaseImageContainer): An image with synthetic ASL perfusion contrast. This will
-        be the same class as the input 'perfusion_rate'
+    Input Parameters are all keyword arguments for the :class:`GkmFilter.add_inputs()`
+    member function. They are also accessible via class constants,
+    for example :class:`GkmFilter.KEY_PERFUSION_RATE`
 
+    :param 'perfusion_rate': Map of perfusion rate, in ml/100g/min (>=0)
+    :type 'perfusion_rate': BaseImageContainer
+    :param 'transit_time'  Map of the time taken for the labelled bolus
+      to reach the voxel, seconds (>=0).
+    :type 'transit_time': BaseImageContainer
+    :param 'm0': The tissue equilibrium magnetisation, can be a map or single value (>=0).
+    :type 'perfusion_rate': BaseImageContainer or float
+    :param 'label_type': Determines which GKM equations to use:
+      "casl" OR "pcasl" (case insensitive) for the continuous model
+      "pasl" (case insensitive) for the pulsed model
+    :type 'label_type': str
+    :param 'label_duration': The length of the labelling pulse, seconds (0 to 100 inclusive)
+    :type 'label_duration': float
+    :param 'signal_time': The time after labelling commences to generate signal,
+      seconds (0 to 100 inclusive)
+    :type 'signal_time': float
+    :param 'label_efficiency': The degree of inversion of the labelling (0 to 1 inclusive)
+    :type 'label_efficiency': float
+    :param 'lambda_blood_brain': The blood-brain-partition-coefficient (0 to 1 inclusive)
+    :type 'lambda_blood_brain': float
+    :param 't1_arterial_blood': Longitudinal relaxation time of arterial blood,
+        seconds (0 exclusive to 100 inclusive)
+    :type 't1_arterial_blood': float
+    :param 't1_tissue': Longitudinal relaxation time of the tissue,
+        seconds (0 to 100 inclusive, however voxels with ``t1 = 0`` will have ``delta_m = 0``)
+    :type 't1_tissue': BaseImageContainer
+
+    **Outputs**
+
+    Once run, the filter will populate the dictionary :class:`GkmFilter.outputs`
+    with the following entries
+
+    :param 'delta_m': An image with synthetic ASL perfusion contrast. This will
+      be the same class as the input 'perfusion_rate'
+    :type 'delta_m': BaseImageContainer
+
+    The following parameters are added to :class:`GkmFilter.outputs["delta_m"].metadata`:
+
+    * ``label_type``
+    * ``label_duration``
+    * ``post_label_delay``
+    * ``label_efficiency``
+    * ``lambda_blood_brain``
+    * ``t1_arterial_blood``
+
+    ``post_label_delay`` is calculated as ``signal_time - label_duration``
     """
 
     # Key constants
@@ -249,6 +279,18 @@ class GkmFilter(BaseFilter):
             self.KEY_PERFUSION_RATE
         ].clone()
         self.outputs[self.KEY_DELTA_M].image = delta_m
+        self.outputs[self.KEY_DELTA_M].metadata = {
+            **self.outputs[self.KEY_DELTA_M].metadata,
+            **{
+                self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
+                self.KEY_LABEL_DURATION: label_duration,
+                "post_label_delay": (signal_time - label_duration),
+                self.KEY_LABEL_EFFICIENCY: label_efficiency,
+                self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
+                self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,
+                "image_flavour": "PERFUSION",
+            },
+        }
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria

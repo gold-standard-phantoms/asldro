@@ -236,6 +236,28 @@ def test_mri_signal_filter_validate_inputs(validation_data: dict):
     # Should run normally
     mri_signal_filter.run()
 
+    # 'image_flavour': optional
+    test_data = deepcopy(validation_data)
+    mri_signal_filter = MriSignalFilter()
+    # add passing data
+    for data_key in test_data:
+        mri_signal_filter.add_input(data_key, test_data[data_key][0])
+
+    # Wrong data type, should fail
+    mri_signal_filter.add_input("image_flavour", 0)
+    with pytest.raises(FilterInputValidationError):
+        mri_signal_filter.run()
+
+    # Check correct use
+    mri_signal_filter = MriSignalFilter()
+    # add passing data
+    for data_key in test_data:
+        mri_signal_filter.add_input(data_key, test_data[data_key][0])
+
+    mri_signal_filter.add_input("image_flavour", "PERFUSION")
+    # Should run normally
+    mri_signal_filter.run()
+
 
 def test_mri_signal_filter_validate_inputs_ge_no_t2_star():
     """ Checks a FilterInputValidationError is raised when
@@ -348,6 +370,27 @@ def test_mri_signal_filter_gradient_echo(mock_data):
         ge_signal, mri_signal_filter.outputs["image"].image
     )
 
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "OTHER",
+    }
+
+    # edit mock_data["mag_enc"].metadata["image_flavour"] and check
+    mock_data["mag_enc"].metadata["image_flavour"] = "PERFUSION"
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "PERFUSION",
+    }
+
 
 def test_mri_signal_filter_spin_echo(mock_data):
     """ Tests the MriSignalFilter for 'acq_contrast' == 'se':
@@ -361,6 +404,27 @@ def test_mri_signal_filter_spin_echo(mock_data):
     numpy.testing.assert_array_equal(
         se_signal, mri_signal_filter.outputs["image"].image
     )
+
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "OTHER",
+    }
+
+    # edit mock_data["mag_enc"].metadata["image_flavour"] and check
+    mock_data["mag_enc"].metadata["image_flavour"] = "PERFUSION"
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "PERFUSION",
+    }
 
 
 def test_mri_signal_filter_inversion_recovery(mock_data):
@@ -378,6 +442,31 @@ def test_mri_signal_filter_inversion_recovery(mock_data):
     numpy.testing.assert_array_equal(
         ir_signal, mri_signal_filter.outputs["image"].image
     )
+
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "OTHER",
+        "inversion_time": mock_data["inversion_time"],
+        "inversion_flip_angle": mock_data["inversion_flip_angle"],
+    }
+
+    # edit mock_data["mag_enc"].metadata["image_flavour"] and check
+    mock_data["mag_enc"].metadata["image_flavour"] = "PERFUSION"
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "PERFUSION",
+        "inversion_time": mock_data["inversion_time"],
+        "inversion_flip_angle": mock_data["inversion_flip_angle"],
+    }
 
 
 @pytest.mark.parametrize(
@@ -498,3 +587,38 @@ def test_mri_signal_timecourse_inversion_recovery(
         mri_signal_timecourse[idx] = mri_signal_filter.outputs["image"].image
     # arrays should be equal to 9 decimal places
     numpy.testing.assert_array_almost_equal(mri_signal_timecourse, expected, 9)
+
+
+def test_mri_signal_filter_image_flavour(mock_data):
+    """ Tests the MriSignalFilter when the input "image_flavour" is changed """
+    # check overrides no supplied mag_enc
+
+    test_data = deepcopy(mock_data)
+    test_data.pop("mag_enc")
+    mock_data["image_flavour"] = "ABCD"
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "ABCD",
+    }
+
+    test_data = deepcopy(mock_data)
+    mock_data["mag_enc"].metadata["image_flavour"] = "PERFUSION"
+    mock_data["image_flavour"] = "ABCD"
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter = add_multiple_inputs_to_filter(mri_signal_filter, mock_data)
+    mri_signal_filter.run()
+
+    assert mri_signal_filter.outputs["image"].metadata == {
+        "acq_contrast": mock_data["acq_contrast"],
+        "echo_time": mock_data["echo_time"],
+        "repetition_time": mock_data["repetition_time"],
+        "flip_angle": mock_data["excitation_flip_angle"],
+        "image_flavour": "ABCD",
+    }

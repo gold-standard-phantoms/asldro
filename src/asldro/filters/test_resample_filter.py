@@ -286,3 +286,31 @@ def test_resample_filter_single_point_transformations(
     signal_should_be_present[expected_signal] = True
 
     numpy.testing.assert_array_equal(signal_detected, signal_should_be_present)
+
+
+def test_resample_filter_metadata():
+    """ Tests the metadata output of the resample filter """
+    test_image = TEST_NIFTI_ONES.clone()
+    # add some meta data
+    test_image.metadata = {
+        "key1": 1,
+        "key2": "two",
+        "key3": [2, 4, 5],
+    }
+    resample_affine = 2 * np.eye(4)
+    resample_filter = ResampleFilter()
+    resample_filter.add_input("affine", resample_affine)
+    resample_filter.add_input("image", test_image)
+    resample_filter.add_input("shape", TEST_VOLUME_DIMENSIONS)
+    resample_filter.run()
+
+    valid_dict = {
+        "key1": 1,
+        "key2": "two",
+        "key3": [2, 4, 5],
+        "voxel_size": tuple(
+            nib.affines.voxel_sizes(resample_filter.outputs["image"].affine)
+        ),
+    }
+    assert resample_filter.outputs["image"].metadata == valid_dict
+
