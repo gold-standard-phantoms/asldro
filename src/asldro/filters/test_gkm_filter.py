@@ -486,4 +486,5 @@ def test_gkm_filter_metadata(casl_input):
         "label_efficiency": casl_input["label_efficiency"],
         "lambda_blood_brain": casl_input["lambda_blood_brain"],
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
+        "image_flavour": "PERFUSION",
     }

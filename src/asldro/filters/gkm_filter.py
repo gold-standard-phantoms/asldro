@@ -288,6 +288,7 @@ class GkmFilter(BaseFilter):
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
                 self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,
+                "image_flavour": "PERFUSION",
             },
         }
 

@@ -180,6 +180,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 io_map={"image": MriSignalFilter.KEY_MAG_ENC},
             )
 
+        mri_signal_filter.add_input(MriSignalFilter.KEY_IMAGE_FLAVOUR, "PERFUSION")
+
         # Transform and resample
         rotation = (
             input_params["rot_x"][idx],
