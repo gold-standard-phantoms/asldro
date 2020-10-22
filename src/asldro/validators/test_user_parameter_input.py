@@ -2,7 +2,12 @@
 from copy import deepcopy
 import pytest
 from asldro.validators.parameters import ValidationError
-from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
+from asldro.validators.user_parameter_input import (
+    IMAGE_TYPE_VALIDATOR,
+    ASL,
+    GROUND_TRUTH,
+    STRUCTURAL,
+)
 
 
 def test_user_input_valid():
@@ -32,15 +37,14 @@ def test_user_input_valid():
         "inversion_flip_angle": 164.0,
         "inversion_time": 1.0,
     }
-    assert d == USER_INPUT_VALIDATOR.validate(
+    assert d == IMAGE_TYPE_VALIDATOR[ASL].validate(
         d
     )  # the same dictionary should be returned
 
 
-def test_user_input_defaults_created():
-    """ Test default values are created for missing inputs """
-    d = {}
-    assert USER_INPUT_VALIDATOR.validate(d) == {
+def test_asl_user_input_defaults_created():
+    """ Test default values for the asl image type """
+    correct_defaults = {
         "label_type": "pcasl",
         "asl_context": "m0scan control label",
         "echo_time": [0.01, 0.01, 0.01],
@@ -62,6 +66,56 @@ def test_user_input_defaults_created():
         "inversion_flip_angle": 180.0,
         "inversion_time": 1.0,
     }
+
+    # Validation should include inputs
+    assert IMAGE_TYPE_VALIDATOR[ASL].validate({}) == correct_defaults
+    # Get the defaults directly
+    assert IMAGE_TYPE_VALIDATOR[ASL].get_defaults() == correct_defaults
+
+
+def test_structural_user_input_defaults_created():
+    """ Test default values for the structural image type """
+    correct_defaults = {
+        "echo_time": 0.005,
+        "repetition_time": 0.3,
+        "rot_z": 0.0,
+        "rot_y": 0.0,
+        "rot_x": 0.0,
+        "transl_x": 0.0,
+        "transl_y": 0.0,
+        "transl_z": 0.0,
+        "acq_matrix": [197, 233, 189],
+        "acq_contrast": "se",
+        "excitation_flip_angle": 90.0,
+        "inversion_flip_angle": 180.0,
+        "inversion_time": 1.0,
+        "desired_snr": 50.0,
+        "random_seed": 0,
+        "output_image_type": "magnitude",
+    }
+
+    # Validation should include inputs
+    assert IMAGE_TYPE_VALIDATOR[STRUCTURAL].validate({}) == correct_defaults
+    # Get the defaults directly
+    assert IMAGE_TYPE_VALIDATOR[STRUCTURAL].get_defaults() == correct_defaults
+
+
+def test_ground_truth_user_input_defaults_created():
+    """ Test default values for the ground_truth image type """
+    correct_defaults = {
+        "rot_z": 0.0,
+        "rot_y": 0.0,
+        "rot_x": 0.0,
+        "transl_x": 0.0,
+        "transl_y": 0.0,
+        "transl_z": 0.0,
+        "acq_matrix": [64, 64, 12],
+    }
+
+    # Validation should include inputs
+    assert IMAGE_TYPE_VALIDATOR[GROUND_TRUTH].validate({}) == correct_defaults
+    # Get the defaults directly
+    assert IMAGE_TYPE_VALIDATOR[GROUND_TRUTH].get_defaults() == correct_defaults
 
 
 def test_mismatch_asl_context_array_sizes():
@@ -89,7 +143,7 @@ def test_mismatch_asl_context_array_sizes():
         "transl_y": [0.0, 0.0, 0.0],
         "transl_z": [0.0, 0.0, 0.0],
     }
-    USER_INPUT_VALIDATOR.validate(good_input)  # no exception
+    IMAGE_TYPE_VALIDATOR[ASL].validate(good_input)  # no exception
 
     for param in [
         "echo_time",
@@ -108,4 +162,4 @@ def test_mismatch_asl_context_array_sizes():
             ValidationError,
             match=f"{param} must be present and have the same number of entries as asl_context",
         ):
-            USER_INPUT_VALIDATOR.validate(d)
+            IMAGE_TYPE_VALIDATOR[ASL].validate(d)

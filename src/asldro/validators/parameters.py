@@ -341,6 +341,18 @@ class ParameterValidator:
         self.parameters: Dict[Parameter] = parameters
         self.post_validators: List[Validator] = post_validators
 
+    def get_defaults(self):
+        """ Return a dictionary of default values for each of the parameters
+        in the ParameterValidator. If a parameter does not have a default value,
+        it is excluded from the dictionary
+        :return: a dictionary of default parameter values
+        """
+        defaults = {}
+        for parameter_key, parameter_value in self.parameters.items():
+            if parameter_value.default_value is not None:
+                defaults[parameter_key] = parameter_value.default_value
+        return defaults
+
     def validate(self, d: dict, error_type: type = ValidationError) -> dict:
         """
         Validate an input dictionary, replacing missing dictionary entries with default values.

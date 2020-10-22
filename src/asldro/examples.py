@@ -25,7 +25,7 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
-from asldro.validators.user_parameter_input import USER_INPUT_VALIDATOR
+from asldro.validators.user_parameter_input import IMAGE_TYPE_VALIDATOR, ASL
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             )
 
     # Validate parameter and update defaults
-    input_params = USER_INPUT_VALIDATOR.validate(input_params)
+    input_params = IMAGE_TYPE_VALIDATOR[ASL].validate(input_params)
 
     logger.info(
         "Running DRO generation with the following parameters:\n%s",
