@@ -6,10 +6,13 @@ The validator may be used with:
 `d` will now contain the input dictionary with any defaults values added.
 A ValidationError will be raised if any validation rules fail.
 """
+from copy import deepcopy
+import jsonschema
 
 from asldro.validators.parameters import (
     ParameterValidator,
     Validator,
+    ValidationError,
     Parameter,
     range_inclusive_validator,
     greater_than_equal_to_validator,
@@ -21,6 +24,43 @@ from asldro.validators.parameters import (
     of_length_validator,
     for_each_validator,
 )
+
+INPUT_PARAMETER_SCHEMA = {
+    "type": "object",
+    "required": ["global_configuration", "image_series"],
+    "properties": {
+        "global_configuration": {
+            "type": "object",
+            "required": ["ground_truth"],
+            "properties": {
+                # must be updated with available datasets
+                "ground_truth": {"type": "string", "enum": ["hrgt_ICBM_2009a_NLS_v3"]}
+            },
+            "additionalProperties": False,
+        },
+        "image_series": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["series_type"],
+                "properties": {
+                    "series_type": {
+                        "type": "string",
+                        "enum": ["asl", "structural", "ground_truth"],
+                    },
+                    "series_description": {"type": "string"},  # optional
+                    # This is not validated here - see the ParameterValidator below
+                    "series_parameters": {
+                        "type": "object"
+                    },  # if missing, defaults are used
+                },
+                "additionalProperties": False,
+            },
+        },
+    },
+    "additionalProperties": False,
+}
+
 
 # String constants
 ASL_CONTEXT = "asl_context"
@@ -277,3 +317,33 @@ IMAGE_TYPE_VALIDATOR = {
     ),
 }
 
+
+def validate_input_params(input_params: dict) -> dict:
+    """
+    Validate the input parameters
+    :param input_params: The input parameters asa Python dict
+    :returns: The parsed input parameter dictionary, with any defaults added
+    :raises asldro.validators.parameters.ValidationError: if the input
+        validation does not pass
+    """
+    # Check that the input parameters validate against the input parameter schema
+    # This checks the general structure of the input, but does not validate the
+    # series parameters
+    try:
+        jsonschema.validate(instance=input_params, schema=INPUT_PARAMETER_SCHEMA)
+    except jsonschema.exceptions.ValidationError as ex:
+        # Make the type of exception raised consistent
+        raise ValidationError from ex
+
+    validated_input_params = deepcopy(input_params)
+    # For every image series
+    for image_series in validated_input_params["image_series"]:
+        # Perform the parameter validation based on the 'series_type'
+        # (and insert defaults)
+        if "series_parameters" not in image_series:
+            image_series["series_parameters"] = {}
+        image_series["series_parameters"] = IMAGE_TYPE_VALIDATOR[
+            image_series["series_type"]
+        ].validate(image_series["series_parameters"])
+
+    return validated_input_params

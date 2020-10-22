@@ -1,4 +1,5 @@
 """ Tests some user inputs to the model to make sure the validation is performed correctly """
+# pylint: disable=redefined-outer-name
 from copy import deepcopy
 import pytest
 from asldro.validators.parameters import ValidationError
@@ -7,6 +8,7 @@ from asldro.validators.user_parameter_input import (
     ASL,
     GROUND_TRUTH,
     STRUCTURAL,
+    validate_input_params,
 )
 
 
@@ -163,3 +165,166 @@ def test_mismatch_asl_context_array_sizes():
             match=f"{param} must be present and have the same number of entries as asl_context",
         ):
             IMAGE_TYPE_VALIDATOR[ASL].validate(d)
+
+
+@pytest.fixture
+def input_params():
+    """ A valid input parameter config """
+    return {
+        "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+        "image_series": [
+            {
+                "series_type": "asl",
+                "series_description": "user description for asl",
+                "series_parameters": {
+                    "asl_context": "m0scan control label",
+                    "label_type": "pcasl",
+                    "acq_matrix": [64, 64, 20],
+                },
+            },
+            {
+                "series_type": "structural",
+                "series_description": "user description for structural scan",
+                "series_parameters": {
+                    "acq_contrast": "ge",
+                    "echo_time": 0.05,
+                    "repetition_time": 0.3,
+                    "acq_matrix": [256, 256, 128],
+                },
+            },
+            {
+                "series_type": "ground_truth",
+                "series_description": "user description for ground truth",
+                "series_parameters": {"acq_matrix": [64, 64, 20]},
+            },
+        ],
+    }
+
+
+def test_valid_input_params(input_params: dict):
+    """ Test that a valid input parameter file is parsed without
+    raising an exception and that the appropriate defaults are inserted """
+    # Should not raise an exception
+    parsed_input = validate_input_params(input_params)
+
+    assert parsed_input == {
+        "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+        "image_series": [
+            {
+                "series_type": "asl",
+                "series_description": "user description for asl",
+                "series_parameters": {
+                    "asl_context": "m0scan control label",
+                    "label_type": "pcasl",
+                    "acq_matrix": [64, 64, 20],
+                    "echo_time": [0.01, 0.01, 0.01],
+                    "repetition_time": [10.0, 5.0, 5.0],
+                    "rot_z": [0.0, 0.0, 0.0],
+                    "rot_y": [0.0, 0.0, 0.0],
+                    "rot_x": [0.0, 0.0, 0.0],
+                    "transl_x": [0.0, 0.0, 0.0],
+                    "transl_y": [0.0, 0.0, 0.0],
+                    "transl_z": [0.0, 0.0, 0.0],
+                    "label_duration": 1.8,
+                    "signal_time": 3.6,
+                    "label_efficiency": 0.85,
+                    "desired_snr": 10.0,
+                    "acq_contrast": "se",
+                    "random_seed": 0,
+                    "excitation_flip_angle": 90.0,
+                    "inversion_flip_angle": 180.0,
+                    "inversion_time": 1.0,
+                },
+            },
+            {
+                "series_type": "structural",
+                "series_description": "user description for structural scan",
+                "series_parameters": {
+                    "echo_time": 0.05,
+                    "repetition_time": 0.3,
+                    "rot_z": 0.0,
+                    "rot_y": 0.0,
+                    "rot_x": 0.0,
+                    "transl_x": 0.0,
+                    "transl_y": 0.0,
+                    "transl_z": 0.0,
+                    "acq_matrix": [256, 256, 128],
+                    "acq_contrast": "ge",
+                    "excitation_flip_angle": 90.0,
+                    "inversion_flip_angle": 180.0,
+                    "inversion_time": 1.0,
+                    "desired_snr": 50.0,
+                    "random_seed": 0,
+                    "output_image_type": "magnitude",
+                },
+            },
+            {
+                "series_type": "ground_truth",
+                "series_description": "user description for ground truth",
+                "series_parameters": {
+                    "acq_matrix": [64, 64, 20],
+                    "rot_z": 0.0,
+                    "rot_y": 0.0,
+                    "rot_x": 0.0,
+                    "transl_x": 0.0,
+                    "transl_y": 0.0,
+                    "transl_z": 0.0,
+                },
+            },
+        ],
+    }
+
+
+def test_invalid_data_input_params(input_params: dict):
+    """ Tests that bad ground_truth data set in the input parameters
+    raises appropriate Expections (should always be
+    asldro.validators.parameters.ValidationError) """
+
+    input_params["global_configuration"]["ground_truth"] = "i_dont_exist"
+    with pytest.raises(ValidationError):
+        validate_input_params(input_params)
+
+
+def test_bad_series_type_input_params(input_params: dict):
+    """ Tests that bad series_type data set in the input parameters
+    raises appropriate Expections (should always be
+    asldro.validators.parameters.ValidationError) """
+
+    input_params["image_series"][0]["series_type"] = "magic"
+    with pytest.raises(ValidationError):
+        validate_input_params(input_params)
+
+
+def test_missing_series_parameters_inserts_defaults(input_params: dict):
+    """ Tests that if series_parameters are completely missing for
+    an image series, the defaults are inserted """
+
+    input_params["image_series"][0].pop("series_parameters")
+
+    # The default series parameters should be added
+    assert validate_input_params(input_params)["image_series"][0] == {
+        "series_type": "asl",
+        "series_description": "user description for asl",
+        "series_parameters": {
+            "asl_context": "m0scan control label",
+            "label_type": "pcasl",
+            "acq_matrix": [64, 64, 12],
+            "echo_time": [0.01, 0.01, 0.01],
+            "repetition_time": [10.0, 5.0, 5.0],
+            "rot_z": [0.0, 0.0, 0.0],
+            "rot_y": [0.0, 0.0, 0.0],
+            "rot_x": [0.0, 0.0, 0.0],
+            "transl_x": [0.0, 0.0, 0.0],
+            "transl_y": [0.0, 0.0, 0.0],
+            "transl_z": [0.0, 0.0, 0.0],
+            "label_duration": 1.8,
+            "signal_time": 3.6,
+            "label_efficiency": 0.85,
+            "desired_snr": 10.0,
+            "acq_contrast": "se",
+            "random_seed": 0,
+            "excitation_flip_angle": 90.0,
+            "inversion_flip_angle": 180.0,
+            "inversion_time": 1.0,
+        },
+    }
