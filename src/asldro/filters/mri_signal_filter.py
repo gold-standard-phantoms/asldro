@@ -50,10 +50,12 @@ class MriSignalFilter(BaseFilter):
         ``"acq_contrast"`` is ``"ge"`` or ``"ir"``.  Defaults to 90.0
     :type 'excitation_flip_angle': float, optional
     :param 'inversion_flip_angle': Inversion pulse flip angle in degrees. Only used when
-        ``"acq_contrast"`` is ``"ir"``. Defaults to 180.0
+        ``acq_contrast`` is ``"ir"``. Defaults to 180.0
     :type 'inversion_flip_angle': float, optional
     :param 'inversion_time': The inversion time in seconds. Only used when
-        ``"acq_contrast"`` is ``"ir"``. Defaults to 1.0.
+        ``acq_contrast`` is ``"ir"``. Defaults to 1.0.
+    :param 'image_flavour': sets the metadata ``image_flavour`` in the output image to this.
+    :type 'image_flavour': str
 
     **Outputs**
 
@@ -61,9 +63,23 @@ class MriSignalFilter(BaseFilter):
     following entries
 
     :param 'image': An image of the generated MRI signal. Will be of the same class
-      as the input ``"t1"``
+      as the input ``t1``
     :type 'image': BaseImageContainer
 
+    The following parameters are added to :class:`MriSignalFilter.outputs["image"].metadata`:
+
+    * ``acq_contrast``
+    * ``echo time``
+    * ``flip_angle``
+    * ``image_flavour``
+    * ``inversion_time``
+    * ``inversion_flip_angle``
+
+    ``image_flavour`` is obtained (in order of precedence):
+
+    #. If present, from the input ``image_flavour``
+    #. If present, derived from the metadata in the input ``mag_enc``
+    #. "OTHER"
 
     The following equations are used to compute the MRI signal:
 

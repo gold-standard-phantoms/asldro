@@ -179,3 +179,9 @@ def test_transform_resample_image_filter_mock_data():
     numpy.testing.assert_array_equal(str_nifti.dataobj, new_nifti_container.image)
     # Affines should match
     numpy.testing.assert_array_equal(str_nifti.affine, new_nifti_container.affine)
+
+    # confirm the voxel_size is calculated correctly.
+    numpy.testing.assert_array_equal(
+        new_nifti_container.metadata["voxel_size"],
+        nib.affines.voxel_sizes(new_nifti_container.affine),
+    )

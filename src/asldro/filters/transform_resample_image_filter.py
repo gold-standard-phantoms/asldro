@@ -3,6 +3,7 @@
 
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import BaseFilter
+import nibabel as nib
 
 from asldro.filters.resample_filter import ResampleFilter
 from asldro.containers.image import (
@@ -56,6 +57,10 @@ class TransformResampleImageFilter(BaseFilter):
     :param 'image': The input image, resampled in accordance with the specified shape
         and applied world-space transformation.
     :type 'image': BaseImageContainer
+
+    The metadata property of the :class:`TransformResampleImageFilter.outputs["image"]` is
+    updated with the field ``voxel_size``, corresponding to the size of each voxel.
+
 
     The output image is resampled according to:
 
@@ -125,6 +130,13 @@ class TransformResampleImageFilter(BaseFilter):
             self.outputs[self.KEY_IMAGE]._affine = sampled_image_affine
         else:
             self.outputs[self.KEY_IMAGE]._nifti_image.set_sform(sampled_image_affine)
+
+        # The ResampleFilter will have copied through the metadata from the input image, however
+        # the voxel size should be recalculated as the output image doesn't have any rotations
+        # applied. update metadata with the voxel sizes based on the updated affine
+        self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = tuple(
+            nib.affines.voxel_sizes(self.outputs[self.KEY_IMAGE].affine)
+        )
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation criteria
