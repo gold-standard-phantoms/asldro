@@ -7,7 +7,11 @@ import sys
 from typing import Union, List
 
 from asldro.examples import run_full_pipeline
-from asldro.validators.user_parameter_input import DEFAULT_PARAMS
+from asldro.validators.user_parameter_input import (
+    IMAGE_TYPE_VALIDATOR,
+    ASL,
+    get_example_input_params,
+)
 
 logging.basicConfig(
     stream=sys.stdout, format="%(asctime)s %(message)s", level=logging.INFO
@@ -86,11 +90,11 @@ def generate(args):
 
 
 def output_params(args):
-    """ Parses the 'output params' subcommand. Must have a 
-    'output' parameter which is the filename to a JSON to which the 
+    """ Parses the 'output params' subcommand. Must have a
+    'output' parameter which is the filename to a JSON to which the
     default model parameters will be written """
     with open(args.output, "w") as json_file:
-        json.dump(DEFAULT_PARAMS, json_file, indent=4)
+        json.dump(get_example_input_params(), json_file, indent=4)
 
 
 def main():
