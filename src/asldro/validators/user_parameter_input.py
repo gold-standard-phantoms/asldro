@@ -103,6 +103,7 @@ asl_context_length_validator_generator = lambda other: Validator(
 ASL = "asl"
 GROUND_TRUTH = "ground_truth"
 STRUCTURAL = "structural"
+SUPPORTED_IMAGE_TYPES = [ASL, GROUND_TRUTH, STRUCTURAL]
 
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
@@ -347,3 +348,26 @@ def validate_input_params(input_params: dict) -> dict:
         ].validate(image_series["series_parameters"])
 
     return validated_input_params
+
+
+def get_example_input_params() -> dict:
+    """ Generate and validate an example input parameter dictionary.
+    Will contain one of each supported image type containing the
+    default parameters for each.
+    :return: the validated input parameter dictionary 
+    :raises asldro.validators.parameters.ValidationError: if the input
+        validation does not pass
+    """
+    return validate_input_params(
+        {
+            "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+            "image_series": [
+                {
+                    "series_type": IMAGE_TYPE,
+                    "series_description": f"user description for {IMAGE_TYPE}",
+                }
+                for IMAGE_TYPE in SUPPORTED_IMAGE_TYPES
+            ],
+        }
+    )
+

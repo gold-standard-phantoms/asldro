@@ -25,7 +25,12 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
 )
-from asldro.validators.user_parameter_input import IMAGE_TYPE_VALIDATOR, ASL
+from asldro.validators.user_parameter_input import (
+    IMAGE_TYPE_VALIDATOR,
+    ASL,
+    validate_input_params,
+    get_example_input_params,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +54,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     """ A function that runs the entire DRO pipeline. This
     can be extended as more functionality is included.
     This function is deliberately verbose to explain the
-    operation, inputs and outputs of individual filters. """
+    operation, inputs and outputs of individual filters.
+    :param input_params: The input parameter dictionary. If None, the defaults will be 
+    used
+    :param output_filename: The output filename. Must be an zip/tar.gz archive. If None,
+    no files will be generated.
+    """
 
     if input_params is None:
-        input_params = {}  # Empty dictionary - will get populated with defaults
+        input_params = get_example_input_params()
 
     if output_filename is not None:
         _, output_filename_extension = splitext(output_filename)
@@ -62,7 +72,21 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             )
 
     # Validate parameter and update defaults
-    input_params = IMAGE_TYPE_VALIDATOR[ASL].validate(input_params)
+    input_params = validate_input_params(input_params)
+
+    # TODO: change this block so that all image series types are handled
+    # Take the asl image series and pass it to the remainder of the pipeline
+    # update the input_params variable so it contains the asl series parameters
+    for image_series in input_params["image_series"]:
+        if image_series["series_type"] == "asl":
+            input_params = image_series["series_parameters"]
+            break
+
+    # The update didn't occur
+    if "global_configuration" in input_params:
+        raise ValueError("The input dictionary did not contain ASL parameters")
+
+    ## end todo
 
     logger.info(
         "Running DRO generation with the following parameters:\n%s",

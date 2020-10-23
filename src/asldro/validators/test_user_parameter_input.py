@@ -9,6 +9,7 @@ from asldro.validators.user_parameter_input import (
     GROUND_TRUTH,
     STRUCTURAL,
     validate_input_params,
+    get_example_input_params,
 )
 
 
@@ -328,3 +329,9 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "inversion_time": 1.0,
         },
     }
+
+
+def test_example_input_params_valid():
+    """ Just test that the generated example input parameters pass
+    the validation """
+    validate_input_params(get_example_input_params())
