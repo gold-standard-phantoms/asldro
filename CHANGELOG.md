@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unversioned]
 ### Added
 - Image container metadata
+- Acquire MRI Image Filter (combines MRI Signal, transform/resampling, noise)
 
 ## [1.0.0] - 2020-10-16
 ### Added
