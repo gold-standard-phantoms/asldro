@@ -3,24 +3,21 @@ import pprint
 import os
 import logging
 import shutil
-import pdb
-from copy import deepcopy
+
 from typing import List
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import nibabel as nib
-import nilearn as nil
 
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
-from asldro.containers.image import NumpyImageContainer, INVERSE_DOMAIN
 from asldro.filters.gkm_filter import GkmFilter
-from asldro.filters.mri_signal_filter import MriSignalFilter
 from asldro.filters.invert_image_filter import InvertImageFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.filters.add_complex_noise_filter import AddComplexNoiseFilter
+from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -55,7 +52,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     can be extended as more functionality is included.
     This function is deliberately verbose to explain the
     operation, inputs and outputs of individual filters.
-    :param input_params: The input parameter dictionary. If None, the defaults will be 
+    :param input_params: The input parameter dictionary. If None, the defaults will be
     used
     :param output_filename: The output filename. Must be an zip/tar.gz archive. If None,
     no files will be generated.
@@ -171,40 +168,42 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     acquired_images_list: List[nib.Nifti2Image] = []
     for idx, asl_context in enumerate(input_params["asl_context"].split()):
 
-        # Calculate MRI signal based on asl_context
-        mri_signal_filter = MriSignalFilter()
-        mri_signal_filter.add_parent_filter(
+        acquire_mri_image_filter = AcquireMriImageFilter()
+        acquire_mri_image_filter.add_parent_filter(
             parent=ground_truth_filter,
             io_map={
-                "t1": MriSignalFilter.KEY_T1,
-                "t2": MriSignalFilter.KEY_T2,
-                "t2_star": MriSignalFilter.KEY_T2_STAR,
-                "m0": MriSignalFilter.KEY_M0,
+                "t1": AcquireMriImageFilter.KEY_T1,
+                "t2": AcquireMriImageFilter.KEY_T2,
+                "t2_star": AcquireMriImageFilter.KEY_T2_STAR,
+                "m0": AcquireMriImageFilter.KEY_M0,
             },
         )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_CONTRAST, input_params["acq_contrast"]
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_ACQ_CONTRAST, input_params["acq_contrast"]
         )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ECHO_TIME, input_params["echo_time"][idx]
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_ECHO_TIME, input_params["echo_time"][idx]
         )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_REPETITION_TIME, input_params["repetition_time"][idx]
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_REPETITION_TIME,
+            input_params["repetition_time"][idx],
         )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE,
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
             input_params["excitation_flip_angle"],
         )
 
         # for ASL context == "label" use the inverted delta_m as
         # the input MriSignalFilter.KEY_MAG_ENC
         if asl_context.lower() == "label":
-            mri_signal_filter.add_parent_filter(
+            acquire_mri_image_filter.add_parent_filter(
                 parent=invert_delta_m_filter,
-                io_map={"image": MriSignalFilter.KEY_MAG_ENC},
+                io_map={"image": AcquireMriImageFilter.KEY_MAG_ENC},
             )
 
-        mri_signal_filter.add_input(MriSignalFilter.KEY_IMAGE_FLAVOUR, "PERFUSION")
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_IMAGE_FLAVOUR, "PERFUSION"
+        )
 
         # Transform and resample
         rotation = (
@@ -218,44 +217,32 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             input_params["transl_y"][idx],
             input_params["transl_z"][idx],
         )
-        motion_resample_filter = TransformResampleImageFilter()
-        motion_resample_filter.add_parent_filter(mri_signal_filter)
-        motion_resample_filter.add_input(
-            TransformResampleImageFilter.KEY_ROTATION, rotation
+
+        acquire_mri_image_filter.add_input(AcquireMriImageFilter.KEY_ROTATION, rotation)
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_TRANSLATION, translation
         )
-        motion_resample_filter.add_input(
-            TransformResampleImageFilter.KEY_TRANSLATION, translation
-        )
-        motion_resample_filter.add_input(
-            TransformResampleImageFilter.KEY_TARGET_SHAPE,
-            tuple(input_params["acq_matrix"]),
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_TARGET_SHAPE, tuple(input_params["acq_matrix"]),
         )
 
         # Add noise based on SNR
-        add_complex_noise_filter = AddComplexNoiseFilter()
-        add_complex_noise_filter.add_parent_filter(
+
+        acquire_mri_image_filter.add_parent_filter(
             m0_resample_filter,
-            io_map={
-                TransformResampleImageFilter.KEY_IMAGE: AddComplexNoiseFilter.KEY_REF_IMAGE
-            },
+            io_map={m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE},
         )
-        add_complex_noise_filter.add_parent_filter(
-            motion_resample_filter,
-            io_map={
-                TransformResampleImageFilter.KEY_IMAGE: AddComplexNoiseFilter.KEY_IMAGE
-            },
-        )
-        add_complex_noise_filter.add_input(
-            AddComplexNoiseFilter.KEY_SNR, input_params["desired_snr"]
+        acquire_mri_image_filter.add_input(
+            AcquireMriImageFilter.KEY_SNR, input_params["desired_snr"]
         )
 
         # Run the add_complex_noise_filter
-        add_complex_noise_filter.run()
+        acquire_mri_image_filter.run()
 
         # Append list of the output images
 
         acquired_images_list.append(
-            add_complex_noise_filter.outputs[
+            acquire_mri_image_filter.outputs[
                 AddComplexNoiseFilter.KEY_IMAGE
             ]._nifti_image
         )
@@ -287,15 +274,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     # logging
     logger.debug("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
     logger.debug(
-        "add_complex_noise_filter outputs: \n %s",
-        pprint.pformat(add_complex_noise_filter.outputs),
-    )
-    logger.debug(
-        "motion_resample_filter outputs: \n %s",
-        pprint.pformat(motion_resample_filter.outputs),
-    )
-    logger.debug(
-        "mri_signal_filter outputs: \n %s", pprint.pformat(mri_signal_filter.outputs)
+        "acquire_mri_image_filter outputs: \n %s",
+        pprint.pformat(acquire_mri_image_filter.outputs),
     )
 
     # Output everything to a temporary directory

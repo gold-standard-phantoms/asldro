@@ -12,13 +12,11 @@ from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
     isinstance_validator,
-    greater_than_validator,
-    greater_than_equal_to_validator,
 )
 
 
 class AcquireMriImageFilter(FilterBlock):
-    """ A filter block that simulates the acquisition of an MRI image based on
+    r""" A filter block that simulates the acquisition of an MRI image based on
     ground truth inputs.
     
     Combines:
@@ -88,7 +86,6 @@ class AcquireMriImageFilter(FilterBlock):
 
     :param 'image': Synthesised MRI image.
     :type 'image': BaseImageContainer
-
 
     """
 
