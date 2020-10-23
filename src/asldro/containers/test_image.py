@@ -212,6 +212,21 @@ def test_nifti_image_container_voxel_size_mm(
         )
 
 
+def test_nifti_image_container_voxel_size_mm_setter(
+    nifti_image_containers_a: NiftiImageContainer
+):
+    """ Test that the correct voxel size is set on a NiftiImageContainer """
+    for image_container in nifti_image_containers_a:
+        # voxel size is 2x2x2mm
+        image_container.voxel_size_mm = [3.0, 2.0, 1.0]
+        image_container.space_units = UNITS_METERS
+
+        # Just test that we have 3x2x1m reported in mm
+        np.testing.assert_array_almost_equal(
+            image_container.voxel_size_mm, np.array([3000.0, 2000.0, 1000.0])
+        )
+
+
 def test_nifti_image_container_time_step_seconds(
     nifti_image_containers_a: List[NiftiImageContainer]
 ):
@@ -224,6 +239,18 @@ def test_nifti_image_container_time_step_seconds(
         assert image_container.time_step_seconds == 2e6
         image_container.time_units = UNITS_MICROSECONDS
         assert image_container.time_step_seconds == 2e9
+
+
+def test_nifti_image_container_time_step_seconds_setter(
+    nifti_image_containers_a: List[NiftiImageContainer]
+):
+    """ Test that the correct time step is get on a NiftiImageContainer """
+    for image_container in nifti_image_containers_a:
+
+        image_container.time_step_seconds = 10.0
+        image_container.time_units = UNITS_MILLISECONDS
+
+        np.testing.assert_almost_equal(image_container.time_step_seconds, 10000.0)
 
 
 def test_nifti_image_container_has_header(
@@ -293,7 +320,7 @@ def test_numpy_image_container_space_units(numpy_image_container):
     assert numpy_image_container.space_units == UNITS_MILLIMETERS
 
 
-def test_numpy_image_container_voxel_size_mm(
+def test_numpy_image_container_voxel_size_mm_getter(
     numpy_image_container: NumpyImageContainer
 ):
     """ Test that the correct voxel size is returned from a NumpyImageContainer """
@@ -312,7 +339,21 @@ def test_numpy_image_container_voxel_size_mm(
     )
 
 
-def test_numpy_image_container_time_step_seconds(
+def test_numpy_image_container_voxel_size_mm_setter(
+    numpy_image_container: NumpyImageContainer
+):
+    """ Test that the correct voxel size is set on a NumpyImageContainer """
+    # voxel size is 2x2x2mm
+    numpy_image_container.voxel_size_mm = [3.0, 2.0, 1.0]
+    numpy_image_container.space_units = UNITS_METERS
+
+    # Just test that we have 3x2x1m reported in mm
+    np.testing.assert_array_almost_equal(
+        numpy_image_container.voxel_size_mm, np.array([3000.0, 2000.0, 1000.0])
+    )
+
+
+def test_numpy_image_container_time_step_seconds_getter(
     numpy_image_container: NumpyImageContainer
 ):
     """ Test that the correct time step is returned from a NumpyImageContainer """
@@ -323,6 +364,17 @@ def test_numpy_image_container_time_step_seconds(
     assert numpy_image_container.time_step_seconds == 2e6
     numpy_image_container.time_units = UNITS_MICROSECONDS
     assert numpy_image_container.time_step_seconds == 2e9
+
+
+def test_numpy_image_container_time_step_seconds_setter(
+    numpy_image_container: NumpyImageContainer
+):
+    """ Test that the correct time step is get on a NumpyImageContainer """
+
+    numpy_image_container.time_step_seconds = 10.0
+    numpy_image_container.time_units = UNITS_MILLISECONDS
+
+    np.testing.assert_almost_equal(numpy_image_container.time_step_seconds, 10000.0)
 
 
 def test_numpy_image_container_has_header(numpy_image_container: NumpyImageContainer):
@@ -620,4 +672,58 @@ def test_image_container_metadata_get_set():
     assert numpy.metadata == {"one": 1, "two": 2, "three": 3}
     with pytest.raises(TypeError):
         numpy.metadata = "not a dict"
+
+
+def test_nifti_to_numpy(nifti_image_containers_a: List[NiftiImageContainer]):
+    """ Check the as_numpy()/as_nifti() functionality works correctly on a nifti container """
+    for image_container in nifti_image_containers_a:
+        new_image_container = image_container.as_numpy()
+        for new_image_container in [
+            image_container.as_numpy(),
+            image_container.as_nifti(),
+        ]:
+            np.testing.assert_array_equal(
+                new_image_container.image, image_container.image
+            )
+            np.testing.assert_array_equal(
+                new_image_container.affine, image_container.affine
+            )
+            assert new_image_container.data_domain == image_container.data_domain
+            assert new_image_container.image_type == image_container.image_type
+            assert new_image_container.metadata == image_container.metadata
+            assert new_image_container.space_units == image_container.space_units
+            assert new_image_container.time_units == image_container.time_units
+            np.testing.assert_array_equal(
+                new_image_container.voxel_size_mm, image_container.voxel_size_mm
+            )
+            assert (
+                new_image_container.time_step_seconds
+                == image_container.time_step_seconds
+            )
+
+
+def test_numpy_to_nifti(numpy_image_container: NumpyImageContainer):
+    """ Check the as_nifti functionality works correctly on a nifti container """
+    for new_image_container in [
+        numpy_image_container.as_numpy(),
+        numpy_image_container.as_nifti(),
+    ]:
+        np.testing.assert_array_equal(
+            new_image_container.image, numpy_image_container.image
+        )
+        np.testing.assert_array_equal(
+            new_image_container.affine, numpy_image_container.affine
+        )
+        assert new_image_container.data_domain == numpy_image_container.data_domain
+        assert new_image_container.image_type == numpy_image_container.image_type
+        assert new_image_container.metadata == numpy_image_container.metadata
+        assert new_image_container.space_units == numpy_image_container.space_units
+        assert new_image_container.time_units == numpy_image_container.time_units
+        np.testing.assert_array_equal(
+            new_image_container.voxel_size_mm, numpy_image_container.voxel_size_mm
+        )
+        assert (
+            new_image_container.time_step_seconds
+            == numpy_image_container.time_step_seconds
+        )
 
