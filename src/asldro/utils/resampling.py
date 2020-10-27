@@ -35,15 +35,14 @@ def transform_resample_image(
         scaling and not motion, i.e. the image FOV is the same as the input image FOV.
     :rtype: Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]
     """
-    (target_affine, sampled_image_affine) = transform_resample_affine(
+    target_affine, sampled_image_affine = transform_resample_affine(
         image, translation, rotation, rotation_origin, target_shape
     )
     sampled_image: nib.Nifti2Image = nil.image.resample_img(
         image, target_affine=target_affine, target_shape=target_shape
     )
-    # update the resampled image's affine
     sampled_image.set_sform(sampled_image_affine)
-    return (sampled_image, target_affine)
+    return sampled_image, target_affine
 
 
 def transform_resample_affine(
