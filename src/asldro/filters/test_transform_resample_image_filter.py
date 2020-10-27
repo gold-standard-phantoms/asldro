@@ -171,7 +171,7 @@ def test_transform_resample_image_filter_mock_data():
     ]
 
     ### function called here
-    str_nifti, target_affine = transform_resample_image(
+    str_nifti, _ = transform_resample_image(
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
 

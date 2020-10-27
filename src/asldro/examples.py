@@ -257,7 +257,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         acquired_images_list.append(
             add_complex_noise_filter.outputs[
                 AddComplexNoiseFilter.KEY_IMAGE
-            ]._nifti_image
+            ].nifti_image
         )
 
     # concatenate along the time axis (4th)
@@ -305,13 +305,13 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             acquired_timeseries, os.path.join(temp_dir, "asl_source_magnitude.nii.gz")
         )
         nib.save(
-            cbf_resample_filter.outputs[cbf_resample_filter.KEY_IMAGE]._nifti_image,
+            cbf_resample_filter.outputs[cbf_resample_filter.KEY_IMAGE].nifti_image,
             os.path.join(temp_dir, "gt_cbf_acq_res.nii.gz"),
         )
         nib.save(
             labelmask_resample_filter.outputs[
                 labelmask_resample_filter.KEY_IMAGE
-            ]._nifti_image,
+            ].nifti_image,
             os.path.join(temp_dir, "gt_labelmask_acq_res.nii.gz"),
         )
 

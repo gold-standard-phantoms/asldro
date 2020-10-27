@@ -56,51 +56,16 @@ class ResampleFilter(BaseFilter):
         super().__init__(name="Resample image")
 
     def _run(self):
-        is_input_image_numpy_image_container = isinstance(
-            self.inputs[self.KEY_IMAGE], NumpyImageContainer
+        # Clone the image and perform the resampling
+        resampled_image = self.inputs[self.KEY_IMAGE].as_nifti().clone()
+        resampled_image.nifti_image = resample_img(
+            resampled_image.nifti_image,
+            target_affine=self.inputs[self.KEY_AFFINE],
+            target_shape=self.inputs[self.KEY_SHAPE],
         )
-        if is_input_image_numpy_image_container:
-            image = NiftiImageContainer(
-                nib.Nifti2Image(
-                    dataobj=self.inputs[self.KEY_IMAGE].image,
-                    affine=self.inputs[self.KEY_IMAGE].affine,
-                )
-            )
-        else:
-            image: NiftiImageContainer = self.inputs[self.KEY_IMAGE]
-
-        affine = self.inputs[self.KEY_AFFINE]
-        shape = self.inputs[self.KEY_SHAPE]
-
-        resampled_nifti = resample_img(
-            image._nifti_image, target_affine=affine, target_shape=shape
-        )
-
-        if is_input_image_numpy_image_container:
-            self.outputs[self.KEY_IMAGE] = NumpyImageContainer(
-                image=np.asanyarray(resampled_nifti.dataobj),
-                affine=resampled_nifti.affine,
-                data_domain=self.inputs[self.KEY_IMAGE].data_domain,
-                image_type=self.inputs[self.KEY_IMAGE].image_type,
-                space_units=UNITS_MILLIMETERS,
-                time_units=UNITS_SECONDS,
-                voxel_size=self.inputs[self.KEY_IMAGE].voxel_size_mm,
-                time_step=self.inputs[self.KEY_IMAGE].time_step_seconds,
-            )
-        else:
-            self.outputs[self.KEY_IMAGE] = NiftiImageContainer(
-                nifti_img=resampled_nifti,
-                data_domain=self.inputs[self.KEY_IMAGE].data_domain,
-                image_type=self.inputs[self.KEY_IMAGE].image_type,
-            )
-
-        # copy across metadata
-        self.outputs[self.KEY_IMAGE].metadata = deepcopy(
-            self.inputs[self.KEY_IMAGE].metadata
-        )
-
+        self.outputs[self.KEY_IMAGE] = resampled_image
         self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = tuple(
-            nib.affines.voxel_sizes(resampled_nifti.affine)
+            nib.affines.voxel_sizes(resampled_image.nifti_image.affine)
         )
 
     def _validate_inputs(self):

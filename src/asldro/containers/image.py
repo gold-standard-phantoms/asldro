@@ -393,13 +393,13 @@ class NiftiImageContainer(BaseImageContainer):
         :param nifti_img: A nibabel Nifti1Image or Nifti2Image
         :param **kwargs: any additional arguments accepted by BaseImageContainer
         """
-        self._nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
+        self.nifti_image: Union[nib.Nifti1Image, nib.Nifti2Image] = nifti_img
         super().__init__(**kwargs)  # Call super last as we check member variables
 
     @property
     def nifti_type(self) -> Type[Union[nib.Nifti1Image, nib.Nifti2Image]]:
         """ Return the type of NIFTI data contained here (nib.Nifti1Image or nib.Nifti2Image) """
-        return type(self._nifti_image)
+        return type(self.nifti_image)
 
     @property
     def has_nifti(self):
@@ -411,8 +411,8 @@ class NiftiImageContainer(BaseImageContainer):
         """ Return the image data as a numpy array.
         Returns data in the type it is created (i.e. won't convert to float64 as
         .get_fdata() will)"""
-        return np.asanyarray(self._nifti_image.dataobj)
-        # return self._nifti_image.get_fdata()
+        return np.asanyarray(self.nifti_image.dataobj)
+        # return self.nifti_image.get_fdata()
 
     def as_numpy(self) -> "NumpyImageContainer":
         """ Return the NiftiImageContainer as a NumpyImageContainer."""
@@ -438,23 +438,23 @@ class NiftiImageContainer(BaseImageContainer):
     @image.setter
     def image(self, new_image: np.ndarray):
         """ Sets the image data """
-        self._nifti_image = self.nifti_type(
+        self.nifti_image = self.nifti_type(
             dataobj=new_image, affine=self.affine, header=self.header
         )
         # Make sure the header matches the new image data
-        self._nifti_image.set_data_dtype(new_image.dtype)
-        self._nifti_image.update_header()
+        self.nifti_image.set_data_dtype(new_image.dtype)
+        self.nifti_image.update_header()
 
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
         """ Returns the NIFTI header if initialised from a NIFTI file,
         othewise returns None """
-        return self._nifti_image.header
+        return self.nifti_image.header
 
     @property
     def affine(self):
         """ Return a 4x4 numpy array with the image affine transformation """
-        return self._nifti_image.affine
+        return self.nifti_image.affine
 
     @property
     def space_units(self):
@@ -518,4 +518,4 @@ class NiftiImageContainer(BaseImageContainer):
     @property
     def shape(self):
         """ Returns the shape of the image [x, y, z, t, etc] """
-        return self._nifti_image.shape
+        return self.nifti_image.shape

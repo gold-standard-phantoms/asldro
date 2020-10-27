@@ -1,15 +1,11 @@
 """Transform resample image filter"""
 
+import nibabel as nib
 
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import BaseFilter
-import nibabel as nib
-
 from asldro.filters.resample_filter import ResampleFilter
-from asldro.containers.image import (
-    BaseImageContainer,
-    NumpyImageContainer,
-)
+from asldro.containers.image import BaseImageContainer, NumpyImageContainer
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
@@ -129,7 +125,7 @@ class TransformResampleImageFilter(BaseFilter):
         if isinstance(self.inputs[self.KEY_IMAGE], NumpyImageContainer):
             self.outputs[self.KEY_IMAGE]._affine = sampled_image_affine
         else:
-            self.outputs[self.KEY_IMAGE]._nifti_image.set_sform(sampled_image_affine)
+            self.outputs[self.KEY_IMAGE].nifti_image.set_sform(sampled_image_affine)
 
         # The ResampleFilter will have copied through the metadata from the input image, however
         # the voxel size should be recalculated as the output image doesn't have any rotations
