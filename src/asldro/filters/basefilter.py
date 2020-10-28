@@ -2,8 +2,10 @@
 
 import copy
 import logging
-from typing import List
+from typing import List, Mapping, Any
 from abc import ABC, abstractmethod
+
+from asldro.utils.general import map_dict
 
 logger = logging.getLogger(__name__)
 
@@ -77,11 +79,44 @@ class BaseFilter(ABC):
             )
         self._i[key] = value
 
-    def add_child_filter(self, child: "BaseFilter", io_map: dict = None):
+    def add_inputs(
+        self,
+        input_dict: Mapping[str, Any],
+        io_map: Mapping[str, str] = None,
+        io_map_optional: bool = False,
+    ):
+        """
+        Adds multiple inputs via a dictionary. Optionally, maps the dictionary onto
+        different input keys using an io_map.
+        :param input_dict: The input dictionary
+        :param io_map: The dictionary used to perform the mapping. All keys
+        and values must be strings. For example:
+        As an example:
+        {
+            "one": "two",
+            "three": "four"
+        }
+        will map inputs keys of "one" to "two" AND "three" to "four". If io_map is None,
+        no mapping with be performed.
+        :param io_map_optional: If this is False, a KeyError will be raised
+        if the keys in the io_map are not found in the input_dict.
+        :raises KeyError: if keys required in the mapping are not found in the input_dict
+        """
+        mapped_inputs = {}
+        if io_map is None:
+            mapped_inputs = {**input_dict}
+        else:
+            mapped_inputs = map_dict(
+                input_dict=input_dict, io_map=io_map, io_map_optional=io_map_optional
+            )
+        for key, value in mapped_inputs.items():
+            self.add_input(key, value)
+
+    def add_child_filter(self, child: "BaseFilter", io_map: Mapping[str, str] = None):
         """ See documentation for `add_parent_filter` """
         child.add_parent_filter(parent=self, io_map=io_map)
 
-    def add_parent_filter(self, parent: "BaseFilter", io_map: dict = None):
+    def add_parent_filter(self, parent: "BaseFilter", io_map: Mapping[str, str] = None):
         """
         Add a parent filter (the inputs of this filter will be connected
         to the output of the parents).

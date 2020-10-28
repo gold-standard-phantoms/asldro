@@ -1,5 +1,6 @@
 """ BaseFilter tests """
 
+from unittest.mock import call
 import pytest
 from asldro.filters.basefilter import (
     BaseFilter,
@@ -167,3 +168,40 @@ def test_loop_handling():
 
     with pytest.raises(FilterLoopError):
         filter_b.run()
+
+
+def test_basefilter_add_inputs(mocker):
+    """ Test the add_inputs function """
+    mocker.patch.object(SumFilter, "add_input")
+    filter_a = SumFilter()
+    filter_a.add_inputs({"one": "two", "three": "four"})
+    calls = [call("one", "two"), call("three", "four")]
+    filter_a.add_input.assert_has_calls(calls=calls, any_order=False)
+    assert filter_a.add_input.call_count == 2
+
+
+def test_basefilter_add_inputs_with_non_optional_iomap(mocker):
+    """ Test the add_inputs function with an non-optional io_map.
+    A KeyError should be raised if the key doesn't exist. """
+    mocker.patch.object(SumFilter, "add_input")
+    filter_a = SumFilter()
+    with pytest.raises(KeyError):
+        filter_a.add_inputs(
+            {"one": "two", "three": "four"},
+            io_map={"one": "eno", "thiskeydoesntexist": "OK"},
+        )
+
+
+def test_basefilter_add_inputs_with_iomap(mocker):
+    """ Test the add_inputs function with an optional io_map """
+    mocker.patch.object(SumFilter, "add_input")
+    filter_a = SumFilter()
+    filter_a.add_inputs(
+        {"one": "two", "three": "four"},
+        io_map={"one": "eno", "thiskeydoesntexist": "OK"},
+        io_map_optional=True,
+    )
+    calls = [call("eno", "two")]
+    filter_a.add_input.assert_has_calls(calls=calls, any_order=False)
+    assert filter_a.add_input.call_count == 1
+
