@@ -251,12 +251,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 # Run the acquire_mri_image_filter to generate an acquired volume
                 acquire_mri_image_filter.run()
 
+                image = acquire_mri_image_filter.outputs["image"]
+
                 # Append list of the output images
-                acquired_images_list.append(
-                    acquire_mri_image_filter.outputs[
-                        AddComplexNoiseFilter.KEY_IMAGE
-                    ].nifti_image
-                )
+                acquired_images_list.append(image.nifti_image)
 
             # Create a 4D ASL image with this timeseries
             # concatenate along the time axis (4th)
@@ -473,6 +471,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             nifti_filename.append(ground_truth_filenames)
 
     # Output everything to a temporary directory
+
     with TemporaryDirectory() as temp_dir:
         for idx, nifti in enumerate(output_nifti):
             if isinstance(nifti, list):

@@ -207,6 +207,7 @@ class AcquireMriImageFilter(FilterBlock):
                 AddComplexNoiseFilter.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE],
             )
 
+        # return add_complex_noise_filter
         return add_complex_noise_filter
 
     def _validate_inputs(self):
