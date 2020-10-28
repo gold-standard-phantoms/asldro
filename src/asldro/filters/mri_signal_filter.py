@@ -194,17 +194,21 @@ class MriSignalFilter(BaseFilter):
                 -np.divide(repetition_time, t2, out=np.zeros_like(t2), where=t2 != 0)
             )
 
+            numerator = m0 * (1 - exp_tr_t1)
+            denominator = (
+                1
+                - np.cos(flip_angle) * exp_tr_t1
+                - exp_tr_t2 * (exp_tr_t1 - np.cos(flip_angle))
+            )
+
             mri_signal = (
                 np.sin(flip_angle)
                 * (
-                    (
-                        m0
-                        * (1 - exp_tr_t1)
-                        / (
-                            1
-                            - np.cos(flip_angle) * exp_tr_t1
-                            - exp_tr_t2 * (exp_tr_t1 - np.cos(flip_angle))
-                        )
+                    np.divide(
+                        numerator,
+                        denominator,
+                        out=np.zeros_like(denominator),
+                        where=denominator != 0,
                     )
                     + mag_enc
                 )
@@ -239,22 +243,24 @@ class MriSignalFilter(BaseFilter):
             exp_ti_t1 = np.exp(
                 -np.divide(inversion_time, t1, out=np.zeros_like(t1), where=t1 != 0)
             )
+            numerator = m0 * (
+                1
+                - (1 - np.cos(inversion_flip_angle)) * exp_ti_t1
+                - np.cos(inversion_flip_angle) * exp_tr_t1
+            )
+
+            denominator = (
+                1 - np.cos(flip_angle) * np.cos(inversion_flip_angle) * exp_tr_t1
+            )
+
             mri_signal = (
                 np.sin(flip_angle)
                 * (
-                    (
-                        m0
-                        * (
-                            1
-                            - (1 - np.cos(inversion_flip_angle)) * exp_ti_t1
-                            - np.cos(inversion_flip_angle) * exp_tr_t1
-                        )
-                        / (
-                            1
-                            - np.cos(flip_angle)
-                            * np.cos(inversion_flip_angle)
-                            * exp_tr_t1
-                        )
+                    np.divide(
+                        numerator,
+                        denominator,
+                        out=np.zeros_like(denominator),
+                        where=denominator != 0,
                     )
                     + mag_enc
                 )
