@@ -83,6 +83,12 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     ):
         ground_truth_nifti = HRGT_ICBM_2009A_NLS_V4_NIFTI
         ground_truth_json = HRGT_ICBM_2009A_NLS_V4_JSON
+    else:
+        raise ValueError(
+            "Global configuration "
+            f"{input_params['global_configuration']['ground_truth']} "
+            "does not correspond with accepted ground truths"
+        )
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", ground_truth_json)
@@ -101,7 +107,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     )
 
     # create output lists to be populated in the "image_series" loop
-    output_subdir = []
     nifti_filename = []
     output_nifti = []
     # Loop over "image_series" in input_params
@@ -117,23 +122,17 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         if image_series["series_type"] == "asl":
             asl_params = image_series["series_parameters"]
 
-            # The update didn't occur
-            if "global_configuration" in asl_params:
-                raise ValueError("The input dictionary did not contain ASL parameters")
-
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(asl_params),
             )
 
-            # Generate the output subdirectory name and filename
+            # Generate the output filename
             # If asl_context only consists of M0 then the filename should be M0, otherwise ASL4D
             if asl_params["asl_context"].lower() == "m0":
                 nifti_filename.append(f"{series_number}_M0.nii.gz")
-                output_subdir.append(f"{series_number}_M0")
             else:
                 nifti_filename.append(f"{series_number}_ASL4D.nii.gz")
-                output_subdir.append(f"{series_number}_ASL")
 
             # Run the GkmFilter on the ground_truth data
             gkm_filter = GkmFilter()
@@ -297,12 +296,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         if image_series["series_type"] == "structural":
             struct_params = image_series["series_parameters"]
 
-            # The update didn't occur
-            if "global_configuration" in struct_params:
-                raise ValueError(
-                    "The input dictionary did not contain structural parameters"
-                )
-
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(struct_params),
@@ -310,7 +303,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # Generate the output subdirectory name and
             nifti_filename.append(f"{series_number}_structural.nii.gz")
-            output_subdir.append(f"{series_number}_structural")
 
             # Simulate acquisition
             acquire_mri_image_filter = AcquireMriImageFilter()
@@ -376,10 +368,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 AcquireMriImageFilter.KEY_SNR, struct_params["desired_snr"]
             )
 
-            # acquire_mri_image_filter.add_input(
-            #    AcquireMriImageFilter.KEY_REF_IMAGE, ground_truth_filter.outputs["m0"]
-            # )
-
             # Run the acquire_mri_image_filter to generate an acquired volume
             acquire_mri_image_filter.run()
 
@@ -402,12 +390,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         # parameters
         if image_series["series_type"] == "ground_truth":
             ground_truth_params = image_series["series_parameters"]
-
-            # The update didn't occur
-            if "global_configuration" in ground_truth_params:
-                raise ValueError(
-                    "The input dictionary did not contain structural parameters"
-                )
 
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
@@ -471,7 +453,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             nifti_filename.append(ground_truth_filenames)
 
     # Output everything to a temporary directory
-
     with TemporaryDirectory() as temp_dir:
         for idx, nifti in enumerate(output_nifti):
             if isinstance(nifti, list):
