@@ -180,6 +180,8 @@ class MriSignalFilter(BaseFilter):
         metadata[self.KEY_ECHO_TIME] = echo_time
         metadata[self.KEY_REPETITION_TIME] = repetition_time
 
+        # Gradient Echo Contrast. Equation is from p246 in the book MRI from Picture to Proton,
+        # second edition, 2006, McRobbie et. al.
         if acq_contrast.lower() == self.CONTRAST_GE:
             t2_star: np.ndarray = self.inputs[self.KEY_T2_STAR].image
             flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
@@ -194,6 +196,8 @@ class MriSignalFilter(BaseFilter):
                 -np.divide(repetition_time, t2, out=np.zeros_like(t2), where=t2 != 0)
             )
 
+            # pre-calculate the numerator and denominator for use in np.divide to avoid runtime
+            # divide-by-zero
             numerator = m0 * (1 - exp_tr_t1)
             denominator = (
                 1
@@ -216,6 +220,9 @@ class MriSignalFilter(BaseFilter):
             )
             metadata["flip_angle"] = self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE)
 
+        # Spin Echo Contrast, equation is the standard spin-echo signal equation assuming a 90°
+        # excitation pulse and 180° refocusing pulse. Equation is from p69 in the book
+        # MRI from Picture to Proton, second edition, 2006, McRobbie et. al.
         elif acq_contrast.lower() == self.CONTRAST_SE:
 
             mri_signal = (
@@ -233,6 +240,8 @@ class MriSignalFilter(BaseFilter):
             # for spin echo the flip angle is assumed to be 90°
             metadata["flip_angle"] = 90.0
 
+        # Inversion Recovery contrast.  Equation is from equation 7 in
+        # http://www.paul-tofts-phd.org.uk/talks/ismrm2009_rt.pdf
         elif acq_contrast.lower() == self.CONTRAST_IR:
             flip_angle = np.radians(self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE))
             inversion_time = self.inputs.get(self.KEY_INVERSION_TIME)
