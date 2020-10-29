@@ -121,7 +121,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         # After the 'acquisition loop' the dynamics are concatenated into a single 4D file
         if image_series["series_type"] == "asl":
             asl_params = image_series["series_parameters"]
-
+            # initialise the random number generator for the image series
+            np.random.seed(image_series["series_parameters"]["random_seed"])
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(asl_params),
@@ -136,6 +137,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # Run the GkmFilter on the ground_truth data
             gkm_filter = GkmFilter()
+            # Add ground truth parameters from the ground_truth_filter: perfusion_rate, transit_time
+            # m0,lambda_blood_brain, t1_arterial_blood all have the same keys; t1 maps
+            # to t1_tissue
             gkm_filter.add_parent_filter(
                 parent=ground_truth_filter,
                 io_map={
@@ -147,21 +151,14 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
                 },
             )
-            gkm_filter.add_input(gkm_filter.KEY_LABEL_TYPE, asl_params["label_type"])
-            gkm_filter.add_input(gkm_filter.KEY_SIGNAL_TIME, asl_params["signal_time"])
-            gkm_filter.add_input(
-                gkm_filter.KEY_LABEL_DURATION, asl_params["label_duration"]
-            )
-            gkm_filter.add_input(
-                gkm_filter.KEY_LABEL_EFFICIENCY, asl_params["label_efficiency"]
-            )
-
+            # Add parameters from the input_params: label_type, signal_time, label_duration and
+            # label_efficiency all have the same keys
+            gkm_filter.add_inputs(asl_params,)
             # reverse the polarity of delta_m.image for encoding it into the label signal
             invert_delta_m_filter = InvertImageFilter()
             invert_delta_m_filter.add_parent_filter(
                 parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
             )
-
             # Create one-time data that is required by the Acquisition Loop
             # 1. m0 resampled at the acquisition resolution
             m0_resample_filter = TransformResampleImageFilter()
@@ -174,84 +171,73 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 tuple(asl_params["acq_matrix"]),
             )
 
-            # Acquisition Loop
+            # Acquisition Loop: loop over ASL context, run the AcquireMriImageFilter and put the
+            # output image into a list
             acquired_images_list: List[nib.Nifti2Image] = []
             for idx, asl_context in enumerate(asl_params["asl_context"].split()):
-
                 acquire_mri_image_filter = AcquireMriImageFilter()
-                acquire_mri_image_filter.add_parent_filter(
-                    parent=ground_truth_filter,
+                # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
+                # so no explicit mapping is necessary.
+                acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter,)
+
+                # map inputs from asl_params. acq_contrast, excitation_flip_angle, desired_snr,
+                # inversion_time, inversion_flip_angle (last 2 are optional)
+                acquire_mri_image_filter.add_inputs(
+                    asl_params,
                     io_map={
-                        "t1": AcquireMriImageFilter.KEY_T1,
-                        "t2": AcquireMriImageFilter.KEY_T2,
-                        "t2_star": AcquireMriImageFilter.KEY_T2_STAR,
-                        "m0": AcquireMriImageFilter.KEY_M0,
+                        "acq_contrast": AcquireMriImageFilter.KEY_ACQ_CONTRAST,
+                        "excitation_flip_angle": AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
+                        "desired_snr": AcquireMriImageFilter.KEY_SNR,
+                        "inversion_time": AcquireMriImageFilter.KEY_INVERSION_TIME,
+                        "inversion_flip_angle": AcquireMriImageFilter.KEY_INVERSION_FLIP_ANGLE,
                     },
+                    io_map_optional=True,
                 )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_ACQ_CONTRAST, asl_params["acq_contrast"]
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_ECHO_TIME, asl_params["echo_time"][idx]
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_REPETITION_TIME,
-                    asl_params["repetition_time"][idx],
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
-                    asl_params["excitation_flip_angle"],
-                )
-                # for ASL context == "label" use the inverted delta_m as
+
+                # if asl_context == "label" use the inverted delta_m as
                 # the input MriSignalFilter.KEY_MAG_ENC
                 if asl_context.lower() == "label":
                     acquire_mri_image_filter.add_parent_filter(
                         parent=invert_delta_m_filter,
                         io_map={"image": AcquireMriImageFilter.KEY_MAG_ENC},
                     )
-
+                # set the image flavour to "PERFUSION"
                 acquire_mri_image_filter.add_input(
                     AcquireMriImageFilter.KEY_IMAGE_FLAVOUR, "PERFUSION"
                 )
-                # Transform and resample
-                rotation = (
-                    asl_params["rot_x"][idx],
-                    asl_params["rot_y"][idx],
-                    asl_params["rot_z"][idx],
-                )
-                # use default for rotation origin (0.0, 0.0, 0.0)
-                translation = (
-                    asl_params["transl_x"][idx],
-                    asl_params["transl_y"][idx],
-                    asl_params["transl_z"][idx],
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_ROTATION, rotation
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_TRANSLATION, translation
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_TARGET_SHAPE,
-                    tuple(asl_params["acq_matrix"]),
-                )
-
-                # Add noise based on SNR
+                # build acquisition loop parameter dictionary - parameters that cannot be directly
+                # mapped
+                acq_loop_params = {
+                    AcquireMriImageFilter.KEY_ECHO_TIME: asl_params["echo_time"][idx],
+                    AcquireMriImageFilter.KEY_REPETITION_TIME: asl_params[
+                        "repetition_time"
+                    ][idx],
+                    AcquireMriImageFilter.KEY_ROTATION: (
+                        asl_params["rot_x"][idx],
+                        asl_params["rot_y"][idx],
+                        asl_params["rot_z"][idx],
+                    ),
+                    AcquireMriImageFilter.KEY_TRANSLATION: (
+                        asl_params["transl_x"][idx],
+                        asl_params["transl_y"][idx],
+                        asl_params["transl_z"][idx],
+                    ),
+                    AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
+                        asl_params["acq_matrix"]
+                    ),
+                }
+                # add these inputs to the filter
+                acquire_mri_image_filter.add_inputs(acq_loop_params)
+                # map the reference_image for the noise generation to the m0 ground truth.
                 acquire_mri_image_filter.add_parent_filter(
                     m0_resample_filter,
                     io_map={
                         m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
                     },
                 )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_SNR, asl_params["desired_snr"]
-                )
-
                 # Run the acquire_mri_image_filter to generate an acquired volume
                 acquire_mri_image_filter.run()
-
                 image = acquire_mri_image_filter.outputs["image"]
-
                 # Append list of the output images
                 acquired_images_list.append(image.nifti_image)
 
@@ -271,7 +257,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 acquired_timeseries_dataobj[:, :, :, idx]: np.ndarray = np.absolute(
                     np.asanyarray(im.dataobj)
                 )
-
             # do not use the header during construction
             acquired_timeseries = type(acquired_images_list[0])(
                 dataobj=acquired_timeseries_dataobj,
@@ -279,10 +264,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             )
             acquired_timeseries.update_header()
             acquired_timeseries.header["descrip"] = image_series["series_description"]
-
             # place in output_nifti list
             output_nifti.append(acquired_timeseries)
-
             # logging
             logger.debug("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
             logger.debug(
@@ -295,6 +278,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         # Comprises MRI signal,transform and resampling and noise models
         if image_series["series_type"] == "structural":
             struct_params = image_series["series_parameters"]
+            # initialise the random number generator for the image series
+            np.random.seed(image_series["series_parameters"]["random_seed"])
 
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
@@ -306,68 +291,36 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # Simulate acquisition
             acquire_mri_image_filter = AcquireMriImageFilter()
-            acquire_mri_image_filter.add_parent_filter(
-                parent=ground_truth_filter,
-                io_map={
-                    "t1": AcquireMriImageFilter.KEY_T1,
-                    "t2": AcquireMriImageFilter.KEY_T2,
-                    "t2_star": AcquireMriImageFilter.KEY_T2_STAR,
-                    "m0": AcquireMriImageFilter.KEY_M0,
+            # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
+            # so no explicit mapping is necessary.
+            acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter,)
+
+            # append struct_params with additional parameters that need to be built/modified
+            struct_params = {
+                **struct_params,
+                **{
+                    AcquireMriImageFilter.KEY_ROTATION: (
+                        struct_params["rot_x"],
+                        struct_params["rot_y"],
+                        struct_params["rot_z"],
+                    ),
+                    AcquireMriImageFilter.KEY_TRANSLATION: (
+                        struct_params["transl_x"],
+                        struct_params["transl_y"],
+                        struct_params["transl_z"],
+                    ),
+                    AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
+                        struct_params["acq_matrix"]
+                    ),
+                    AcquireMriImageFilter.KEY_SNR: struct_params["desired_snr"],
                 },
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_ACQ_CONTRAST, struct_params["acq_contrast"]
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_ECHO_TIME, struct_params["echo_time"]
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_REPETITION_TIME,
-                struct_params["repetition_time"],
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
-                struct_params["excitation_flip_angle"],
-            )
+            }
 
-            if struct_params["acq_contrast"].lower() == "ir":
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_INVERSION_FLIP_ANGLE,
-                    struct_params["inversion_flip_angle"],
-                )
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_INVERSION_TIME,
-                    struct_params["inversion_time"],
-                )
-
-            # Transform and resample
-            rotation = (
-                struct_params["rot_x"],
-                struct_params["rot_y"],
-                struct_params["rot_z"],
+            # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
+            # inversion_time, inversion_flip_angle (last 2 are optional)
+            acquire_mri_image_filter.add_inputs(
+                struct_params, io_map_optional=True,
             )
-            # use default for rotation origin (0.0, 0.0, 0.0)
-            translation = (
-                struct_params["transl_x"],
-                struct_params["transl_y"],
-                struct_params["transl_z"],
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_ROTATION, rotation
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_TRANSLATION, translation
-            )
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_TARGET_SHAPE,
-                tuple(struct_params["acq_matrix"]),
-            )
-
-            # Add noise based on SNR
-            acquire_mri_image_filter.add_input(
-                AcquireMriImageFilter.KEY_SNR, struct_params["desired_snr"]
-            )
-
             # Run the acquire_mri_image_filter to generate an acquired volume
             acquire_mri_image_filter.run()
 
@@ -390,12 +343,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
         # parameters
         if image_series["series_type"] == "ground_truth":
             ground_truth_params = image_series["series_parameters"]
-
             logger.info(
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(ground_truth_params),
             )
-
             # Loop over all the ground truth images and resample as specified
             ground_truth_keys = ground_truth_filter.outputs.keys()
             ground_truth_image_keys = [
@@ -403,7 +354,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 for key in ground_truth_keys
                 if isinstance(ground_truth_filter.outputs[key], BaseImageContainer)
             ]
-
             ground_truth_niftis = []
             ground_truth_filenames = []
             for quantity in ground_truth_image_keys:
@@ -412,42 +362,36 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 )
 
                 resample_filter = TransformResampleImageFilter()
+                # map the ground_truth_filter to the resample filter
                 resample_filter.add_parent_filter(
                     ground_truth_filter, io_map={quantity: "image"}
                 )
 
-                # Transform and resample
-                rotation = (
-                    ground_truth_params["rot_x"],
-                    ground_truth_params["rot_y"],
-                    ground_truth_params["rot_z"],
-                )
-                # use default for rotation origin (0.0, 0.0, 0.0)
-                translation = (
-                    ground_truth_params["transl_x"],
-                    ground_truth_params["transl_y"],
-                    ground_truth_params["transl_z"],
-                )
-                resample_filter.add_input(
-                    TransformResampleImageFilter.KEY_ROTATION, rotation
-                )
-                resample_filter.add_input(
-                    TransformResampleImageFilter.KEY_TRANSLATION, translation
-                )
-                resample_filter.add_input(
-                    TransformResampleImageFilter.KEY_TARGET_SHAPE,
-                    tuple(ground_truth_params["acq_matrix"]),
-                )
-
+                ground_truth_params = {
+                    **ground_truth_params,
+                    **{
+                        TransformResampleImageFilter.KEY_ROTATION: (
+                            ground_truth_params["rot_x"],
+                            ground_truth_params["rot_y"],
+                            ground_truth_params["rot_z"],
+                        ),
+                        TransformResampleImageFilter.KEY_TRANSLATION: (
+                            ground_truth_params["transl_x"],
+                            ground_truth_params["transl_y"],
+                            ground_truth_params["transl_z"],
+                        ),
+                        AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
+                            ground_truth_params["acq_matrix"]
+                        ),
+                    },
+                }
                 resample_filter.run()
-
                 # Append list of the output images
                 ground_truth_niftis.append(
                     resample_filter.outputs[
                         TransformResampleImageFilter.KEY_IMAGE
                     ].nifti_image
                 )
-
             output_nifti.append(ground_truth_niftis)
             # append the output filenames
             nifti_filename.append(ground_truth_filenames)
