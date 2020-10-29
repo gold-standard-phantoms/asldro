@@ -34,7 +34,10 @@ INPUT_PARAMETER_SCHEMA = {
             "required": ["ground_truth"],
             "properties": {
                 # must be updated with available datasets
-                "ground_truth": {"type": "string", "enum": ["hrgt_ICBM_2009a_NLS_v3"]}
+                "ground_truth": {
+                    "type": "string",
+                    "enum": ["hrgt_icbm_2009a_nls_v3", "hrgt_icbm_2009a_nls_v4"],
+                }
             },
             "additionalProperties": False,
         },
@@ -360,7 +363,7 @@ def get_example_input_params() -> dict:
     """
     return validate_input_params(
         {
-            "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+            "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_v4"},
             "image_series": [
                 {
                     "series_type": IMAGE_TYPE,

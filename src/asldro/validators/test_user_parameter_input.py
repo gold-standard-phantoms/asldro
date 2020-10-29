@@ -172,7 +172,7 @@ def test_mismatch_asl_context_array_sizes():
 def input_params():
     """ A valid input parameter config """
     return {
-        "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+        "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_v3"},
         "image_series": [
             {
                 "series_type": "asl",
@@ -209,7 +209,7 @@ def test_valid_input_params(input_params: dict):
     parsed_input = validate_input_params(input_params)
 
     assert parsed_input == {
-        "global_configuration": {"ground_truth": "hrgt_ICBM_2009a_NLS_v3"},
+        "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_v3"},
         "image_series": [
             {
                 "series_type": "asl",
