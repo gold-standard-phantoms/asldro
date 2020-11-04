@@ -99,9 +99,9 @@ def transform_resample_affine(
     # Assuming coordinates are in rotated world space, will perform the translation
     # component of the motion model
     rotated_world_space_translation_affine = (
-        motion_model_rotation_affine
-        @ motion_model_translation_affine
-        @ inverse_motion_model_rotation_affine
+        # motion_model_rotation_affine
+        motion_model_translation_affine
+        # @ inverse_motion_model_rotation_affine
     )
 
     # Assuming coordinates are in world space, will perform the rotation and
@@ -118,16 +118,26 @@ def transform_resample_affine(
     # - the motion model is applied
     # - the resampling is applied
     # - the FOV is created at the correct location by image-space translation
+
+    # resampling_translate_affine = translate_mat(
+    #    np.array(target_shape) / 2
+    # )  # Set the target origin to the image centre (in image space)
+
+    # set the target origin to the input image origin - this needs to account
+    # for the image scaling so
+    resampling_translate_affine = inv(
+        translate_mat(source_image_to_world[:3, 3] / output_voxel_size)
+    )
+
     world_to_target_affine = (
-        translate_mat(
-            np.array(target_shape) / 2
-        )  # Set the target origin to the image centre (in image space)
+        resampling_translate_affine
         @ resampling_affine
         @ translated_rotated_world_space_affine
     )
     # Invert to get target to world space, as per the `affine` nifti specification
     target_affine = inv(world_to_target_affine)
-    sampled_image_affine = inv(resampling_affine @ inv(image.affine))
+    sampled_image_affine = inv(resampling_translate_affine @ resampling_affine)
+
     return (target_affine, sampled_image_affine)
 
 
