@@ -178,7 +178,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 acquire_mri_image_filter = AcquireMriImageFilter()
                 # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
                 # so no explicit mapping is necessary.
-                acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter,)
+                acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter)
 
                 # map inputs from asl_params. acq_contrast, excitation_flip_angle, desired_snr,
                 # inversion_time, inversion_flip_angle (last 2 are optional)
