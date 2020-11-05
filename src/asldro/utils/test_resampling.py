@@ -31,8 +31,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (32, 32, 32),  # target_shape
-        (-6.0, -6.0, -6.0, 1.0),  # expected_target
-        (10.0, 10.0, 10.0, 1.0),  # expected_resampled
+        (10.0, 10.0, 10.0, 1.0,),  # expected_target
+        (10.0, 10.0, 10.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -40,8 +40,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (4.0, 4.0, 4.0, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (20.0, 20.0, 20.0, 1.0,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -49,8 +49,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (-86, 4.0, 4.0, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (-70.0, 20.0, 20.0, 1.0,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_CONTAINER_ONES,  # image
@@ -58,8 +58,8 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (0, 4.0, 5.656854249492380, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (-0.000000000, 20.000000000, 28.284271247, 1.000000000,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NUMPY_CONTAINER_ONES,  # image
@@ -67,8 +67,8 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 5.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (-26.464466094067262, 4.0, 7.121320343559638, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (-17.677669530, 20.000000000, 8.535533906, 1.000000000,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
 )
 
@@ -124,6 +124,37 @@ def test_transform_resample_image_mock_data():
     """ Test the transform_resample_image function with mock data"""
     # Create some synthetic data
 
+    rotation = (0.0, 0.0, 45.0)
+    translation = (0.0, 10.0, 0.0)
+    target_shape = (64, 64, 1)
+    (nifti_image, rotation_origin) = create_test_image()
+
+    # use transform_resample_affine to obtain the affine
+    target_affine_1, resampled_affine = rs.transform_resample_affine(
+        nifti_image, translation, rotation, rotation_origin, target_shape
+    )
+
+    # resample using nilearn function
+    resampled_nifti_1 = nil.image.resample_img(
+        nifti_image, target_affine=target_affine_1, target_shape=target_shape
+    )
+
+    # transform and resample with the function
+    resampled_nifti_2, target_affine_2 = rs.transform_resample_image(
+        nifti_image, translation, rotation, rotation_origin, target_shape
+    )
+    # the images should be identical
+    numpy.testing.assert_array_equal(
+        resampled_nifti_1.dataobj, resampled_nifti_2.dataobj
+    )
+    # target affines should be identical
+    numpy.testing.assert_array_equal(target_affine_1, target_affine_2)
+    # resampled affine, and the affine of the image that was resampled with the function should
+    # be identical
+    numpy.testing.assert_array_equal(resampled_affine, resampled_nifti_2.affine)
+
+
+def create_test_image() -> (NiftiImageContainer, Tuple[float, float, float]):
     grid = np.mgrid[0:128, 0:128]
     circle = (
         np.sum((grid - np.array([32, 32])[:, np.newaxis, np.newaxis]) ** 2, axis=0)
@@ -149,13 +180,9 @@ def test_transform_resample_image_mock_data():
         ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, -0.5), (0, 0, 0, 1))
     )
 
-    rotation = (0.0, 0.0, 45.0)
     rotation_origin = tuple(
         np.array(nil.image.coord_transform(75, 32, 0, source_affine)).astype(float)
     )
-    # rotation_origin = (0.0, 0.0, 0.0)
-    translation = (0.0, 10.0, 0.0)
-    target_shape = (64, 64, 1)
 
     image[
         tuple(
@@ -169,31 +196,15 @@ def test_transform_resample_image_mock_data():
             ).astype(np.int32)
         )
     ] = 5.0
-    nifti_image = nib.Nifti2Image(image, affine=source_affine)
 
-    # use transform_resample_affine to obtain the affine
-    target_affine_1, resampled_affine = rs.transform_resample_affine(
-        nifti_image, translation, rotation, rotation_origin, target_shape
-    )
-
-    # resample using nilearn function
-    resampled_nifti_1 = nil.image.resample_img(
-        nifti_image, target_affine=target_affine_1, target_shape=target_shape
-    )
-
-    # transform and resample with the function
-    resampled_nifti_2, target_affine_2 = rs.transform_resample_image(
-        nifti_image, translation, rotation, rotation_origin, target_shape
-    )
-    # the images should be identical
-    numpy.testing.assert_array_equal(
-        resampled_nifti_1.dataobj, resampled_nifti_2.dataobj
-    )
-    # target affines should be identical
-    numpy.testing.assert_array_equal(target_affine_1, target_affine_2)
-    # resampled affine, and the affine of the image that was resampled with the function should
-    # be identical
-    numpy.testing.assert_array_equal(resampled_affine, resampled_nifti_2.affine)
+    image[
+        tuple(
+            np.rint(
+                nil.image.coord_transform(0, 0, 0, np.linalg.inv(source_affine),)
+            ).astype(np.int32)
+        )
+    ] = 6.0
+    return (nib.Nifti2Image(image, affine=source_affine), rotation_origin)
 
 
 @pytest.mark.parametrize(
