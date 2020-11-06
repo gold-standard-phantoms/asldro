@@ -95,6 +95,7 @@ def test_structural_user_input_defaults_created():
         "desired_snr": 50.0,
         "random_seed": 0,
         "output_image_type": "magnitude",
+        "modality": "anat",
     }
 
     # Validation should include inputs
@@ -257,6 +258,7 @@ def test_valid_input_params(input_params: dict):
                     "desired_snr": 50.0,
                     "random_seed": 0,
                     "output_image_type": "magnitude",
+                    "modality": "anat",
                 },
             },
             {

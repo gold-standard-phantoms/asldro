@@ -90,6 +90,7 @@ EXCITATION_FLIP_ANGLE = "excitation_flip_angle"
 INVERSION_FLIP_ANGLE = "inversion_flip_angle"
 INVERSION_TIME = "inversion_time"
 OUTPUT_IMAGE_TYPE = "output_image_type"
+MODALITY = "modality"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -198,6 +199,10 @@ IMAGE_TYPE_VALIDATOR = {
             OUTPUT_IMAGE_TYPE: Parameter(
                 validators=from_list_validator(["complex", "magnitude"]),
                 default_value="magnitude",
+            ),
+            MODALITY: Parameter(
+                validators=from_list_validator(["T1w", "T2w", "FLAIR", "anat"]),
+                default_value="anat",
             ),
         }
     ),
