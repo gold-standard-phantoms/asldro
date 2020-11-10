@@ -74,6 +74,7 @@ class MriSignalFilter(BaseFilter):
     * ``image_flavour``
     * ``inversion_time``
     * ``inversion_flip_angle``
+    * ``mr_acq_type`` = "3D"
 
     ``image_flavour`` is obtained (in order of precedence):
 
@@ -128,6 +129,7 @@ class MriSignalFilter(BaseFilter):
     KEY_INVERSION_TIME = "inversion_time"
     KEY_IMAGE = "image"
     KEY_IMAGE_FLAVOUR = "image_flavour"
+    KEY_ACQ_TYPE = "mr_acq_type"
 
     # Value constants
     CONTRAST_GE = "ge"
@@ -179,6 +181,9 @@ class MriSignalFilter(BaseFilter):
         metadata[self.KEY_ACQ_CONTRAST] = acq_contrast
         metadata[self.KEY_ECHO_TIME] = echo_time
         metadata[self.KEY_REPETITION_TIME] = repetition_time
+        metadata[
+            self.KEY_ACQ_TYPE
+        ] = "3D"  # 2D not currently supported so everything is 3D
 
         # Gradient Echo Contrast. Equation is from p246 in the book MRI from Picture to Proton,
         # second edition, 2006, McRobbie et. al.

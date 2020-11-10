@@ -103,6 +103,7 @@ class TransformResampleImageFilter(BaseFilter):
     KEY_ROTATION = "rotation"
     KEY_TRANSLATION = "translation"
     KEY_IMAGE = "image"
+    VOXEL_SIZE = "voxel_size"
 
     def __init__(self):
         super().__init__(name="Transform and Resample Image")

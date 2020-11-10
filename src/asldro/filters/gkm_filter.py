@@ -90,6 +90,7 @@ class GkmFilter(BaseFilter):
     KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
     KEY_T1_TISSUE = "t1_tissue"
     KEY_DELTA_M = "delta_m"
+    KEY_POST_LABEL_DELAY = "post_label_delay"
 
     # Value constants
     CASL = "casl"
@@ -284,7 +285,7 @@ class GkmFilter(BaseFilter):
             **{
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
                 self.KEY_LABEL_DURATION: label_duration,
-                "post_label_delay": (signal_time - label_duration),
+                self.KEY_POST_LABEL_DELAY: (signal_time - label_duration),
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
                 self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,

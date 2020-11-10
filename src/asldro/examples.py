@@ -126,8 +126,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             # If asl_context only consists of M0 then the filename should be M0, otherwise ASL4D
             if asl_params["asl_context"].lower() == "m0":
                 nifti_filename.append(f"{series_number}_M0.nii.gz")
+                modality_label = "m0scan"
             else:
                 nifti_filename.append(f"{series_number}_ASL4D.nii.gz")
+                modality_label = "asl"
 
             # Run the GkmFilter on the ground_truth data
             gkm_filter = GkmFilter()
@@ -234,14 +236,29 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 phase_magnitude_filter.add_parent_filter(
                     parent=acquire_mri_image_filter
                 )
+
+                append_metadata_filter = AppendMetadataFilter()
+                append_metadata_filter.add_parent_filter(
+                    phase_magnitude_filter, io_map={"magnitude": "image"}
+                )
+                append_metadata_filter.add_input(
+                    AppendMetadataFilter.KEY_METADATA,
+                    {
+                        "series_description": image_series["series_description"],
+                        "modality": modality_label,
+                        "series_type": image_series["series_type"],
+                        "series_number": series_number,
+                        "asl_context": asl_context,
+                    },
+                )
+
                 # Add the acqusition pipeline to the combine time series filter after
                 # calculating the magnitude component of the time series data
                 combine_time_series_filter.add_parent_filter(
-                    parent=phase_magnitude_filter, io_map={"magnitude": f"image_{idx}"}
+                    parent=append_metadata_filter, io_map={"image": f"image_{idx}"}
                 )
 
             combine_time_series_filter.run()
-            # do not use the header during construction
             acquired_timeseries_nifti_container: NiftiImageContainer = (
                 combine_time_series_filter.outputs["image"].as_nifti()
             )
@@ -303,11 +320,25 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
-            acquire_mri_image_filter.add_inputs(struct_params, io_map_optional=True)
-            # Run the acquire_mri_image_filter to generate an acquired volume
-            acquire_mri_image_filter.run()
+            acquire_mri_image_filter.add_inputs(
+                struct_params, io_map_optional=True,
+            )
 
-            struct_image_container = acquire_mri_image_filter.outputs[
+            append_metadata_filter = AppendMetadataFilter()
+            append_metadata_filter.add_parent_filter(acquire_mri_image_filter)
+            append_metadata_filter.add_input(
+                AppendMetadataFilter.KEY_METADATA,
+                {
+                    "series_description": image_series["series_description"],
+                    "modality": struct_params["modality"],
+                    "series_type": image_series["series_type"],
+                    "series_number": series_number,
+                },
+            )
+            # Run the append_metadata_filter to generate an acquired volume
+            append_metadata_filter.run()
+
+            struct_image_container = append_metadata_filter.outputs[
                 AcquireMriImageFilter.KEY_IMAGE
             ]
 
@@ -369,10 +400,24 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     },
                 }
                 resample_filter.run()
+                append_metadata_filter = AppendMetadataFilter()
+                append_metadata_filter.add_parent_filter(resample_filter)
+                append_metadata_filter.add_input(
+                    AppendMetadataFilter.KEY_METADATA,
+                    {
+                        "series_description": image_series["series_description"],
+                        "modality": f"ground_truth_{quantity}",
+                        "series_type": image_series["series_type"],
+                        "series_number": series_number,
+                    },
+                )
+                # Run the append_metadata_filter to generate an acquired volume
+                append_metadata_filter.run()
+
                 # Append list of the output images
                 ground_truth_niftis.append(
                     resample_filter.outputs[
-                        TransformResampleImageFilter.KEY_IMAGE
+                        append_metadata_filter.KEY_IMAGE
                     ].nifti_image
                 )
             output_nifti.append(ground_truth_niftis)
@@ -385,13 +430,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             if isinstance(nifti, list):
                 for i, img in enumerate(nifti):
                     nib.save(
-                        img,
-                        os.path.join(temp_dir, nifti_filename[idx][i]),
+                        img, os.path.join(temp_dir, nifti_filename[idx][i]),
                     )
             else:
                 nib.save(
-                    nifti,
-                    os.path.join(temp_dir, nifti_filename[idx]),
+                    nifti, os.path.join(temp_dir, nifti_filename[idx]),
                 )
 
         if output_filename is not None:
