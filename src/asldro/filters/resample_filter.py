@@ -1,16 +1,11 @@
 """ Resample Filter """
 
 import numpy as np
-from copy import deepcopy
 from nilearn.image import resample_img
 import nibabel as nib
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.containers.image import (
     BaseImageContainer,
-    NumpyImageContainer,
-    NiftiImageContainer,
-    UNITS_MILLIMETERS,
-    UNITS_SECONDS,
 )
 from asldro.validators.parameters import (
     ParameterValidator,
@@ -69,7 +64,7 @@ class ResampleFilter(BaseFilter):
         )
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation criteria
+        """Checks that the inputs meet their validation criteria
 
         `'image'` must be derived from a BaseImageContainer
         `'affine'` must be a numpy.ndarray of shape (4,4)

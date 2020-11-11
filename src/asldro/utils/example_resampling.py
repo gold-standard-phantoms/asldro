@@ -6,15 +6,14 @@ matplotlib which is not a dependency of asldro
 
 import numpy as np
 import matplotlib.pyplot as plt
-from nilearn.plotting import show as show
+import nilearn as nil
 import asldro.utils.resampling as rs
 from asldro.utils.test_resampling import create_test_image
 from asldro.containers.image import NiftiImageContainer
-import nilearn as nil
 
 
 def check_resampling():
-    """ Function to visualise the resampling of a test image using pylot
+    """Function to visualise the resampling of a test image using pylot
     requires matplotlib.pyplot"""
 
     rotation = (0.0, 0.0, -45.0)
@@ -23,7 +22,7 @@ def check_resampling():
     (nifti_image, rotation_origin) = create_test_image()
 
     # use transform_resample_affine to obtain the affine
-    target_affine_1, resampled_affine = rs.transform_resample_affine(
+    target_affine_1, _ = rs.transform_resample_affine(
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
 

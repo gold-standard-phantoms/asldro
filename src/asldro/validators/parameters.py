@@ -10,11 +10,11 @@ from asldro.containers.image import BaseImageContainer
 
 
 class ValidationError(Exception):
-    """ Used to indicate that a dictionary is invalid """
+    """Used to indicate that a dictionary is invalid"""
 
 
 class Validator:
-    """ All _validator functions return an object of this class.
+    """All _validator functions return an object of this class.
     The object can be called with a value to check whether the value
     is valid. A string method is also available to display the validator's
     criteria message.
@@ -252,7 +252,8 @@ def reserved_string_list_validator(
     pattern = fr"^({concat_strings})({delimiter}({concat_strings}))*$"
     return Validator(
         regex_validator(pattern=pattern, case_insensitive=case_insensitive).func,
-        f"Value must be a string combination of {strings} separated by '_'{' (ignoring case)' if case_insensitive else ''}",
+        f"Value must be a string combination of {strings} separated by "
+        f"'_'{' (ignoring case)' if case_insensitive else ''}",
     )
 
 
@@ -276,6 +277,7 @@ def for_each_validator(item_validator=Validator) -> Validator:
 
 
 class Parameter:
+    # pylint: disable=too-few-public-methods
     """ A description of a parameter which is to be validated against """
 
     def __init__(
@@ -308,7 +310,7 @@ class Parameter:
 
 
 class ParameterValidator:
-    """ Used to validate a dictionary of parameters specified with the Parameter class against
+    """Used to validate a dictionary of parameters specified with the Parameter class against
     an input dictionary. Will also insert any default values that are missing from the input
     dictionary.
     """
@@ -342,7 +344,7 @@ class ParameterValidator:
         self.post_validators: List[Validator] = post_validators
 
     def get_defaults(self):
-        """ Return a dictionary of default values for each of the parameters
+        """Return a dictionary of default values for each of the parameters
         in the ParameterValidator. If a parameter does not have a default value,
         it is excluded from the dictionary
         :return: a dictionary of default parameter values

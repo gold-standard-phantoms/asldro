@@ -1,9 +1,10 @@
 """ GroundTruthLoaderFilter tests """
+# pylint: disable=duplicate-code
 import os
 import sys
-import pytest
 from tempfile import TemporaryDirectory
 
+import pytest
 import numpy as np
 import numpy.testing
 import nibabel as nib
@@ -124,8 +125,8 @@ def test_ground_truth_loader_filter_with_mock_data():
 
 
 def test_ground_truth_loader_filter_with_test_data():
-    """ Test the ground truth loader filter with the included
-    test data """
+    """Test the ground truth loader filter with the included
+    test data"""
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)

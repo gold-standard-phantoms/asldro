@@ -10,11 +10,11 @@ from asldro.validators.parameters import (
 
 
 class AppendMetadataFilter(BaseFilter):
-    """ A filter that can add key-value pairs to the metadata dictionary property of an
+    """A filter that can add key-value pairs to the metadata dictionary property of an
     image container.  If the supplied key already exists the old value will be overwritten
     with the new value.  The input image container is modified and a reference passed
-    to the output, i.e. no copy is made. 
-    
+    to the output, i.e. no copy is made.
+
     **Inputs**
 
     Input Parameters are all keyword arguments for the :class:`AppendMetadataFilter.add_inputs()`
@@ -55,7 +55,7 @@ class AppendMetadataFilter(BaseFilter):
         }
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation criteria
+        """Checks that the inputs meet their validation criteria
         'image' must be derived from BaseImageContainer
         'metadata' must be a dict
         """
@@ -70,4 +70,3 @@ class AppendMetadataFilter(BaseFilter):
         )
 
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
-

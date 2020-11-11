@@ -10,7 +10,7 @@ from asldro.validators.ground_truth_json import validate_input
 
 
 class JsonLoaderFilter(BaseFilter):
-    """ A filter for loading a JSON file.
+    """A filter for loading a JSON file.
 
     Must have a single string input named 'filename'.
 
@@ -27,16 +27,16 @@ class JsonLoaderFilter(BaseFilter):
         super().__init__("JsonLoader")
 
     def _run(self):
-        """ Load the input `filename`. Create the relevant
-        outputs. """
+        """Load the input `filename`. Create the relevant
+        outputs."""
         with open(self.inputs["filename"]) as file:
             self.outputs = json.load(file)
 
     def _validate_inputs(self):
-        """ There must be an input named `filename`.
+        """There must be an input named `filename`.
         It must end in .json. It must
         point to a existing file. The file contents must
-        be valid as per the JSON ground truth schema """
+        be valid as per the JSON ground truth schema"""
 
         if self.inputs.get("filename", None) is None:
             raise FilterInputValidationError(
@@ -63,4 +63,4 @@ class JsonLoaderFilter(BaseFilter):
             try:
                 validate_input(json.load(file))
             except ValidationError as error:
-                raise FilterInputValidationError(error.message)
+                raise FilterInputValidationError from error

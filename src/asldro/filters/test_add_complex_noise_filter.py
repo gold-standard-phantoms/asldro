@@ -1,4 +1,5 @@
 """ AddComplexNoiseFilter tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
@@ -24,8 +25,8 @@ TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 
 
 def test_add_complex_noise_filter_wrong_input_type_error():
-    """ Check a FilterInputValidationError is raised when the inputs
-    to the add commplex noise filter are incorrect or missing """
+    """Check a FilterInputValidationError is raised when the inputs
+    to the add commplex noise filter are incorrect or missing"""
     noise_filter = AddComplexNoiseFilter()
     noise_filter.add_input("snr", 1)
     with pytest.raises(FilterInputValidationError):
@@ -87,7 +88,7 @@ def add_complex_noise_function(
 def simulate_dual_image_snr_measurement_function(
     image_container: BaseImageContainer, snr: float, mask: np.ndarray = None
 ):
-    """ Calculate the SNR of the images using the subtraction method
+    """Calculate the SNR of the images using the subtraction method
     Firbank et. al "A comparison of two methods for measuring the signal to
     noise ratio on MR images", PMB, vol 44, no. 12, pp.N261-N264 (1999)
     """
@@ -236,4 +237,3 @@ def test_add_complex_noise_filter_snr_zero():
     numpy.testing.assert_array_equal(
         image_container.image, add_complex_noise_filter.outputs["image"].image
     )
-

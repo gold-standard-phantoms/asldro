@@ -4,12 +4,10 @@ import argparse
 import os
 import json
 import sys
-from typing import Union, List
+from typing import List
 
 from asldro.examples import run_full_pipeline
 from asldro.validators.user_parameter_input import (
-    IMAGE_TYPE_VALIDATOR,
-    ASL,
     get_example_input_params,
 )
 
@@ -38,10 +36,8 @@ class FileType:  # pylint: disable=too-few-public-methods
                 if not isinstance(extension, str):
                     raise TypeError("All extensions must be strings")
 
-        self.extensions: Union[str] = None
-        if extensions is None:
-            self.extensions = []
-        else:
+        self.extensions: List[str] = []
+        if extensions is not None:
             # Strip any proceeding dots
             self.extensions = [
                 extension if not extension.startswith(".") else extension[1:]
@@ -77,7 +73,7 @@ class FileType:  # pylint: disable=too-few-public-methods
 
 
 def generate(args):
-    """ Parses the 'generate' subcommand.
+    """Parses the 'generate' subcommand.
     :param args: the command line arguments. May optionally contain
     a 'params' value, which will be JSON filename to load for the model
     inputs (will use default if not present). Must contain 'output' which
@@ -90,16 +86,16 @@ def generate(args):
 
 
 def output_params(args):
-    """ Parses the 'output params' subcommand. Must have a
+    """Parses the 'output params' subcommand. Must have a
     'output' parameter which is the filename to a JSON to which the
-    default model parameters will be written """
+    default model parameters will be written"""
     with open(args.output, "w") as json_file:
         json.dump(get_example_input_params(), json_file, indent=4)
 
 
 def main():
-    """ Main function for the Command Line Interface. Provides multiple options
-    which are best documented by running the command line tool with `--help` """
+    """Main function for the Command Line Interface. Provides multiple options
+    which are best documented by running the command line tool with `--help`"""
     parser = argparse.ArgumentParser(
         description="""A set of tools for generating an
         Arterial Spin Labelling (ASL) Digital Reference Object (DRO).

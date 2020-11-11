@@ -10,12 +10,12 @@ from asldro.containers.image import BaseImageContainer
 
 
 def transform_resample_image(
-    image: [nib.Nifti1Image, nib.Nifti2Image],
+    image: Union[nib.Nifti1Image, nib.Nifti2Image, BaseImageContainer],
     translation: Tuple[float, float, float],
     rotation: Tuple[float, float, float],
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
-) -> Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]:
+) -> Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.ndarray]:
     """
     Transforms and resamples a nibabel NIFTI image in world-space
 
@@ -51,7 +51,7 @@ def transform_resample_affine(
     rotation: Tuple[float, float, float],
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
-) -> (np.array, np.array):
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Calculates the affine matrices that transform and resample an image in world-space. Note that
     while an image (NIFTI or BaseImageContainer derived) is accepted an an argument, the image
@@ -82,7 +82,6 @@ def transform_resample_affine(
     motion_model_rotation_affine = (
         rot_x_mat(rotation[0]) @ rot_y_mat(rotation[1]) @ rot_z_mat(rotation[2])
     )
-    inverse_motion_model_rotation_affine = np.linalg.inv(motion_model_rotation_affine)
     motion_model_translation_affine = translate_mat(translation)
     rotation_centre_translation_affine = translate_mat(rotation_origin)
     inverse_rotation_centre_translation_affine = translate_mat(
@@ -130,7 +129,7 @@ def transform_resample_affine(
     return (target_affine_with_motion, target_affine_no_motion)
 
 
-def rot_x_mat(theta: float) -> np.array:
+def rot_x_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about x
 
     :param theta: angle to rotate about x in degrees
@@ -149,7 +148,7 @@ def rot_x_mat(theta: float) -> np.array:
     )
 
 
-def rot_y_mat(theta: float) -> np.array:
+def rot_y_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about y
 
     :param theta: angle to rotate about y in degrees
@@ -168,7 +167,7 @@ def rot_y_mat(theta: float) -> np.array:
     )
 
 
-def rot_z_mat(theta: float) -> np.array:
+def rot_z_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about z
 
     :param theta: angle to rotate about z in degrees
@@ -187,7 +186,9 @@ def rot_z_mat(theta: float) -> np.array:
     )
 
 
-def translate_mat(translation: Tuple[float, float, float]) -> np.array:
+def translate_mat(
+    translation: Union[Tuple[float, float, float], np.ndarray]
+) -> np.ndarray:
     """Creates a 4x4 affine performing translations
 
     :param vector: describes (x, y, z) to translate along respective axes
@@ -205,7 +206,7 @@ def translate_mat(translation: Tuple[float, float, float]) -> np.array:
     )
 
 
-def scale_mat(scale: Tuple[float, float, float]) -> np.array:
+def scale_mat(scale: Union[Tuple[float, float, float], np.ndarray]) -> np.ndarray:
     """Creates a 4x4 affine performing scaling
 
     :param vector: describes (sx, sy, sz) scaling factors

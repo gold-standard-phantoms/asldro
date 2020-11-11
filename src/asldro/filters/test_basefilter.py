@@ -43,7 +43,7 @@ def test_add_same_input():
 
 
 class SumFilter(BaseFilter):
-    """ A simple adder filter which create a single output called
+    """A simple adder filter which create a single output called
     `sum` and adds all of the inputs
     """
 
@@ -51,8 +51,7 @@ class SumFilter(BaseFilter):
         super().__init__(name="SumFilter")
 
     def _run(self):
-        """ Adds all inputs and creates an `output` with the result
-        """
+        """Adds all inputs and creates an `output` with the result"""
         self.outputs["sum"] = sum(self.inputs.values())
 
     def _validate_inputs(self):
@@ -87,8 +86,8 @@ def test_simple_sum_filter():
 
 
 def test_input_input_filter_key_clash_error():
-    """ A FilterInputKeyError should be raised when an output is mapped to an input
-    using the same name as an existing input """
+    """A FilterInputKeyError should be raised when an output is mapped to an input
+    using the same name as an existing input"""
     filter_a = SumFilter()
     filter_a.add_input("a", 1)
     filter_b = SumFilter()
@@ -99,8 +98,8 @@ def test_input_input_filter_key_clash_error():
 
 
 def test_input_filter_input_filter_key_clash_error():
-    """ A FilterInputKeyError should be raised when an output is mapped to an input
-    filter using the same name as an input filter """
+    """A FilterInputKeyError should be raised when an output is mapped to an input
+    filter using the same name as an input filter"""
     filter_a = SumFilter()
     filter_a.add_input("a", 1)
     filter_b = SumFilter()
@@ -181,8 +180,8 @@ def test_basefilter_add_inputs(mocker):
 
 
 def test_basefilter_add_inputs_with_non_optional_iomap(mocker):
-    """ Test the add_inputs function with an non-optional io_map.
-    A KeyError should be raised if the key doesn't exist. """
+    """Test the add_inputs function with an non-optional io_map.
+    A KeyError should be raised if the key doesn't exist."""
     mocker.patch.object(SumFilter, "add_input")
     filter_a = SumFilter()
     with pytest.raises(KeyError):
@@ -204,4 +203,3 @@ def test_basefilter_add_inputs_with_iomap(mocker):
     calls = [call("eno", "two")]
     filter_a.add_input.assert_has_calls(calls=calls, any_order=False)
     assert filter_a.add_input.call_count == 1
-

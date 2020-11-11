@@ -1,4 +1,5 @@
 """ FftFilter and IfftFilter tests """
+# pylint: disable=duplicate-code
 
 import pytest
 import numpy as np
@@ -23,8 +24,8 @@ TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 
 
 def test_fourier_filters_ifft_validation():
-    """ Check that running an ifft on in SPATIAL_DOMAIN image raises a
-    FilterInputValidationError """
+    """Check that running an ifft on in SPATIAL_DOMAIN image raises a
+    FilterInputValidationError"""
     image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=SPATIAL_DOMAIN)
 
@@ -35,8 +36,8 @@ def test_fourier_filters_ifft_validation():
 
 
 def test_fourier_filters_fft_validation():
-    """ Check that running an fft on an INVERSE_DOMAIN image raises a
-    FilterInputValidationError """
+    """Check that running an fft on an INVERSE_DOMAIN image raises a
+    FilterInputValidationError"""
     image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=INVERSE_DOMAIN)
 
@@ -47,8 +48,8 @@ def test_fourier_filters_fft_validation():
 
 
 def test_fourier_filter_wrong_input_type_error():
-    """ Check a FilterInputValidationError is raises when the inputs
-    to the fourier filter `image` is incorrect or missing """
+    """Check a FilterInputValidationError is raises when the inputs
+    to the fourier filter `image` is incorrect or missing"""
 
     ifft_filter = IfftFilter()
     ifft_filter.add_input("dummy", 1)  # won't run without input
@@ -68,8 +69,7 @@ def test_fourier_filter_wrong_input_type_error():
 
 
 def test_fourier_filters_with_mock_data():
-    """ Test the fft filter with some data + its discrete fourier transform
-    """
+    """Test the fft filter with some data + its discrete fourier transform"""
     # Create a 3D numpy image of normally distributed noise
     # fft to obtain k-space data, then ifft that to go back
     # to the image

@@ -7,7 +7,7 @@ from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
 class GroundTruthLoaderFilter(BaseFilter):
-    """ A filter for loading ground truth NIFTI/JSON
+    """A filter for loading ground truth NIFTI/JSON
     file pairs.
 
     Must have two inputs named 'image' and 'quantities'.
@@ -24,7 +24,7 @@ class GroundTruthLoaderFilter(BaseFilter):
     piped through to the output.
 
     The "parameters" object from the JSON file will also be destructured
-    and piped through to the output i.e. "parameters" will not appear in 
+    and piped through to the output i.e. "parameters" will not appear in
     "outputs", but all of its children will e.g. "t1_arterial_blood" and
     "lambda_blood_brain".
     """
@@ -33,8 +33,8 @@ class GroundTruthLoaderFilter(BaseFilter):
         super().__init__("GroundTruthLoader")
 
     def _run(self):
-        """ Load the inputs using a NiftiLoaderFilter and JsonLoaderFilter.
-        Create the image outputs and the segmentation key outputs """
+        """Load the inputs using a NiftiLoaderFilter and JsonLoaderFilter.
+        Create the image outputs and the segmentation key outputs"""
         image_container: NiftiImageContainer = self.inputs["image"]
         for i, quantity in enumerate(self.inputs["quantities"]):
             # Create a new NiftiContainer - easier as we can just augment
@@ -73,7 +73,7 @@ class GroundTruthLoaderFilter(BaseFilter):
         self.outputs = {**self.outputs, **self.inputs["parameters"]}
 
     def _validate_inputs(self):
-        """ There must be a input called 'image' with a ImageContainer.
+        """There must be a input called 'image' with a ImageContainer.
         There must also be a 'quantities' array.
         The size of the 5th dimension of the image must equal the number of 'quantities'
         """
