@@ -17,6 +17,7 @@ def test_valid_ground_truth_json():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
         "parameters": {
             "lambda_blood_brain": 0.9,
@@ -39,6 +40,7 @@ def test_ground_truth_typos_a():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
         "parameters": {
             "lambda_blood_brain": 0.9,
@@ -62,6 +64,7 @@ def test_ground_truth_typos_b():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "seg": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
         "parameters": {
             "lambda_blood_brain": 0.9,
@@ -85,6 +88,7 @@ def test_ground_truth_typos_c():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
         "params": {
             "lambda_blood_brain": 0.9,
@@ -99,7 +103,13 @@ def test_ground_truth_typos_c():
 def test_ground_truth_json_missing_quantities():
     """ Test missing 'quantities' property raises error """
     json = {
-        "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4}
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
+        "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)
@@ -117,6 +127,7 @@ def test_ground_truth_json_missing_segmentation():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "parameters": {
             "lambda_blood_brain": 0.9,
             "t1_arterial_blood": 1.65,
@@ -139,7 +150,31 @@ def test_ground_truth_missing_parameters():
             "t2_star",
             "seg_label",
         ],
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
         "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
+    }
+    with pytest.raises(ValidationError):
+        validate_input(input_dict=json)
+
+
+def test_ground_truth_missing_units():
+    """ Test missing 'parameters' property raises error """
+    json = {
+        "quantities": [
+            "perfusion_rate",
+            "transit_time",
+            "m0",
+            "t1",
+            "t2",
+            "t2_star",
+            "seg_label",
+        ],
+        "segmentation": {"grey_matter": 1, "white_matter": 2, "csf": 3, "vascular": 4},
+        "parameters": {
+            "lambda_blood_brain": 0.9,
+            "t1_arterial_blood": 1.65,
+            "magnetic_field_strength": 3.0,
+        },
     }
     with pytest.raises(ValidationError):
         validate_input(input_dict=json)

@@ -112,6 +112,7 @@ def test_json_loader_input_validation_correct_functionality():
                 "m0",
                 "seg_label",
             ],
+            "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
             "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
             "parameters": {
                 "lambda_blood_brain": 0.9,
@@ -144,3 +145,13 @@ def test_json_loader_input_validation_correct_functionality():
             "t1_arterial_blood": 1.65,
             "magnetic_field_strength": 3.0,
         }
+
+        assert json_loader_filter.outputs["units"] == [
+            "ml/100g/min",
+            "s",
+            "s",
+            "s",
+            "s",
+            "",
+            "",
+        ]

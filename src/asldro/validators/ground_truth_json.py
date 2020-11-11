@@ -3,9 +3,10 @@ from jsonschema import validate
 
 schema = {
     "type": "object",
-    "required": ["quantities", "segmentation", "parameters"],
+    "required": ["quantities", "units", "segmentation", "parameters"],
     "properties": {
         "quantities": {"type": "array", "items": {"type": "string"}},
+        "units": {"type": "array", "items": {"type": "string"}},
         "segmentation": {"type": "object", "additionalProperties": {"type": "integer"}},
         "parameters": {
             "type": "object",

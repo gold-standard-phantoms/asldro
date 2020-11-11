@@ -8,6 +8,15 @@
     "m0",
     "seg_label"
   ],
+  "units": [
+    "ml/100g/min",
+    "s",
+    "s",
+    "s",
+    "s",
+    "",
+    ""
+  ],
   "segmentation": {
     "csf": 3,
     "grey_matter": 1,
