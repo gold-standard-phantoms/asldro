@@ -13,14 +13,7 @@ from asldro.containers.image import NiftiImageContainer
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = nib.Nifti2Image(
     np.ones(TEST_VOLUME_DIMENSIONS),
-    affine=np.array(
-        (
-            (1, 0, 0, -16),
-            (0, 1, 0, -16),
-            (0, 0, 1, -16),
-            (0, 0, 0, 1),
-        )
-    ),
+    affine=np.array(((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)),
 )
 TEST_NIFTI_CON_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES)
 
