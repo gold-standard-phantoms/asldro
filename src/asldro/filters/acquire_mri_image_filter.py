@@ -1,6 +1,5 @@
 """ AcquireMriImageFilter Class"""
 
-from typing import Tuple
 from asldro.containers.image import BaseImageContainer
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.filters.filter_block import FilterBlock
@@ -16,9 +15,9 @@ from asldro.validators.parameters import (
 
 
 class AcquireMriImageFilter(FilterBlock):
-    r""" A filter block that simulates the acquisition of an MRI image based on
+    r"""A filter block that simulates the acquisition of an MRI image based on
     ground truth inputs.
-    
+
     Combines:
 
     1. :class:`.MriSignalFilter`
@@ -60,7 +59,7 @@ class AcquireMriImageFilter(FilterBlock):
         ``acq_contrast`` is ``"ir"``.
     :type 'inversion_flip_angle': float, optional
     :param 'inversion_time': The inversion time in seconds. Only used when
-        ``acq_contrast`` is ``"ir"``. 
+        ``acq_contrast`` is ``"ir"``.
     :param 'image_flavour': sets the metadata ``image_flavour`` in the output image to this.
     :type 'image_flavour': str, optional
     :param 'translation': :math:`[\Delta x,\Delta y,\Delta z]`
@@ -116,7 +115,7 @@ class AcquireMriImageFilter(FilterBlock):
         super().__init__(name="Acquire MRI Image Filter")
 
     def _create_filter_block(self):
-        """ Runs: 
+        """Runs:
         1. MriSignalFilter
         2. TransformResampleFilter
         3. AddComplexNoiseFilter
@@ -204,7 +203,8 @@ class AcquireMriImageFilter(FilterBlock):
         # add optional input ref_image
         if self.inputs.get(self.KEY_REF_IMAGE) is not None:
             add_complex_noise_filter.add_input(
-                AddComplexNoiseFilter.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE],
+                AddComplexNoiseFilter.KEY_REF_IMAGE,
+                self.inputs[self.KEY_REF_IMAGE],
             )
 
         # return add_complex_noise_filter
@@ -237,57 +237,98 @@ class AcquireMriImageFilter(FilterBlock):
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_M0: Parameter(
-                    validators=[isinstance_validator(BaseImageContainer),]
+                    validators=[
+                        isinstance_validator(BaseImageContainer),
+                    ]
                 ),
                 self.KEY_T1: Parameter(
-                    validators=[isinstance_validator(BaseImageContainer),]
+                    validators=[
+                        isinstance_validator(BaseImageContainer),
+                    ]
                 ),
                 self.KEY_T2: Parameter(
-                    validators=[isinstance_validator(BaseImageContainer),]
+                    validators=[
+                        isinstance_validator(BaseImageContainer),
+                    ]
                 ),
                 self.KEY_T2_STAR: Parameter(
-                    validators=[isinstance_validator(BaseImageContainer),],
+                    validators=[
+                        isinstance_validator(BaseImageContainer),
+                    ],
                 ),
                 self.KEY_MAG_ENC: Parameter(
                     validators=[isinstance_validator(BaseImageContainer)], optional=True
                 ),
                 self.KEY_ACQ_CONTRAST: Parameter(
-                    validators=[isinstance_validator(str),]
+                    validators=[
+                        isinstance_validator(str),
+                    ]
                 ),
                 self.KEY_ECHO_TIME: Parameter(
-                    validators=[isinstance_validator(float),]
+                    validators=[
+                        isinstance_validator(float),
+                    ]
                 ),
                 self.KEY_REPETITION_TIME: Parameter(
-                    validators=[isinstance_validator(float),]
+                    validators=[
+                        isinstance_validator(float),
+                    ]
                 ),
                 self.KEY_EXCITATION_FLIP_ANGLE: Parameter(
-                    validators=[isinstance_validator(float),],
+                    validators=[
+                        isinstance_validator(float),
+                    ],
                 ),
                 self.KEY_INVERSION_FLIP_ANGLE: Parameter(
-                    validators=[isinstance_validator(float),], optional=True,
+                    validators=[
+                        isinstance_validator(float),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_INVERSION_TIME: Parameter(
-                    validators=[isinstance_validator(float),], optional=True,
+                    validators=[
+                        isinstance_validator(float),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_IMAGE_FLAVOUR: Parameter(
-                    validators=[isinstance_validator(str),], optional=True
+                    validators=[
+                        isinstance_validator(str),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_TARGET_SHAPE: Parameter(
-                    validators=[isinstance_validator(tuple),], optional=True
+                    validators=[
+                        isinstance_validator(tuple),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_ROTATION: Parameter(
-                    validators=[isinstance_validator(tuple),], optional=True
+                    validators=[
+                        isinstance_validator(tuple),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_ROTATION_ORIGIN: Parameter(
-                    validators=[isinstance_validator(tuple),], optional=True
+                    validators=[
+                        isinstance_validator(tuple),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_TRANSLATION: Parameter(
-                    validators=[isinstance_validator(tuple),], optional=True
+                    validators=[
+                        isinstance_validator(tuple),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_REF_IMAGE: Parameter(
                     validators=[isinstance_validator(BaseImageContainer)], optional=True
                 ),
-                self.KEY_SNR: Parameter(validators=[isinstance_validator(float),]),
+                self.KEY_SNR: Parameter(
+                    validators=[
+                        isinstance_validator(float),
+                    ]
+                ),
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)

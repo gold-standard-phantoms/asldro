@@ -77,7 +77,7 @@ class TransformResampleImageFilter(BaseFilter):
         0 & 0 & s_z & 0 \\ & 0 & 0& 1 \end{pmatrix}=\text{scaling matrix}\\
         & [s_x, s_y, s_z] = \frac{[L_t,M_t,N_t]}{[L_i,M_i,N_i]}\\
         & [L_i, M_i, N_i] = \text{shape of the input image}\\
-        & [x_0, y_0, z_0] = \text{input image origin coordinates (vector part of input 
+        & [x_0, y_0, z_0] = \text{input image origin coordinates (vector part of input
         image's affine)}\\
         &\mathbf{R} = \mathbf{R_z} \mathbf{R_y} \mathbf{R_x} =
         \text{Affine for rotation of image in world space}\\
@@ -90,7 +90,7 @@ class TransformResampleImageFilter(BaseFilter):
         &\mathbf{R_z} = \begin{pmatrix} \cos{\theta_z}& -\sin{\theta_z} & 0 & 0\\
         \sin{\theta_z} & \cos{\theta_z}& 0 &0\\ 0& 0& 1 & 0\\ 0& 0 & 0& 1 \end{pmatrix}=
         \text{rotation about z matrix}\\
-    
+
     After resampling the output image's affine is modified to only contain the scaling:
 
     .. math::
@@ -108,7 +108,7 @@ class TransformResampleImageFilter(BaseFilter):
         super().__init__(name="Transform and Resample Image")
 
     def _run(self):
-        r""" Transforms the image in world-space, then creates a resampled image
+        r"""Transforms the image in world-space, then creates a resampled image
         with the specified acquisition shape.
         """
 
@@ -135,7 +135,7 @@ class TransformResampleImageFilter(BaseFilter):
         # TODO: change this after ASLDRO-96: ImageContainer agnostic processing is complete
 
         if isinstance(self.inputs[self.KEY_IMAGE], NumpyImageContainer):
-            self.outputs[self.KEY_IMAGE]._affine = target_affine_no_motion
+            self.outputs[self.KEY_IMAGE].affine = target_affine_no_motion
         else:
             self.outputs[self.KEY_IMAGE].nifti_image.set_sform(target_affine_no_motion)
 
@@ -147,7 +147,7 @@ class TransformResampleImageFilter(BaseFilter):
         )
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation criteria
+        """Checks that the inputs meet their validation criteria
         `'object'` must be derived from BaseImageContainer
         `'target_shape'` (optional)must be a Tuple of ints of length 3, values > 0
         `'rotation'` (optional) must be a Tuple of floats of length 3, each value -180 to 180

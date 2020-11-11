@@ -1,4 +1,5 @@
 """ Transform Resample image Filter Tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 
@@ -60,7 +61,7 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
 def test_transform_resample_image_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the TransformResampleImageFilter are incorrect or missing
     """
     # Check with all data that should pass

@@ -1,4 +1,5 @@
 """ GkmFilter tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
@@ -197,7 +198,7 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 
 def gkm_pasl_function(input_data: dict) -> np.ndarray:
-    """ Function that calculates the gkm for PASL
+    """Function that calculates the gkm for PASL
     Variable names match those in the GKM equations
     """
     f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
@@ -227,7 +228,7 @@ def gkm_pasl_function(input_data: dict) -> np.ndarray:
 
     delta_m = np.zeros(f.shape)
 
-    k: np.ndarray = (1 / t1b - 1 / t1_prime)
+    k: np.ndarray = 1 / t1b - 1 / t1_prime
 
     q_pasl_arriving = (
         np.exp(k * t) * (np.exp(-k * delta_t) - np.exp(-k * t)) / (k * (t - delta_t))
@@ -252,7 +253,8 @@ def gkm_pasl_function(input_data: dict) -> np.ndarray:
 
 
 def gkm_casl_function(input_data: dict) -> np.ndarray:
-    """ Function that calculates the gkm for CASL/pCASL
+    # pylint: disable=too-many-locals
+    """Function that calculates the gkm for CASL/pCASL
     Variable names match those in the GKM equations
     """
     f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
@@ -311,7 +313,7 @@ def gkm_casl_function(input_data: dict) -> np.ndarray:
     "validation_data", [TEST_DATA_DICT_PASL_M0_IM, TEST_DATA_DICT_PASL_M0_FLOAT]
 )
 def test_gkm_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the GkmFilter are incorrect or missing
     """
 
@@ -439,7 +441,8 @@ def test_gkm_timecourse(
     alpha: str,
     expected: np.ndarray,
 ):
-    """ Tests the GkmFilter with timecourse data that is generated at multiple 'signal_time's.
+    # pylint: disable=too-many-arguments
+    """Tests the GkmFilter with timecourse data that is generated at multiple 'signal_time's.
 
     Arguments:
         f (float): Perfusion Rate, ml/100g/min

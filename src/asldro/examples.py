@@ -3,7 +3,6 @@ import pprint
 import os
 import logging
 import shutil
-import pdb
 
 from typing import List
 from tempfile import TemporaryDirectory
@@ -17,7 +16,6 @@ from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.invert_image_filter import InvertImageFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
-from asldro.filters.add_complex_noise_filter import AddComplexNoiseFilter
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
@@ -26,8 +24,6 @@ from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V4_NIFTI,
 )
 from asldro.validators.user_parameter_input import (
-    IMAGE_TYPE_VALIDATOR,
-    ASL,
     validate_input_params,
     get_example_input_params,
 )
@@ -43,7 +39,7 @@ def splitext(path):
     """
     The normal os.path.splitext treats path/example.tar.gz
     as having a filepath of path/example.tar with a .gz
-    extension - this fixes it """
+    extension - this fixes it"""
     for ext in [".tar.gz", ".tar.bz2"]:
         if path.lower().endswith(ext.lower()):
             return path[: -len(ext)], path[-len(ext) :]
@@ -51,7 +47,9 @@ def splitext(path):
 
 
 def run_full_pipeline(input_params: dict = None, output_filename: str = None):
-    """ A function that runs the entire DRO pipeline. This
+    # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    # TODO: fix the above disabled linting errors
+    """A function that runs the entire DRO pipeline. This
     can be extended as more functionality is included.
     This function is deliberately verbose to explain the
     operation, inputs and outputs of individual filters.
@@ -117,7 +115,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
         ############################################################################################
         # ASL pipeline
-        # Comprises GKM, then MRI signal model, transform and resampling, and noise for each dynamic.
+        # Comprises GKM, then MRI signal model, transform and resampling,
+        # and noise for each dynamic.
         # After the 'acquisition loop' the dynamics are concatenated into a single 4D file
         if image_series["series_type"] == "asl":
             asl_params = image_series["series_parameters"]
@@ -153,7 +152,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             )
             # Add parameters from the input_params: label_type, signal_time, label_duration and
             # label_efficiency all have the same keys
-            gkm_filter.add_inputs(asl_params,)
+            gkm_filter.add_inputs(
+                asl_params,
+            )
             # reverse the polarity of delta_m.image for encoding it into the label signal
             invert_delta_m_filter = InvertImageFilter()
             invert_delta_m_filter.add_parent_filter(
@@ -253,9 +254,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     len(acquired_images_list),
                 )
             )
-            for idx, im in enumerate(acquired_images_list):
-                acquired_timeseries_dataobj[:, :, :, idx]: np.ndarray = np.absolute(
-                    np.asanyarray(im.dataobj)
+            for idx, img in enumerate(acquired_images_list):
+                acquired_timeseries_dataobj[:, :, :, idx] = np.absolute(
+                    np.asanyarray(img.dataobj)
                 )
             # do not use the header during construction
             acquired_timeseries = type(acquired_images_list[0])(
@@ -293,7 +294,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             acquire_mri_image_filter = AcquireMriImageFilter()
             # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
             # so no explicit mapping is necessary.
-            acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter,)
+            acquire_mri_image_filter.add_parent_filter(
+                parent=ground_truth_filter,
+            )
 
             # append struct_params with additional parameters that need to be built/modified
             struct_params = {
@@ -319,7 +322,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
             acquire_mri_image_filter.add_inputs(
-                struct_params, io_map_optional=True,
+                struct_params,
+                io_map_optional=True,
             )
             # Run the acquire_mri_image_filter to generate an acquired volume
             acquire_mri_image_filter.run()
@@ -400,13 +404,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     with TemporaryDirectory() as temp_dir:
         for idx, nifti in enumerate(output_nifti):
             if isinstance(nifti, list):
-                for n, im in enumerate(nifti):
+                for i, img in enumerate(nifti):
                     nib.save(
-                        im, os.path.join(temp_dir, nifti_filename[idx][n]),
+                        img,
+                        os.path.join(temp_dir, nifti_filename[idx][i]),
                     )
             else:
                 nib.save(
-                    nifti, os.path.join(temp_dir, nifti_filename[idx]),
+                    nifti,
+                    os.path.join(temp_dir, nifti_filename[idx]),
                 )
 
         if output_filename is not None:

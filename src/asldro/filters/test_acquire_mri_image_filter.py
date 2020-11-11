@@ -1,7 +1,7 @@
 """ Acquire MRI Image Filter tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
-import pdb
 import logging
 import pytest
 import numpy as np
@@ -9,8 +9,8 @@ import numpy.testing
 import nibabel as nib
 
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.containers.image import NiftiImageContainer, BaseImageContainer
+from asldro.filters.basefilter import FilterInputValidationError
+from asldro.containers.image import NiftiImageContainer
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,12 @@ TEST_NIFTI_ONES = NiftiImageContainer(
     nifti_img=nib.Nifti2Image(
         np.ones(TEST_VOLUME_DIMENSIONS),
         affine=np.array(
-            ((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)
+            (
+                (1, 0, 0, -16),
+                (0, 1, 0, -16),
+                (0, 0, 1, -16),
+                (0, 0, 0, 1),
+            )
         ),
     )
 )
@@ -49,8 +54,8 @@ INPUT_DICT = {
 
 
 def test_acquire_mri_image_filter_validate_inputs_required():
-    """ Check a FilterInputValidationError is raised when the inputs
-    to the AcquireMriImageFilter are incorrect or missing """
+    """Check a FilterInputValidationError is raised when the inputs
+    to the AcquireMriImageFilter are incorrect or missing"""
 
     acquire_mri_image_filter = AcquireMriImageFilter()
 
@@ -123,4 +128,3 @@ def test_acquire_mri_image_filter_mocked_filter_run():
         acquire_mri_image_filter.outputs["image"].image,
         np.ones(TEST_VOLUME_DIMENSIONS) * (1 - np.exp(-10)) * np.exp(-0.01),
     )
-

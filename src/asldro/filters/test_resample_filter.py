@@ -1,4 +1,5 @@
 """ Resample Filter Tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
@@ -33,7 +34,7 @@ INPUT_VALIDATION_DICTIONARY = {
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
 def test_resample_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the ResampleFilter are incorrect or missing
     """
     # Check with all data that should pass
@@ -136,18 +137,22 @@ def test_resample_filter_mock_data():
 
     # compare outputs: image data
     numpy.testing.assert_array_equal(
-        np.asanyarray(resampled_image.dataobj), resampled_numpy_container.image,
+        np.asanyarray(resampled_image.dataobj),
+        resampled_numpy_container.image,
     )
     numpy.testing.assert_array_equal(
-        np.asanyarray(resampled_image.dataobj), resampled_nifti_container.image,
+        np.asanyarray(resampled_image.dataobj),
+        resampled_nifti_container.image,
     )
 
     # compare outputs: affine
     numpy.testing.assert_array_equal(
-        resampled_image.affine, resampled_numpy_container.affine,
+        resampled_image.affine,
+        resampled_numpy_container.affine,
     )
     numpy.testing.assert_array_equal(
-        resampled_image.affine, resampled_nifti_container.affine,
+        resampled_image.affine,
+        resampled_nifti_container.affine,
     )
 
 
@@ -216,6 +221,7 @@ def test_resample_filter_single_point_transformations(
     target_shape: tuple,
     expected_signal: list,
 ):
+    # pylint: disable=too-many-locals, too-many-arguments
     """Tests the ResampleFilter by resampling an image comprising of points based on affines
     that are generated with rotation, translation, and scale parameters.  After resampling,
     `expected_signal` is a list of tuples defining voxel coordinates where signal should be,
@@ -246,7 +252,14 @@ def test_resample_filter_single_point_transformations(
     # define world coordinate origin (x,y,z) = (0,0,0) at (i,j,k) = (50,50,50)
     # and 1 voxel == 1mm isotropically
     # therefore according to RAS+:
-    affine = np.array(((1, 0, 0, -50), (0, 1, 0, -50), (0, 0, 1, -50), (0, 0, 0, 1),))
+    affine = np.array(
+        (
+            (1, 0, 0, -50),
+            (0, 1, 0, -50),
+            (0, 0, 1, -50),
+            (0, 0, 0, 1),
+        )
+    )
 
     # define a vector in this space: world coords (10, 10, 10)
     vector_image_coords = np.rint(
@@ -313,4 +326,3 @@ def test_resample_filter_metadata():
         ),
     }
     assert resample_filter.outputs["image"].metadata == valid_dict
-

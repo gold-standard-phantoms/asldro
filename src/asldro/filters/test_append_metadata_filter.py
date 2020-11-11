@@ -1,19 +1,26 @@
 """ Test for AppendMetadataFilter"""
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
 import numpy as np
-import numpy.testing
 import nibabel as nib
 
 from asldro.filters.append_metadata_filter import AppendMetadataFilter
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.containers.image import NiftiImageContainer, BaseImageContainer
+from asldro.filters.basefilter import FilterInputValidationError
+from asldro.containers.image import NiftiImageContainer
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = nib.Nifti2Image(
     np.ones(TEST_VOLUME_DIMENSIONS),
-    affine=np.array(((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)),
+    affine=np.array(
+        (
+            (1, 0, 0, -16),
+            (0, 1, 0, -16),
+            (0, 0, 1, -16),
+            (0, 0, 0, 1),
+        )
+    ),
 )
 TEST_NIFTI_CON_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES)
 
@@ -34,8 +41,8 @@ INPUT_VALIDATION_DICT = {
 
 
 def test_append_metadata_filter_validate_inputs():
-    """ Check a FilterInputValidationError is raised when the inputs to the
-    AppendMetadataFilter are incorrect or missing """
+    """Check a FilterInputValidationError is raised when the inputs to the
+    AppendMetadataFilter are incorrect or missing"""
 
     test_filter = AppendMetadataFilter()
     test_data = deepcopy(INPUT_VALIDATION_DICT)
@@ -103,8 +110,8 @@ def test_append_metadata_filter_merge_metadata():
 
 
 def test_append_metadata_filter_output_image_is_input_image():
-    """ Tests that the output image of the AppendMetaDataFilter is a reference of the input
-    image """
+    """Tests that the output image of the AppendMetaDataFilter is a reference of the input
+    image"""
     append_metadata_filter = AppendMetadataFilter()
     append_metadata_filter.add_input("image", TEST_NIFTI_CON_ONES)
     append_metadata_filter.add_input("metadata", TEST_METADATA)

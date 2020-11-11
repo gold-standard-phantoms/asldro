@@ -1,4 +1,5 @@
 """ Add noise filter tests """
+# pylint: disable=duplicate-code
 
 import pytest
 import numpy as np
@@ -15,8 +16,8 @@ RANDOM_SEED = 1234
 
 
 def test_add_noise_filter_validate_inputs():
-    """ Check a FilterInputValidationError is raised when the inputs
-    to the add commplex noise filter are incorrect or missing """
+    """Check a FilterInputValidationError is raised when the inputs
+    to the add commplex noise filter are incorrect or missing"""
     noise_filter = AddNoiseFilter()
     noise_filter.add_input("snr", 1)
     with pytest.raises(FilterInputValidationError):
@@ -175,8 +176,7 @@ def ft_complex_image_container_fixture() -> NumpyImageContainer:
 
 # 1. add noise to non-complex image, only image supplied
 def test_add_noise_filter_with_mock_data_mag_image_only(image_container):
-    """Test the add noise filter with magnitude (non-complex) image only
-    """
+    """Test the add noise filter with magnitude (non-complex) image only"""
     np.random.seed(RANDOM_SEED)
     # calculate manually
     image_with_noise = add_noise_function(image_container.image, SNR_VALUE)
@@ -199,7 +199,8 @@ def test_add_noise_filter_with_mock_data_mag_image_only(image_container):
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This should be almost equal to the desired snr
@@ -237,7 +238,8 @@ def test_add_noise_filter_with_mock_data_mag_image_reference_same_domain(
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This should be almost equal to the desired snr
@@ -249,8 +251,8 @@ def test_add_noise_filter_with_mock_data_mag_image_reference_same_domain(
 def test_add_noise_filter_with_mock_data_mag_image_spatial_reference_inverse(
     image_container, ft_image_container
 ):
-    """ Test the add noise filter with an image and reference image, image in SPATIAL_DOMAIN,
-    reference in INVERSE_DOMAIN """
+    """Test the add noise filter with an image and reference image, image in SPATIAL_DOMAIN,
+    reference in INVERSE_DOMAIN"""
     np.random.seed(RANDOM_SEED)
     # calculate manually
     image_with_noise = add_noise_function(
@@ -287,7 +289,8 @@ def test_add_noise_filter_with_mock_data_mag_image_spatial_reference_inverse(
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This isn't equal to the desired SNR
@@ -300,8 +303,14 @@ def test_add_noise_filter_with_mock_data_complex_image(complex_image_container):
     """ Test the add noise filter with a complex image """
     np.random.seed(RANDOM_SEED)
     # calculate manually
-    image_with_noise = add_noise_function(complex_image_container.image, SNR_VALUE,)
-    image_with_noise_2 = add_noise_function(complex_image_container.image, SNR_VALUE,)
+    image_with_noise = add_noise_function(
+        complex_image_container.image,
+        SNR_VALUE,
+    )
+    image_with_noise_2 = add_noise_function(
+        complex_image_container.image,
+        SNR_VALUE,
+    )
     print(f"manual snr = {calculate_snr_function(image_with_noise,image_with_noise_2)}")
 
     # calculate using the filter
@@ -323,7 +332,8 @@ def test_add_noise_filter_with_mock_data_complex_image(complex_image_container):
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This should be almost equal to the desired snr
@@ -337,9 +347,13 @@ def test_add_noise_filter_with_mock_data_complex_image_reference_inverse(
     """ Test the add noise filter with a complex data in the INVERSE_DOMAIN """
     np.random.seed(RANDOM_SEED)
     # calculate manually
-    image_with_noise = add_noise_function(ft_complex_image_container.image, SNR_VALUE,)
+    image_with_noise = add_noise_function(
+        ft_complex_image_container.image,
+        SNR_VALUE,
+    )
     image_with_noise_2 = add_noise_function(
-        ft_complex_image_container.image, SNR_VALUE,
+        ft_complex_image_container.image,
+        SNR_VALUE,
     )
     print(f"manual snr = {calculate_snr_function(image_with_noise,image_with_noise_2)}")
 
@@ -362,7 +376,8 @@ def test_add_noise_filter_with_mock_data_complex_image_reference_inverse(
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This should be almost equal to the desired snr
@@ -372,9 +387,10 @@ def test_add_noise_filter_with_mock_data_complex_image_reference_inverse(
 # 6. add noise to complex image, image in spatial domain, reference in inverse domain
 # Currently the calculated SNR does not match the desired
 def test_add_noise_filter_with_mock_data_complex_image_spatial_reference_inverse(
-    complex_image_container, ft_complex_image_container,
+    complex_image_container,
+    ft_complex_image_container,
 ):
-    """ Test the add noise filter with a complex image SPATIAL_DOMAIN,
+    """Test the add noise filter with a complex image SPATIAL_DOMAIN,
     complex reference in the INVERSE_DOMAIN
     """
     np.random.seed(RANDOM_SEED)
@@ -414,7 +430,8 @@ def test_add_noise_filter_with_mock_data_complex_image_spatial_reference_inverse
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This isn't equal to the desired SNR
@@ -427,7 +444,7 @@ def test_add_noise_filter_with_mock_data_complex_image_spatial_reference_inverse
 def test_add_noise_filter_with_mock_data_complex_image_inverse_reference_spatial(
     complex_image_container, ft_complex_image_container
 ):
-    """ Test the add noise filter with a complex image INVERSE_DOMAIN,
+    """Test the add noise filter with a complex image INVERSE_DOMAIN,
     complex reference in the SPATIAL_DOMAIN
     """
     np.random.seed(RANDOM_SEED)
@@ -467,7 +484,8 @@ def test_add_noise_filter_with_mock_data_complex_image_inverse_reference_spatial
     add_noise_filter.run()
 
     measured_snr = calculate_snr_function(
-        image_with_noise_container.image, add_noise_filter.outputs["image"].image,
+        image_with_noise_container.image,
+        add_noise_filter.outputs["image"].image,
     )
     print(f"calculated snr = {measured_snr}, desired snr = {SNR_VALUE}")
     # This isn't equal to the desired SNR

@@ -1,4 +1,5 @@
 """ Affine Matrix Filter tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
@@ -106,7 +107,7 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
 def test_affine_matrix_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the AffineMatrixFilter are incorrect or missing
     """
     # Check with all data that should pass
@@ -141,8 +142,7 @@ def test_affine_matrix_filter_validate_inputs(validation_data: dict):
 
 
 def test_affine_matrix_filter_default_data():
-    """Test the AffineMatrixFilter with default data and check the output
-    """
+    """Test the AffineMatrixFilter with default data and check the output"""
     # filter with no inputs, should produce a 4x4 identity matrix
     affine_filter = AffineMatrixFilter()
     # add an unused input to set needs_run to True within the filter
@@ -168,7 +168,12 @@ def test_affine_matrix_filter_default_data():
     affine_filter = AffineMatrixFilter()
     params = {
         "affine": np.array(
-            ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12), (0, 0, 0, 1),)
+            (
+                (1, 2, 3, 4),
+                (5, 6, 7, 8),
+                (9, 10, 11, 12),
+                (0, 0, 0, 1),
+            )
         ),
     }
     for key in params:
@@ -180,7 +185,12 @@ def test_affine_matrix_filter_default_data():
     affine_filter = AffineMatrixFilter()
     params = {
         "affine_last": np.array(
-            ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12), (0, 0, 0, 1),)
+            (
+                (1, 2, 3, 4),
+                (5, 6, 7, 8),
+                (9, 10, 11, 12),
+                (0, 0, 0, 1),
+            )
         ),
     }
     for key in params:

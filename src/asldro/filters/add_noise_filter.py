@@ -1,6 +1,6 @@
 """ Add noise filter """
-import numpy as np
 import logging
+import numpy as np
 
 from asldro.containers.image import BaseImageContainer, SPATIAL_DOMAIN, INVERSE_DOMAIN
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
@@ -8,7 +8,6 @@ from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
     isinstance_validator,
-    greater_than_validator,
     greater_than_equal_to_validator,
 )
 
@@ -21,7 +20,7 @@ class AddNoiseFilter(BaseFilter):
 
     **Inputs**
 
-    Input parameters are all keyword arguments for the :class:`AddNoiseFilter.add_inputs()` 
+    Input parameters are all keyword arguments for the :class:`AddNoiseFilter.add_inputs()`
     member function.  They are also accessible via class constants, for example
     :class:`AddNoiseFilter.KEY_SNR`.
 
@@ -72,7 +71,7 @@ class AddNoiseFilter(BaseFilter):
         super().__init__(name="Add Noise")
 
     def _run(self):
-        """ Calculate the noise amplitude, adds input image, and
+        """Calculate the noise amplitude, adds input image, and
         return the result"""
 
         input_image: BaseImageContainer = self.inputs[self.KEY_IMAGE]

@@ -113,7 +113,7 @@ class BaseImageContainer(ABC):
 
     @metadata.setter
     def metadata(self, value: dict):
-        """ metadata setter
+        """metadata setter
         :param value: a dictionary. Will overwrite previous metadata
         """
         if not isinstance(value, dict):
@@ -126,13 +126,13 @@ class BaseImageContainer(ABC):
 
     @abstractmethod
     def as_numpy(self) -> "NumpyImageContainer":
-        """ Return the image container as a NumpyImageContainer. If the container
-        is already a NumpyImageContainer, return self """
+        """Return the image container as a NumpyImageContainer. If the container
+        is already a NumpyImageContainer, return self"""
 
     @abstractmethod
     def as_nifti(self) -> "NiftiImageContainer":
-        """ Return the image container as a NiftiImageContainer. If the container
-        is already a NiftiImageContainer, return self """
+        """Return the image container as a NiftiImageContainer. If the container
+        is already a NiftiImageContainer, return self"""
 
     @property
     @abstractmethod
@@ -215,8 +215,8 @@ class BaseImageContainer(ABC):
 
     @staticmethod
     def _time_units_to_seconds(units: str) -> float:
-        """ Returns the time units in seconds.
-        Raises a ValueError if the string is an invalid time unit """
+        """Returns the time units in seconds.
+        Raises a ValueError if the string is an invalid time unit"""
         if units == UNITS_MILLISECONDS:
             return 1e3
         if units == UNITS_MICROSECONDS:
@@ -227,8 +227,8 @@ class BaseImageContainer(ABC):
 
     @staticmethod
     def _space_units_to_mm(units: str) -> float:
-        """ Returns the space units in mm.
-        Raises a ValueError if the string is an invalid space unit """
+        """Returns the space units in mm.
+        Raises a ValueError if the string is an invalid space unit"""
         if units == UNITS_METERS:
             return 1e3
         if units == UNITS_MICRONS:
@@ -239,8 +239,8 @@ class BaseImageContainer(ABC):
 
 
 class NumpyImageContainer(BaseImageContainer):
-    """ A container for an ND image. Must be initialised with
-    a a numpy array and some associated metadata. """
+    """A container for an ND image. Must be initialised with
+    a a numpy array and some associated metadata."""
 
     # pylint: disable=too-many-arguments
     def __init__(
@@ -253,7 +253,7 @@ class NumpyImageContainer(BaseImageContainer):
         time_step=1.0,
         **kwargs,
     ):
-        """ Creates an image container from a numpy array. May
+        """Creates an image container from a numpy array. May
         provide one or more additional arguments.
         :param image: an ND numpy array containing voxel data
         :param affine: a 4x4 affine matrix (numpy array).
@@ -310,8 +310,8 @@ class NumpyImageContainer(BaseImageContainer):
 
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
-        """ Returns the NIFTI header if initialised from a NIFTI file,
-        othewise returns None """
+        """Returns the NIFTI header if initialised from a NIFTI file,
+        othewise returns None"""
         return None
 
     @property
@@ -358,7 +358,7 @@ class NumpyImageContainer(BaseImageContainer):
 
     @voxel_size_mm.setter
     def voxel_size_mm(self, voxel_size: list):
-        """ Sets the voxel size in mm
+        """Sets the voxel size in mm
         :param voxel_size: the voxel size in mm
         :type voxel size: list
         """
@@ -383,8 +383,8 @@ class NumpyImageContainer(BaseImageContainer):
 
 
 class NiftiImageContainer(BaseImageContainer):
-    """ A container for an ND image. Must be initialised with
-    a nibabel Nifti1Image or Nifti2Image """
+    """A container for an ND image. Must be initialised with
+    a nibabel Nifti1Image or Nifti2Image"""
 
     def __init__(
         self, nifti_img: Union[nib.Nifti1Image, nib.Nifti2Image] = None, **kwargs
@@ -408,7 +408,7 @@ class NiftiImageContainer(BaseImageContainer):
 
     @property
     def image(self):
-        """ Return the image data as a numpy array.
+        """Return the image data as a numpy array.
         Returns data in the type it is created (i.e. won't convert to float64 as
         .get_fdata() will)"""
         return np.asanyarray(self.nifti_image.dataobj)
@@ -447,8 +447,8 @@ class NiftiImageContainer(BaseImageContainer):
 
     @property
     def header(self) -> Union[nib.Nifti1Header, nib.Nifti2Header]:
-        """ Returns the NIFTI header if initialised from a NIFTI file,
-        othewise returns None """
+        """Returns the NIFTI header if initialised from a NIFTI file,
+        othewise returns None"""
         return self.nifti_image.header
 
     @property
@@ -495,7 +495,7 @@ class NiftiImageContainer(BaseImageContainer):
 
     @voxel_size_mm.setter
     def voxel_size_mm(self, voxel_size: list):
-        """ Sets the voxel size in mm 
+        """Sets the voxel size in mm
         :param voxel_size: the voxel size in mm
         :type voxel size: list
         """

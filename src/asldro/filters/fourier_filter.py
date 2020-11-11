@@ -11,7 +11,7 @@ from asldro.validators.parameters import (
 
 
 class FftFilter(BaseFilter):
-    """ A filter for performing a n-dimensional fast fourier transform of input.
+    """A filter for performing a n-dimensional fast fourier transform of input.
     Input is either a NumpyImageContainer or NiftiImageContainer.
     Output is a complex numpy array of the discrete fourier transform named 'kdata'"""
 
@@ -22,7 +22,7 @@ class FftFilter(BaseFilter):
         super().__init__(name="FFT")
 
     def _run(self):
-        """ performs a n-dimensional fast fourier transform on the input Image Container
+        """performs a n-dimensional fast fourier transform on the input Image Container
         and creates an 'output' with the result in an Image Container of the equivalent type
         to the input.  The input image must have data_domain == SPATIAL_DOMAIN, and
         the output image (k-space data) will have data_domain == INVERSE_DOMAIN
@@ -33,7 +33,7 @@ class FftFilter(BaseFilter):
         self.outputs[self.KEY_IMAGE] = image_container
 
     def _validate_inputs(self):
-        """" Input must be derived from BaseImageContainer
+        """ " Input must be derived from BaseImageContainer
         and data_domain should be SPATIAL_DOMAIN"""
 
         input_validator = ParameterValidator(
@@ -47,14 +47,15 @@ class FftFilter(BaseFilter):
 
         if self.inputs[self.KEY_IMAGE].data_domain != SPATIAL_DOMAIN:
             raise FilterInputValidationError(
-                f"Input image is not in the spatial domain (is {self.inputs[self.KEY_IMAGE].data_domain}"
+                f"Input image is not in the spatial domain "
+                f"(is {self.inputs[self.KEY_IMAGE].data_domain}"
             )
 
 
 class IfftFilter(BaseFilter):
-    """ A filter for performing a n-dimensional inverse fast fourier transform of input.
+    """A filter for performing a n-dimensional inverse fast fourier transform of input.
     Input is a numpy array named 'kdata'.
-    Output is a complex numpy array of the inverse discrete fourier transform named 'image' """
+    Output is a complex numpy array of the inverse discrete fourier transform named 'image'"""
 
     # Key constants
     KEY_IMAGE = "image"
@@ -63,7 +64,7 @@ class IfftFilter(BaseFilter):
         super().__init__(name="IFFT")
 
     def _run(self):
-        """ performs a n-dimensional inverse fast fourier transform on the input Image Container
+        """performs a n-dimensional inverse fast fourier transform on the input Image Container
         and creates an 'output' with the result in an Image Container of the equivalent type
         to the input.  The input image (k-space data) must have data_domain == INVERSE_DOMAIN, and
         the output image will have data_domain == SPATIAL_DOMAIN
@@ -74,7 +75,7 @@ class IfftFilter(BaseFilter):
         self.outputs[self.KEY_IMAGE] = image_container
 
     def _validate_inputs(self):
-        """" Input must be derived from BaseImageContainer
+        """ " Input must be derived from BaseImageContainer
         and data_domain should be INVERSE_DOMAIN"""
         input_validator = ParameterValidator(
             parameters={
@@ -87,5 +88,6 @@ class IfftFilter(BaseFilter):
 
         if self.inputs[self.KEY_IMAGE].data_domain != INVERSE_DOMAIN:
             raise FilterInputValidationError(
-                f"Input image is not in the inverse domain (is {self.inputs[self.KEY_IMAGE].data_domain}"
+                f"Input image is not in the inverse domain "
+                f"(is {self.inputs[self.KEY_IMAGE].data_domain}"
             )
