@@ -1,4 +1,5 @@
 """ parameters.py tests """
+from types import SimpleNamespace
 import pytest
 import numpy as np
 from asldro.validators.parameters import (
@@ -17,6 +18,7 @@ from asldro.validators.parameters import (
     greater_than_equal_to_validator,
     for_each_validator,
     isinstance_validator,
+    has_attribute_value_validator,
 )
 from asldro.containers.image import NumpyImageContainer, BaseImageContainer
 
@@ -437,6 +439,37 @@ def test_for_each_validator():
     assert not validator([0.1, 100, 0.9])
     assert not validator((0.7, 0.1, 0.6))
     assert not validator("not a list or tuple")
+
+
+def test_has_attribute_value_validator_creator():
+    """ Test the has_attribute_value_validator creator """
+
+    # attribute_name must be a string
+    with pytest.raises(TypeError):
+        has_attribute_value_validator(attribute_name=5, attribute_value=5)
+
+
+def test_has_attribute_value_validator():
+    """ Test the has_attribute_value_validator """
+
+    validator = has_attribute_value_validator(
+        attribute_name="a_property", attribute_value="foobar"
+    )
+    assert str(validator) == "Value must have an attribute a_property with value foobar"
+    # has the correct argument with the correct value
+    good_obj = SimpleNamespace(a_property="foobar", b_property=100)
+    # has the correct argument with the incorrect value
+    bad_obj = SimpleNamespace(a_property="notfoobar", b_property=3.0)
+    # has the incorrect argument
+    worse_obj = SimpleNamespace(not_a_property="notfoobar", b_property=1.0)
+
+    assert validator(good_obj)
+    assert not validator(bad_obj)
+    assert not validator(worse_obj)
+    # some other objects that won't have the `foobar` attribute
+    assert not validator("foobar")
+    assert not validator(1)
+    assert not validator([])
 
 
 def test_parameter_validator_valid():

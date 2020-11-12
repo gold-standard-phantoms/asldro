@@ -14,7 +14,7 @@ from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 
 
 class CombineTimeSeriesFilter(BaseFilter):
-    """ A filter that takes, as input, as set of ImageContainers. These should each
+    """A filter that takes, as input, as set of ImageContainers. These should each
     represent a single time point in a time series acquisition. As an output, these
     ImageContainers will be concatenated across the 4th (time) dimension and their
     metadata combined with the following rules:
@@ -62,7 +62,7 @@ class CombineTimeSeriesFilter(BaseFilter):
         dataobj = np.stack([container.image for container in containers], axis=3)
 
         output_container = NiftiImageContainer(
-            nifti_img=nib.Nifti2Image(dataobj=dataobj, affine=containers[0].affine)
+            nifti_img=nib.Nifti1Image(dataobj=dataobj, affine=containers[0].affine)
         )
         output_container.data_domain = containers[0].data_domain
         # TODO: We could set output_container.time_step_seconds here
@@ -100,7 +100,7 @@ class CombineTimeSeriesFilter(BaseFilter):
         self.outputs[self.KEY_IMAGE] = output_container
 
     def _get_input_images(self) -> List[Tuple[BaseImageContainer, int]]:
-        """ Based on the naming rule for input images:
+        """Based on the naming rule for input images:
         `image_NNNNN`, where N is any positive integer, extract all of the
         input images, in ascending index order, to a list
         :return: A list of tuples where the first element is a list
@@ -121,7 +121,7 @@ class CombineTimeSeriesFilter(BaseFilter):
         return sorted(zip(containers, indices), key=lambda x: x[1])
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation critera:
+        """Checks that the inputs meet their validation critera:
         There must be one or more input image.
         Once parsed, it must be the case that there are no duplicate indices
         for the input images (for example: `image_001` and `image_01`)

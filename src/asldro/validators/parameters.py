@@ -276,6 +276,28 @@ def for_each_validator(item_validator=Validator) -> Validator:
     )
 
 
+def has_attribute_value_validator(
+    attribute_name: str, attribute_value: Any
+) -> Validator:
+    """Validates that the parameter has an attribute with the given name
+    and also that the attribute value matches a given value.
+    e.g.
+    has_attribute_value_validator("a_property", 500.0)
+    would create a validators that check that an object (`obj') has a property
+    `a_property` that matches 500.0. i.e. `obj.a_property == 500.0`
+    :param attribute_name: the attribute name to compare
+    :param attribute_value: the value of the attribute to compare against
+    """
+    if not isinstance(attribute_name, str):
+        raise TypeError("The attribute_name must be a string")
+
+    return Validator(
+        lambda value: hasattr(value, attribute_name)
+        and getattr(value, attribute_name) == attribute_value,
+        f"Value must have an attribute {attribute_name} with value {attribute_value}",
+    )
+
+
 class Parameter:
     # pylint: disable=too-few-public-methods
     """ A description of a parameter which is to be validated against """

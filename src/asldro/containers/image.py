@@ -397,7 +397,7 @@ class NiftiImageContainer(BaseImageContainer):
         super().__init__(**kwargs)  # Call super last as we check member variables
 
     @property
-    def nifti_type(self) -> Type[Union[nib.Nifti1Image, nib.Nifti2Image]]:
+    def nifti_type(self) -> Union[Type[nib.Nifti1Image], Type[nib.Nifti2Image]]:
         """ Return the type of NIFTI data contained here (nib.Nifti1Image or nib.Nifti2Image) """
         return type(self.nifti_image)
 

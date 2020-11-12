@@ -3,17 +3,18 @@ import pprint
 import os
 import logging
 import shutil
-
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import nibabel as nib
+
 from asldro.containers.image import BaseImageContainer, NiftiImageContainer
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.invert_image_filter import InvertImageFilter
+from asldro.filters.phase_magnitude_filter import PhaseMagnitudeFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
@@ -235,9 +236,14 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                         m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
                     },
                 )
-                # Add the acqusition pipeline to the combine time series filter
+                phase_magnitude_filter = PhaseMagnitudeFilter()
+                phase_magnitude_filter.add_parent_filter(
+                    parent=acquire_mri_image_filter
+                )
+                # Add the acqusition pipeline to the combine time series filter after
+                # calculating the magnitude component of the time series data
                 combine_time_series_filter.add_parent_filter(
-                    parent=acquire_mri_image_filter, io_map={"image": f"image_{idx}"}
+                    parent=phase_magnitude_filter, io_map={"magnitude": f"image_{idx}"}
                 )
 
             combine_time_series_filter.run()

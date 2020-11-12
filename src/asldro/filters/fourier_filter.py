@@ -1,7 +1,12 @@
 """ Fourier Transform filter """
 import numpy as np
 
-from asldro.containers.image import BaseImageContainer, SPATIAL_DOMAIN, INVERSE_DOMAIN
+from asldro.containers.image import (
+    BaseImageContainer,
+    COMPLEX_IMAGE_TYPE,
+    SPATIAL_DOMAIN,
+    INVERSE_DOMAIN,
+)
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
     ParameterValidator,
@@ -30,10 +35,11 @@ class FftFilter(BaseFilter):
         image_container: BaseImageContainer = self.inputs[self.KEY_IMAGE].clone()
         image_container.image = np.fft.fftn(image_container.image)
         image_container.data_domain = INVERSE_DOMAIN
+        image_container.image_type = COMPLEX_IMAGE_TYPE
         self.outputs[self.KEY_IMAGE] = image_container
 
     def _validate_inputs(self):
-        """ " Input must be derived from BaseImageContainer
+        """Input must be derived from BaseImageContainer
         and data_domain should be SPATIAL_DOMAIN"""
 
         input_validator = ParameterValidator(
@@ -72,10 +78,11 @@ class IfftFilter(BaseFilter):
         image_container: BaseImageContainer = self.inputs[self.KEY_IMAGE].clone()
         image_container.image = np.fft.ifftn(image_container.image)
         image_container.data_domain = SPATIAL_DOMAIN
+        image_container.image_type = COMPLEX_IMAGE_TYPE
         self.outputs[self.KEY_IMAGE] = image_container
 
     def _validate_inputs(self):
-        """ " Input must be derived from BaseImageContainer
+        """Input must be derived from BaseImageContainer
         and data_domain should be INVERSE_DOMAIN"""
         input_validator = ParameterValidator(
             parameters={
