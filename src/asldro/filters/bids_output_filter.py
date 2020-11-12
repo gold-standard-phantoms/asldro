@@ -2,13 +2,20 @@
 
 import os
 import logging
-
-import nibabel as nib
+from typing import Union, List
 from datetime import datetime, timezone
-from io import StringIO
 import json
 
-from asldro.containers.image import BaseImageContainer
+import nibabel as nib
+
+from asldro.containers.image import (
+    BaseImageContainer,
+    IMAGINARY_IMAGE_TYPE,
+    COMPLEX_IMAGE_TYPE,
+    MAGNITUDE_IMAGE_TYPE,
+    PHASE_IMAGE_TYPE,
+    REAL_IMAGE_TYPE,
+)
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
     Parameter,
@@ -20,6 +27,7 @@ from asldro.validators.parameters import (
 )
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
+from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.utils.general import map_dict
 from asldro.validators.user_parameter_input import (
@@ -33,6 +41,8 @@ from asldro.validators.user_parameter_input import (
 )
 
 from asldro import __version__ as asldro_version
+
+logger = logging.getLogger(__name__)
 
 
 class BidsOutputFilter(BaseFilter):
@@ -62,20 +72,62 @@ class BidsOutputFilter(BaseFilter):
 
     :param 'filename': the filename of the saved file
     :type 'filename': str
+    :param 'sidecar': the fields that make up the output *.json file.
+    :type 'sidecar': dict
 
-    Files will be saved in subdirectories corresponding to the metadata entry 'series_type':
+    Files will be saved in subdirectories corresponding to the metadata entry ``series_type``:
+
     * 'structural' will be saved in the subdirectory 'anat'
     * 'asl' will be saved in the subdirectory 'asl'
     * 'ground_truth' will be saved in the subdirectory 'ground_truth'
-    
-    Filenames will be given by: <series_number>_<filename_prefix>_<modality_label>.<ext>, where
-    
-    * <series_number> is an integer number and will be prefixed by zeros so that it is 3 characters
-      long, for example 003, 010, 243
-    * <filename_prefix> is the string supplied by the input `filename_prefix`
-    * <modality_label> is an entry in the input image's metadata.  If it is not present this will be
-      left blank
 
+    Filenames will be given by: <series_number>_<filename_prefix>_<modality_label>.<ext>, where
+
+    * <series_number> is given by metadata field ``series_number``, which is an integer number
+      and will be prefixed by zeros so that it is 3 characterslong, for example 003, 010, 243
+    * <filename_prefix> is the string supplied by the input ``filename_prefix``
+    * <modality_label> is determined based on ``series_type``:
+
+        * 'structural': it is given by the metadata field ``modality``.
+        * 'asl': it is determined by asl_context.  If asl_context only contains entries that match
+          with 'm0scan' then it will be set to 'm0scan', otherwise 'asl'.
+        * 'ground_truth': it will be a concatenation of 'ground_truth_' + the metadata field
+          ``quantity``, e.g. 'ground_truth_t1'.
+
+    **Image Metadata**
+
+    The input ``image`` must have certain metadata fields present, these being dependent on the
+    ``series_type``.
+
+    :param 'series_type': Describes the type of series.  Either 'asl', 'structural' or
+        'ground_truth'.
+    :type 'series_type': str
+    :param 'modality': modality of the image series, only required by 'structural'.
+    :type 'modality': string
+    :param 'series_number': number to identify the image series by, if multiple image series are
+        being saved with similar parameters so that their filenames and BIDS fields would be
+        identical, providing a unique series number will address this.
+    :type 'series_number': int
+    :param 'quantity': ('ground_truth' only) name of the quantity that the image is a map of.
+    :type 'quantity': str
+    :param 'units': ('ground_truth' only) units the quantity is in.
+    :type 'units': str
+
+    If ``series_type`` and ``modality_label`` are both 'asl' then the following metadata entries are
+    required:
+
+    :param 'label_type': describes the type of ASL labelling.
+    :type 'str':
+    :param 'label_duration': duration of the labelling pulse in seconds.
+    :type 'label_duration': float
+    :param 'post_label_delay: delay time following the labelling pulse before the acquisition in
+        seconds.
+    :type 'post_label_delay': float
+    :param 'label_efficiency': the degree of inversion of the magnetisation (between 0 and 1)
+    :type 'label_efficiency': float
+    :param 'image_flavour': a string that is used as the third entry in the BIDS field ``ImageType``
+        (corresponding with the dicom tag (0008,0008).  For ASL images this should be 'PERFUSION'.
+    "type 'image_flavour': str
     """
 
     # Key Constants
@@ -92,6 +144,7 @@ class BidsOutputFilter(BaseFilter):
     DRO_SOFTWARE_VERSION = "DROSoftwareVersion"
     DRO_SOFTWARE_URL = "DROSoftwareUrl"
     ACQ_DATE_TIME = "AcquisitionDateTime"
+    IMAGE_TYPE = "ImageType"
 
     # metadata parameters to BIDS fields mapping dictionary
     BIDS_MAPPING = {
@@ -108,12 +161,21 @@ class BidsOutputFilter(BaseFilter):
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
+        GroundTruthLoaderFilter.KEY_UNITS: "Units",
     }
 
     ACQ_CONTRAST_MAPPING = {
         MriSignalFilter.CONTRAST_GE: "Gradient Echo",
         MriSignalFilter.CONTRAST_SE: "Spin Echo",
         MriSignalFilter.CONTRAST_IR: "Inversion Recovery",
+    }
+
+    COMPLEX_IMAGE_COMPONENT_MAPPING = {
+        REAL_IMAGE_TYPE: "REAL",
+        IMAGINARY_IMAGE_TYPE: "IMAGINARY",
+        COMPLEX_IMAGE_TYPE: "COMPLEX",
+        PHASE_IMAGE_TYPE: "PHASE",
+        MAGNITUDE_IMAGE_TYPE: "MAGNITUDE",
     }
 
     def __init__(self):
@@ -125,20 +187,8 @@ class BidsOutputFilter(BaseFilter):
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
         # map the image metadata to the json sidecar
         json_sidecar = map_dict(image.metadata, self.BIDS_MAPPING, io_map_optional=True)
-
-        # construct filenames
         series_number_string = f"_{image.metadata[self.SERIES_NUMBER]:03d}"
-        nifti_filename = (
-            f"{self.inputs[self.KEY_FILENAME_PREFIX]}"
-            + series_number_string
-            + f"_{image.metadata[MODALITY]}.nii.gz"
-        )
-        json_filename = (
-            f"{self.inputs[self.KEY_FILENAME_PREFIX]}"
-            + series_number_string
-            + f"_{image.metadata[MODALITY]}.json"
-        )
-
+        filename_prefix = self.inputs[self.KEY_FILENAME_PREFIX]
         # amend json sidecar
         # add ASLDRO information
         json_sidecar[self.DRO_SOFTWARE] = "ASLDRO"
@@ -158,11 +208,23 @@ class BidsOutputFilter(BaseFilter):
                 json_sidecar["PulseSequenceType"]
             ]
 
+        # set the ComplexImageType
+        json_sidecar["ComplexImageComponent"] = self.COMPLEX_IMAGE_COMPONENT_MAPPING[
+            image.image_type
+        ]
+
+        # default modality_label
+        modality_label = ""
         # series_type specific things
+        ## Series type 'asl'
         if image.metadata[self.SERIES_TYPE] == ASL:
             # ASL series, create aslcontext.tsv string
             sub_directory = "asl"
-            if image.metadata[MODALITY] == ASL:
+
+            modality_label = self.determine_asl_modality_label(
+                image.metadata[ASL_CONTEXT]
+            )
+            if modality_label == ASL:
                 # create _aslcontext_tsv
                 asl_context_tsv = "volume_type\n" + "\n".join(
                     image.metadata[ASL_CONTEXT]
@@ -170,15 +232,12 @@ class BidsOutputFilter(BaseFilter):
                 asl_context_filename = os.path.join(
                     output_directory,
                     sub_directory,
-                    f"{self.inputs[self.KEY_FILENAME_PREFIX]}"
-                    + series_number_string
-                    + "_aslcontext.tsv",
+                    f"{filename_prefix}" + series_number_string + "_aslcontext.tsv",
                 )
                 # BIDS spec states LabelingType should be uppercase
                 json_sidecar["LabelingType"] = json_sidecar["LabelingType"].upper()
 
                 # set the BIDS field M0 correctly
-
                 if any("m0scan" in s for s in image.metadata[ASL_CONTEXT]):
                     # if aslcontext contains one or more "m0scan" volumes set to True to indicate
                     # "WithinASL"
@@ -190,21 +249,68 @@ class BidsOutputFilter(BaseFilter):
                     # no numeric value or m0scan, so set to False
                     json_sidecar["M0"] = False
 
+                # set the ImageType field
+                json_sidecar["ImageType"] = [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    image.metadata["image_flavour"],
+                    "NONE",
+                ]
+            elif modality_label == "m0scan":
+                # set the ImageType field
+                json_sidecar["ImageType"] = [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "PROTON_DENSITY",
+                    "NONE",
+                ]
+
+        ## Series type 'structural'
         elif image.metadata[self.SERIES_TYPE] == STRUCTURAL:
             sub_directory = "anat"
+            modality_label = image.metadata[MODALITY]
+            json_sidecar["ImageType"] = [
+                "ORIGINAL",
+                "PRIMARY",
+                modality_label.upper(),
+                "NONE",
+            ]
 
+        ## Series type 'ground_truth'
         elif image.metadata[self.SERIES_TYPE] == GROUND_TRUTH:
             sub_directory = "ground_truth"
+            # set the modality label
+            modality_label = (
+                f"ground_truth_{image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]}"
+            )
+            json_sidecar["ImageType"] = [
+                "ORIGINAL",
+                "PRIMARY",
+                image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY].upper(),
+                "NONE",
+            ]
 
         # make the sub-directory
         os.makedirs(os.path.join(output_directory, sub_directory))
-        # turn the nifti and json filenames into full paths
-        nifti_filename = os.path.join(output_directory, sub_directory, nifti_filename)
-        json_filename = os.path.join(output_directory, sub_directory, json_filename)
 
+        # construct filenames
+        nifti_filename = (
+            f"{filename_prefix}" + series_number_string + f"_{modality_label}.nii.gz"
+        )
+        json_filename = (
+            f"{filename_prefix}" + series_number_string + f"_{modality_label}.json"
+        )
+
+        # turn the nifti and json filenames into full paths
+
+        nifti_filename = os.path.join(output_directory, sub_directory, nifti_filename)
         # write the nifti file
+        logger.info(f"saving {nifti_filename}")
         nib.save(image.nifti_image, nifti_filename)
+
+        json_filename = os.path.join(output_directory, sub_directory, json_filename)
         # write the json sidecar
+        logger.info(f"saving {json_filename}")
         with open(json_filename, "w") as json_file:
             json.dump(json_sidecar, json_file, indent=4)
 
@@ -212,6 +318,7 @@ class BidsOutputFilter(BaseFilter):
         self.outputs[self.KEY_FILENAME] = [nifti_filename, json_filename]
         if "asl_context_filename" in locals():
             self.outputs[self.KEY_FILENAME].append(asl_context_filename)
+            logger.info(f"saving {asl_context_filename}")
             with open(asl_context_filename, "w") as tsv_file:
                 tsv_file.write(asl_context_tsv)
                 tsv_file.close()
@@ -252,7 +359,9 @@ class BidsOutputFilter(BaseFilter):
                 self.SERIES_TYPE: Parameter(
                     validators=from_list_validator(SUPPORTED_IMAGE_TYPES)
                 ),
-                MODALITY: Parameter(validators=isinstance_validator(str)),
+                MODALITY: Parameter(
+                    validators=isinstance_validator(str), optional=True
+                ),
                 self.SERIES_NUMBER: Parameter(
                     validators=[
                         isinstance_validator(int),
@@ -277,53 +386,75 @@ class BidsOutputFilter(BaseFilter):
                 GkmFilter.KEY_LABEL_EFFICIENCY: Parameter(
                     validators=isinstance_validator(float), optional=True
                 ),
+                GroundTruthLoaderFilter.KEY_QUANTITY: Parameter(
+                    validators=isinstance_validator(str), optional=True,
+                ),
+                GroundTruthLoaderFilter.KEY_UNITS: Parameter(
+                    validators=isinstance_validator(str), optional=True,
+                ),
+                "image_flavour": Parameter(
+                    validators=isinstance_validator(str), optional=True,
+                ),
             }
         )
         # validate the metadata
-        metdata_validator.validate(
-            self.inputs[self.KEY_IMAGE].metadata, error_type=FilterInputValidationError
-        )
+        metadata = self.inputs[self.KEY_IMAGE].metadata
+        metdata_validator.validate(metadata, error_type=FilterInputValidationError)
+
+        # Specific validation for series_type == "structural"
+        if metadata[self.SERIES_TYPE] == STRUCTURAL:
+            if metadata.get(MODALITY) is None:
+                raise FilterInputValidationError(
+                    "metadata field 'modality' is required when `series_type` is 'structural'"
+                )
+
+        # specific validation when series_type is "ground_truth"
+        if metadata[self.SERIES_TYPE] == GROUND_TRUTH:
+            if metadata.get(GroundTruthLoaderFilter.KEY_QUANTITY) is None:
+                raise FilterInputValidationError(
+                    "metadata field 'quantity' is required when `series_type` is 'ground_truth'"
+                )
+        if metadata[self.SERIES_TYPE] == GROUND_TRUTH:
+            if metadata.get(GroundTruthLoaderFilter.KEY_UNITS) is None:
+                raise FilterInputValidationError(
+                    "metadata field 'units' is required when `series_type` is 'ground_truth'"
+                )
 
         # Specific validation for series_type == "asl"
-        if self.inputs[self.KEY_IMAGE].metadata[self.SERIES_TYPE] == ASL:
-            if self.inputs[self.KEY_IMAGE].metadata[MODALITY] == ASL:
-                # do some checking for when the modality is asl
-                if self.inputs[self.KEY_IMAGE].metadata.get(ASL_CONTEXT) == None:
-                    raise FilterInputValidationError(
-                        "metadata field 'asl_context' is required for 'series_type'"
-                        + " and 'modality' == 'asl'"
-                    )
-                if (
-                    self.inputs[self.KEY_IMAGE].metadata.get(GkmFilter.KEY_LABEL_TYPE)
-                    == None
-                ):
+        if metadata[self.SERIES_TYPE] == ASL:
+            asl_context = metadata.get(ASL_CONTEXT)
+            if asl_context is None:
+                raise FilterInputValidationError(
+                    "metadata field 'asl_context' is required when `series_type` is 'asl'"
+                )
+            # determine the modality_label based on asl_context
+            modality_label = self.determine_asl_modality_label(asl_context)
+
+            if modality_label == ASL:
+                # do some checking for when the `modality` is 'asl'
+                if metadata.get(GkmFilter.KEY_LABEL_TYPE) is None:
                     raise FilterInputValidationError(
                         "metadata field 'label_type' is required for 'series_type'"
-                        + " and 'modality' == 'asl'"
+                        + " and 'modality' is 'asl'"
                     )
-                if (
-                    self.inputs[self.KEY_IMAGE].metadata.get(
-                        GkmFilter.KEY_LABEL_DURATION
-                    )
-                    == None
-                ):
+                if metadata.get(GkmFilter.KEY_LABEL_DURATION) is None:
                     raise FilterInputValidationError(
                         "metadata field 'label_duration' is required for 'series_type'"
-                        + " and 'modality' == 'asl'"
+                        + " and 'modality' is 'asl'"
                     )
-                if (
-                    self.inputs[self.KEY_IMAGE].metadata.get(
-                        GkmFilter.KEY_POST_LABEL_DELAY
-                    )
-                    == None
-                ):
+                if metadata.get(GkmFilter.KEY_POST_LABEL_DELAY) is None:
                     raise FilterInputValidationError(
                         "metadata field 'post_label_delay' is required for 'series_type'"
-                        + " and 'modality' == 'asl'"
+                        + " and 'modality' is 'asl'"
+                    )
+                if metadata.get("image_flavour") is None:
+                    raise FilterInputValidationError(
+                        "metadata field 'image_flavour' is required for 'series_type'"
+                        + " and 'modality' is 'asl'"
                     )
 
         # Check that self.inputs[self.KEY_OUTPUT_DIRECTORY] is a valid path.
-        if os.path.exists(self.inputs[self.KEY_OUTPUT_DIRECTORY]) == False:
+        if not os.path.exists(self.inputs[self.KEY_OUTPUT_DIRECTORY]):
             raise FilterInputValidationError(
                 f"'output_directory' {self.inputs[self.KEY_OUTPUT_DIRECTORY]} does not exist"
             )
@@ -331,3 +462,23 @@ class BidsOutputFilter(BaseFilter):
         # merge the updated parameters from the output with the input parameters
         self.inputs = {**self._i, **new_params}
 
+    @staticmethod
+    def determine_asl_modality_label(asl_context: Union[str, List[str]]) -> str:
+        """Function that determines the modality_label for asl image types based
+        on an input asl_context list
+
+        :param asl_context: either a single string or list of asl context strings
+            , e.g. ["m0scan", "control", "label"]
+        :type asl_context: Union[str, List[str]]
+        :return: a string determining the asl context, either "asl" or "m0scan"
+        :rtype: str
+        """
+        # by default the modality label should be "asl"
+        modality_label = ASL
+        if isinstance(asl_context, str):
+            if asl_context == "m0scan":
+                modality_label = "m0scan"
+        elif isinstance(asl_context, list):
+            if all("m0scan" in s for s in asl_context):
+                modality_label = "m0scan"
+        return modality_label

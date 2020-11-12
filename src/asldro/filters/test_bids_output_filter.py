@@ -3,19 +3,18 @@
 from copy import deepcopy
 from unittest.mock import Mock, patch
 import os
-import shutil
-import pytest
 import datetime
+import json
+from tempfile import TemporaryDirectory
+import pytest
+
 import numpy as np
 import numpy.testing
 import nibabel as nib
-import json
-from tempfile import TemporaryDirectory
-from asldro.data.filepaths import DATA_DIR
 
 from asldro.filters.bids_output_filter import BidsOutputFilter
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.containers.image import NiftiImageContainer, BaseImageContainer
+from asldro.filters.basefilter import FilterInputValidationError
+from asldro.containers.image import NiftiImageContainer
 
 from asldro import __version__ as asldro_version
 
@@ -44,11 +43,18 @@ METDATA_VALIDATION_DICT_STRUCT = {
 METDATA_VALIDATION_DICT_ASL = {
     "series_number": [False, 1, "001", 1.0],
     "series_type": [False, "asl", "struct", 1],
-    "modality": [False, "asl", "t1w", 1],
     "asl_context": [False, ["m0scan", "control", "label"], 1, "str"],
     "label_duration": [False, 1.8, 1, "str"],
     "label_type": [False, "pcasl", 1, TEST_NIFTI_ONES],
+    "image_flavour": [False, "PERFUSION", 1, TEST_NIFTI_ONES],
     "post_label_delay": [False, 1.8, 1, (3.2, 4.5, 6.7)],
+}
+
+METDATA_VALIDATION_DICT_GROUND_TRUTH = {
+    "series_number": [False, 1, "001", 1.0],
+    "series_type": [False, "ground_truth", "struct", 1],
+    "quantity": [False, "perfusion_rate", 1, 1.0],
+    "units": [False, "ml/100g/min", 1, 1.0],
 }
 
 
@@ -97,7 +103,12 @@ def test_bids_output_filter_validate_inputs():
 
 
 @pytest.mark.parametrize(
-    "validation_metadata", [METDATA_VALIDATION_DICT_STRUCT, METDATA_VALIDATION_DICT_ASL]
+    "validation_metadata",
+    [
+        METDATA_VALIDATION_DICT_STRUCT,
+        METDATA_VALIDATION_DICT_ASL,
+        METDATA_VALIDATION_DICT_GROUND_TRUTH,
+    ],
 )
 def test_bids_output_filter_validate_metadata(validation_metadata: dict):
     """ Check a FilterInputValidationError is raised when the inputs 'image' metadata
@@ -191,6 +202,8 @@ def test_bids_output_filter_mock_data_structural():
                 "docs: https://asldro.readthedocs.io/",
             ],
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
+            "ComplexImageComponent": "MAGNITUDE",
+            "ImageType": ["ORIGINAL", "PRIMARY", "T1W", "NONE",],
         }
 
         # remove AcquisitionDateTime entry as this can't be compared here
@@ -231,7 +244,6 @@ def test_bids_output_filter_mock_data_asl():
             "series_type": "asl",
             "series_number": 10,
             "series_description": "test asl series",
-            "modality": "asl",
             "asl_context": "m0scan m0scan control label control label control label".split(),
             "label_type": "pcasl",
             "label_duration": 1.8,
@@ -269,6 +281,8 @@ def test_bids_output_filter_mock_data_asl():
             "LabelingEfficiency": 0.85,
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
             "M0": True,
+            "ComplexImageComponent": "MAGNITUDE",
+            "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
         }
 
         # remove AcquisitionDateTime entry as this can't be compared here
@@ -323,8 +337,8 @@ def test_bids_output_filter_mock_data_ground_truth():
             "series_type": "ground_truth",
             "series_number": 110,
             "series_description": "test ground truth series",
-            "modality": "ground_truth_t1",
-            "image_flavour": "T1",
+            "quantity": "t1",
+            "units": "s",
             "voxel_size": [1.0, 1.0, 1.0],
         }
         bids_output_filter = BidsOutputFilter()
@@ -344,6 +358,9 @@ def test_bids_output_filter_mock_data_ground_truth():
                 "docs: https://asldro.readthedocs.io/",
             ],
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
+            "Units": "s",
+            "ComplexImageComponent": "MAGNITUDE",
+            "ImageType": ["ORIGINAL", "PRIMARY", "T1", "NONE",],
         }
 
         # remove AcquisitionDateTime entry as this can't be compared here
@@ -372,7 +389,7 @@ def test_bids_output_filter_mock_data_ground_truth():
 
 
 def test_bids_output_filter_acquisition_date_time():
-    """ Mocks a call to datetime.datetime.now to test that the AcquisitionDateTime field of the
+    """Mocks a call to datetime.datetime.now to test that the AcquisitionDateTime field of the
     output sidecar from BidsOutputFilter"""
     datetime_mock = Mock(wraps=datetime.datetime)
     test_datetime = datetime.datetime(2020, 10, 11, 17, 1, 32)
@@ -391,3 +408,72 @@ def test_bids_output_filter_acquisition_date_time():
             == "2020-10-11T17:01:32.000000"
         )
 
+
+def test_bids_output_filter_determine_asl_modality_label():
+    """tests the static method determine_asl_modality_label()"""
+    assert BidsOutputFilter.determine_asl_modality_label("m0scan") == "m0scan"
+    assert BidsOutputFilter.determine_asl_modality_label(["m0scan"]) == "m0scan"
+    assert (
+        BidsOutputFilter.determine_asl_modality_label(["m0scan", "m0scan"]) == "m0scan"
+    )
+    assert BidsOutputFilter.determine_asl_modality_label(["m0scan", "control"]) == "asl"
+    assert BidsOutputFilter.determine_asl_modality_label("control") == "asl"
+    assert BidsOutputFilter.determine_asl_modality_label(["control"]) == "asl"
+    assert BidsOutputFilter.determine_asl_modality_label(["m0scan", "control"]) == "asl"
+    assert BidsOutputFilter.determine_asl_modality_label("str") == "asl"
+
+
+def test_bids_output_filter_complex_image_component():
+    """tests that the field ComplexImageComponent is correctly set"""
+    with TemporaryDirectory() as temp_dir:
+        image = deepcopy(TEST_NIFTI_CON_ONES)
+        image.image_type = "REAL_IMAGE_TYPE"
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["ComplexImageComponent"] == "REAL"
+
+    with TemporaryDirectory() as temp_dir:
+        image = deepcopy(TEST_NIFTI_CON_ONES)
+        image.image_type = "IMAGINARY_IMAGE_TYPE"
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert (
+            bids_output_filter.outputs["sidecar"]["ComplexImageComponent"]
+            == "IMAGINARY"
+        )
+
+    with TemporaryDirectory() as temp_dir:
+        image = deepcopy(TEST_NIFTI_CON_ONES)
+        image.image_type = "PHASE_IMAGE_TYPE"
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["ComplexImageComponent"] == "PHASE"
+
+    with TemporaryDirectory() as temp_dir:
+        image = NiftiImageContainer(
+            nifti_img=nib.Nifti2Image(
+                np.random.normal(100, 10, TEST_VOLUME_DIMENSIONS),
+                affine=np.array(
+                    ((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)
+                ),
+            ),
+            metadata={
+                "series_number": 1,
+                "series_type": "structural",
+                "modality": "T1w",
+            },
+        )
+        image.image_type = "COMPLEX_IMAGE_TYPE"
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert (
+            bids_output_filter.outputs["sidecar"]["ComplexImageComponent"] == "COMPLEX"
+        )
