@@ -9,6 +9,7 @@ from asldro.filters.fourier_filter import FftFilter, IfftFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.containers.image import (
+    COMPLEX_IMAGE_TYPE,
     NiftiImageContainer,
     NumpyImageContainer,
     SPATIAL_DOMAIN,
@@ -89,11 +90,17 @@ def test_fourier_filters_with_mock_data():
     # Check that the output of the fft_filter is in the INVERSE_DOMAIN
     assert fft_filter.outputs["image"].data_domain == INVERSE_DOMAIN
 
+    # Check the output image is labelled as COMPLEX
+    assert fft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
+
     # Compare the fft_filter output image with kspace_data
     numpy.testing.assert_array_equal(fft_filter.outputs["image"].image, kspace_data)
 
     # Check that the output of the ifft_filter is in the SPATIAL_DOMAIN
     assert ifft_filter.outputs["image"].data_domain == SPATIAL_DOMAIN
+
+    # Check the output image is labelled as COMPLEX
+    assert ifft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
 
     # Compare the ifft_filter_output image with inverse_transformed_image_data
     numpy.testing.assert_array_equal(
@@ -135,11 +142,17 @@ def test_fourier_filters_with_test_data():
     # Check that the output of the fft_filter is in the INVERSE_DOMAIN
     assert fft_filter.outputs["image"].data_domain == INVERSE_DOMAIN
 
+    # Check the output image is labelled as COMPLEX
+    assert fft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
+
     # Compare the fft_filter output image with kspace_data
     numpy.testing.assert_array_equal(fft_filter.outputs["image"].image, m0_kspace_array)
 
     # Check that the output of the ifft_filter is in the SPATIAL_DOMAIN
     assert ifft_filter.outputs["image"].data_domain == SPATIAL_DOMAIN
+
+    # Check the output image is labelled as COMPLEX
+    assert ifft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
 
     # Compare the ifft_filter_output image with inverse_transformed_image_data
     numpy.testing.assert_array_equal(

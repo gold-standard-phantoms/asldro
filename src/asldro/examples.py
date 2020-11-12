@@ -3,20 +3,21 @@ import pprint
 import os
 import logging
 import shutil
-
-from typing import List
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import nibabel as nib
-from asldro.containers.image import BaseImageContainer
+
+from asldro.containers.image import BaseImageContainer, NiftiImageContainer
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.invert_image_filter import InvertImageFilter
+from asldro.filters.phase_magnitude_filter import PhaseMagnitudeFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
+from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
 from asldro.data.filepaths import (
     HRGT_ICBM_2009A_NLS_V3_JSON,
     HRGT_ICBM_2009A_NLS_V3_NIFTI,
@@ -152,9 +153,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             )
             # Add parameters from the input_params: label_type, signal_time, label_duration and
             # label_efficiency all have the same keys
-            gkm_filter.add_inputs(
-                asl_params,
-            )
+            gkm_filter.add_inputs(asl_params)
             # reverse the polarity of delta_m.image for encoding it into the label signal
             invert_delta_m_filter = InvertImageFilter()
             invert_delta_m_filter.add_parent_filter(
@@ -174,7 +173,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # Acquisition Loop: loop over ASL context, run the AcquireMriImageFilter and put the
             # output image into a list
-            acquired_images_list: List[nib.Nifti2Image] = []
+            # acquired_images_list: List[nib.Nifti2Image] = []
+            combine_time_series_filter = CombineTimeSeriesFilter()
             for idx, asl_context in enumerate(asl_params["asl_context"].split()):
                 acquire_mri_image_filter = AcquireMriImageFilter()
                 # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
@@ -236,37 +236,27 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                         m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
                     },
                 )
-                # Run the acquire_mri_image_filter to generate an acquired volume
-                acquire_mri_image_filter.run()
-                image = acquire_mri_image_filter.outputs["image"]
-                # Append list of the output images
-                acquired_images_list.append(image.nifti_image)
+                phase_magnitude_filter = PhaseMagnitudeFilter()
+                phase_magnitude_filter.add_parent_filter(
+                    parent=acquire_mri_image_filter
+                )
+                # Add the acqusition pipeline to the combine time series filter after
+                # calculating the magnitude component of the time series data
+                combine_time_series_filter.add_parent_filter(
+                    parent=phase_magnitude_filter, io_map={"magnitude": f"image_{idx}"}
+                )
 
-            # Create a 4D ASL image with this timeseries
-            # concatenate along the time axis (4th)
-            # acquired_timeseries = nil.image.concat_imgs(acquired_images_list)
-            image_shape = acquired_images_list[0].dataobj.shape
-            acquired_timeseries_dataobj = np.ndarray(
-                (
-                    image_shape[0],
-                    image_shape[1],
-                    image_shape[2],
-                    len(acquired_images_list),
-                )
-            )
-            for idx, img in enumerate(acquired_images_list):
-                acquired_timeseries_dataobj[:, :, :, idx] = np.absolute(
-                    np.asanyarray(img.dataobj)
-                )
+            combine_time_series_filter.run()
             # do not use the header during construction
-            acquired_timeseries = type(acquired_images_list[0])(
-                dataobj=acquired_timeseries_dataobj,
-                affine=acquired_images_list[0].affine,
+            acquired_timeseries_nifti_container: NiftiImageContainer = (
+                combine_time_series_filter.outputs["image"].as_nifti()
             )
-            acquired_timeseries.update_header()
-            acquired_timeseries.header["descrip"] = image_series["series_description"]
+            acquired_timeseries_nifti_container.header["descrip"] = image_series[
+                "series_description"
+            ]
+
             # place in output_nifti list
-            output_nifti.append(acquired_timeseries)
+            output_nifti.append(acquired_timeseries_nifti_container.nifti_image)
             # logging
             logger.debug("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
             logger.debug(
@@ -294,9 +284,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             acquire_mri_image_filter = AcquireMriImageFilter()
             # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
             # so no explicit mapping is necessary.
-            acquire_mri_image_filter.add_parent_filter(
-                parent=ground_truth_filter,
-            )
+            acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter)
 
             # append struct_params with additional parameters that need to be built/modified
             struct_params = {
@@ -321,10 +309,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
-            acquire_mri_image_filter.add_inputs(
-                struct_params,
-                io_map_optional=True,
-            )
+            acquire_mri_image_filter.add_inputs(struct_params, io_map_optional=True)
             # Run the acquire_mri_image_filter to generate an acquired volume
             acquire_mri_image_filter.run()
 
