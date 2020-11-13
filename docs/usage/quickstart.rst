@@ -74,6 +74,18 @@ have the same number of entries as there are defined volumes:
 
 For more details on input parameters see :doc:`parameters`
 
+It is also possible to output the high-resolution ground-truth (HRGT) files.
+To get a list of the available data, type::
+
+    asldro output hrgt -h
+
+To output the HRGT, type::
+
+    asldro output hrgt HRGT OUTPUT_DIR
+
+where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
+    
+
 Pipeline details
 ----------------
 

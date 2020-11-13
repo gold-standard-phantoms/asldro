@@ -3,7 +3,8 @@ import os
 import argparse
 from tempfile import TemporaryDirectory
 import pytest
-from asldro.cli import FileType
+from asldro.cli import DirType, FileType, HrgtType
+from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 
 def test_file_type_init_error_checking():
@@ -59,3 +60,41 @@ def test_file_type_call():
             == json_file_path
         )
         assert FileType(extensions=["json"])(json_file_path) == json_file_path
+
+
+def test_dir_type_init():
+    """The the DirType __init__ function"""
+    dir_type = DirType()
+    assert not dir_type.should_exist
+    dir_type = DirType(should_exist=True)
+    assert dir_type.should_exist
+
+
+def test_dir_type_call():
+    """Test the DirType __call__ function"""
+    with TemporaryDirectory() as temp_dir:
+        # Is directory, OK
+        DirType()(path=temp_dir)
+        dir_path = os.path.join(temp_dir, "some.dir")
+
+        # Should run without error (is valid direcory path)
+        assert DirType()(path=dir_path) == dir_path
+
+        # We expect the directory to exist - should throw error
+        with pytest.raises(argparse.ArgumentTypeError):
+            DirType(should_exist=True)(path=dir_path)
+
+        # Try again, but with an existing file
+        os.mkdir(dir_path)
+
+        # Should run without error (is valid file path and exists)
+        assert DirType(should_exist=True)(path=dir_path) == dir_path
+
+
+def test_hrgt_type_call():
+    """Test the HrgtType __call__ function"""
+    for test in ["foo", 1]:
+        with pytest.raises(argparse.ArgumentTypeError):
+            HrgtType()(test)
+    for test in GROUND_TRUTH_DATA.keys():
+        HrgtType()(test)  # ok
