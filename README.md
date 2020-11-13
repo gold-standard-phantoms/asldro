@@ -137,19 +137,6 @@ necessary and used with the ‘generate’ command.
 
 For details on input parameters see Parameters
 
-## Pipeline details
-
-There are three pipelines available in ASLDRO
-
-
-* The full ASL pipeline.
-
-
-* A structural MRI pipeline (generates gradient echo, spin echo or inversion recovery signal).
-
-
-* A ground truth pipeline that simply resamples the input ground truth to the specified resolution.
-
 It is also possible to output the high-resolution ground-truth (HRGT) files.
 To get a list of the available data, type:
 
@@ -166,6 +153,20 @@ asldro output hrgt HRGT OUTPUT_DIR
 where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
 
 ## Pipeline details
+
+There are three pipelines available in ASLDRO
+
+
+* The full ASL pipeline.
+
+
+* A structural MRI pipeline (generates gradient echo, spin echo or inversion recovery signal).
+
+
+* A ground truth pipeline that simply resamples the input ground truth to the specified resolution.
+
+In a single instance of ASLDRO, the input parameter file can configure any number and configurations
+of these pipelines to be run, much in the way that this can be done on an MRI scanner.
 
 The full ASL pipeline comprises of:
 
