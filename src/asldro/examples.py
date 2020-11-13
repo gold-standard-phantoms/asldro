@@ -18,12 +18,8 @@ from asldro.filters.phase_magnitude_filter import PhaseMagnitudeFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
-from asldro.data.filepaths import (
-    HRGT_ICBM_2009A_NLS_V3_JSON,
-    HRGT_ICBM_2009A_NLS_V3_NIFTI,
-    HRGT_ICBM_2009A_NLS_V4_JSON,
-    HRGT_ICBM_2009A_NLS_V4_NIFTI,
-)
+from asldro.data.filepaths import GROUND_TRUTH_DATA
+
 from asldro.validators.user_parameter_input import (
     validate_input_params,
     get_example_input_params,
@@ -74,20 +70,18 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     input_params = validate_input_params(input_params)
 
     # Load in the ground truth
-    if input_params["global_configuration"]["ground_truth"] == "hrgt_icbm_2009a_nls_v3":
-        ground_truth_nifti = HRGT_ICBM_2009A_NLS_V3_NIFTI
-        ground_truth_json = HRGT_ICBM_2009A_NLS_V3_JSON
-    elif (
-        input_params["global_configuration"]["ground_truth"] == "hrgt_icbm_2009a_nls_v4"
-    ):
-        ground_truth_nifti = HRGT_ICBM_2009A_NLS_V4_NIFTI
-        ground_truth_json = HRGT_ICBM_2009A_NLS_V4_JSON
-    else:
+    if input_params["global_configuration"]["ground_truth"] not in GROUND_TRUTH_DATA:
         raise ValueError(
             "Global configuration "
             f"{input_params['global_configuration']['ground_truth']} "
             "does not correspond with accepted ground truths"
         )
+    ground_truth_nifti = GROUND_TRUTH_DATA[
+        input_params["global_configuration"]["ground_truth"]
+    ]["nii"]
+    ground_truth_json = GROUND_TRUTH_DATA[
+        input_params["global_configuration"]["ground_truth"]
+    ]["json"]
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", ground_truth_json)
