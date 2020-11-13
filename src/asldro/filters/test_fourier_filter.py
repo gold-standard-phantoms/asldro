@@ -16,10 +16,7 @@ from asldro.containers.image import (
     INVERSE_DOMAIN,
 )
 from asldro.filters.nifti_loader import NiftiLoaderFilter
-from asldro.data.filepaths import (
-    HRGT_ICBM_2009A_NLS_V3_JSON,
-    HRGT_ICBM_2009A_NLS_V3_NIFTI,
-)
+from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 
@@ -111,12 +108,15 @@ def test_fourier_filters_with_mock_data():
 @pytest.mark.slow
 def test_fourier_filters_with_test_data():
     """ Tests the fourier filters with some test data """
-
     json_filter = JsonLoaderFilter()
-    json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)
+    json_filter.add_input(
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["json"]
+    )
 
     nifti_filter = NiftiLoaderFilter()
-    nifti_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_NIFTI)
+    nifti_filter.add_input(
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["nii"]
+    )
 
     ground_truth_filter = GroundTruthLoaderFilter()
     ground_truth_filter.add_parent_filter(nifti_filter)
