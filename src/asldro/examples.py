@@ -6,7 +6,6 @@ import shutil
 from tempfile import TemporaryDirectory
 
 import numpy as np
-import nibabel as nib
 
 from asldro.containers.image import BaseImageContainer, NiftiImageContainer
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
@@ -18,6 +17,8 @@ from asldro.filters.phase_magnitude_filter import PhaseMagnitudeFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
+from asldro.filters.append_metadata_filter import AppendMetadataFilter
+from asldro.filters.bids_output_filter import BidsOutputFilter
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 from asldro.validators.user_parameter_input import (
@@ -100,8 +101,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     )
 
     # create output lists to be populated in the "image_series" loop
-    nifti_filename = []
-    output_nifti = []
+    output_image_list = []
     # Loop over "image_series" in input_params
     # Take the asl image series and pass it to the remainder of the pipeline
     # update the input_params variable so it contains the asl series parameters
@@ -121,15 +121,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(asl_params),
             )
-
-            # Generate the output filename
-            # If asl_context only consists of M0 then the filename should be M0, otherwise ASL4D
-            if asl_params["asl_context"].lower() == "m0":
-                nifti_filename.append(f"{series_number}_M0.nii.gz")
-                modality_label = "m0scan"
-            else:
-                nifti_filename.append(f"{series_number}_ASL4D.nii.gz")
-                modality_label = "asl"
 
             # Run the GkmFilter on the ground_truth data
             gkm_filter = GkmFilter()
@@ -245,7 +236,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     AppendMetadataFilter.KEY_METADATA,
                     {
                         "series_description": image_series["series_description"],
-                        "modality": modality_label,
                         "series_type": image_series["series_type"],
                         "series_number": series_number,
                         "asl_context": asl_context,
@@ -267,12 +257,12 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             ]
 
             # place in output_nifti list
-            output_nifti.append(acquired_timeseries_nifti_container.nifti_image)
+            output_image_list.append(acquired_timeseries_nifti_container)
             # logging
             logger.debug("GkmFilter outputs: \n %s", pprint.pformat(gkm_filter.outputs))
             logger.debug(
-                "acquire_mri_image_filter outputs: \n %s",
-                pprint.pformat(acquire_mri_image_filter.outputs),
+                "combine_time_series_filter outputs: \n %s",
+                pprint.pformat(combine_time_series_filter.outputs),
             )
 
         ############################################################################################
@@ -287,9 +277,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(struct_params),
             )
-
-            # Generate the output subdirectory name and
-            nifti_filename.append(f"{series_number}_structural.nii.gz")
 
             # Simulate acquisition
             acquire_mri_image_filter = AcquireMriImageFilter()
@@ -335,21 +322,25 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     "series_number": series_number,
                 },
             )
-            # Run the append_metadata_filter to generate an acquired volume
-            append_metadata_filter.run()
-
-            struct_image_container = append_metadata_filter.outputs[
-                AcquireMriImageFilter.KEY_IMAGE
-            ]
 
             if struct_params["output_image_type"] == "magnitude":
-                struct_image_container.image = np.absolute(struct_image_container.image)
+                phase_magnitude_filter = PhaseMagnitudeFilter()
+                phase_magnitude_filter.add_parent_filter(append_metadata_filter)
+                phase_magnitude_filter.run()
+                struct_image_container = phase_magnitude_filter.outputs[
+                    PhaseMagnitudeFilter.KEY_MAGNITUDE
+                ]
+            else:
+                append_metadata_filter.run()
+                struct_image_container = append_metadata_filter.outputs[
+                    AcquireMriImageFilter.KEY_IMAGE
+                ]
 
             struct_image_container.header["descrip"] = image_series[
                 "series_description"
             ]
             # Append list of the output images
-            output_nifti.append(struct_image_container.nifti_image)
+            output_image_list.append(struct_image_container)
 
         ############################################################################################
         # Ground truth pipeline
@@ -368,13 +359,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 for key in ground_truth_keys
                 if isinstance(ground_truth_filter.outputs[key], BaseImageContainer)
             ]
-            ground_truth_niftis = []
-            ground_truth_filenames = []
             for quantity in ground_truth_image_keys:
-                ground_truth_filenames.append(
-                    f"{series_number}_ground_truth_{quantity}.nii.gz"
-                )
-
                 resample_filter = TransformResampleImageFilter()
                 # map the ground_truth_filter to the resample filter
                 resample_filter.add_parent_filter(
@@ -406,36 +391,27 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                     AppendMetadataFilter.KEY_METADATA,
                     {
                         "series_description": image_series["series_description"],
-                        "modality": f"ground_truth_{quantity}",
                         "series_type": image_series["series_type"],
                         "series_number": series_number,
                     },
                 )
                 # Run the append_metadata_filter to generate an acquired volume
                 append_metadata_filter.run()
-
-                # Append list of the output images
-                ground_truth_niftis.append(
-                    resample_filter.outputs[
-                        append_metadata_filter.KEY_IMAGE
-                    ].nifti_image
+                # append to output image list
+                output_image_list.append(
+                    append_metadata_filter.outputs[AppendMetadataFilter.KEY_IMAGE]
                 )
-            output_nifti.append(ground_truth_niftis)
-            # append the output filenames
-            nifti_filename.append(ground_truth_filenames)
 
     # Output everything to a temporary directory
     with TemporaryDirectory() as temp_dir:
-        for idx, nifti in enumerate(output_nifti):
-            if isinstance(nifti, list):
-                for i, img in enumerate(nifti):
-                    nib.save(
-                        img, os.path.join(temp_dir, nifti_filename[idx][i]),
-                    )
-            else:
-                nib.save(
-                    nifti, os.path.join(temp_dir, nifti_filename[idx]),
-                )
+        for idx, image_to_output in enumerate(output_image_list):
+            bids_output_filter = BidsOutputFilter()
+            bids_output_filter.add_input(
+                BidsOutputFilter.KEY_OUTPUT_DIRECTORY, temp_dir
+            )
+            bids_output_filter.add_input(BidsOutputFilter.KEY_IMAGE, image_to_output)
+            # run the filter to write the BIDS files to disk
+            bids_output_filter.run()
 
         if output_filename is not None:
             filename, file_extension = splitext(output_filename)

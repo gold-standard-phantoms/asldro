@@ -9,7 +9,6 @@ from asldro.validators.parameters import (
     Parameter,
     range_inclusive_validator,
     greater_than_equal_to_validator,
-    range_exclusive_validator,
     from_list_validator,
     isinstance_validator,
 )
@@ -279,6 +278,9 @@ class GkmFilter(BaseFilter):
         self.outputs[self.KEY_DELTA_M]: BaseImageContainer = self.inputs[
             self.KEY_PERFUSION_RATE
         ].clone()
+        # remove some metadata fields
+        self.outputs[self.KEY_DELTA_M].metadata.pop("units", None)
+        self.outputs[self.KEY_DELTA_M].metadata.pop("quantity", None)
         self.outputs[self.KEY_DELTA_M].image = delta_m
         self.outputs[self.KEY_DELTA_M].metadata = {
             **self.outputs[self.KEY_DELTA_M].metadata,

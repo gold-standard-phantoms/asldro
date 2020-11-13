@@ -479,6 +479,10 @@ def test_gkm_timecourse(
 def test_gkm_filter_metadata(casl_input):
     """ Test the metadata output from GkmFilter """
     gkm_filter = GkmFilter()
+    casl_input["perfusion_rate"].metadata = {
+        "units": "ml/100g/min",
+        "quantity": "perfusion_rate",
+    }
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
     gkm_filter.run()
 

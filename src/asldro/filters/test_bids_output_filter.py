@@ -477,3 +477,18 @@ def test_bids_output_filter_complex_image_component():
         assert (
             bids_output_filter.outputs["sidecar"]["ComplexImageComponent"] == "COMPLEX"
         )
+
+
+def test_bids_output_filter_directory_tests():
+    """Checks that the BidsOutputFilter can correctly handle situations where
+    the output directories either exist or don't exist"""
+
+    # sub-directory already exists
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", TEST_NIFTI_CON_ONES)
+        bids_output_filter.add_input("output_directory", temp_dir)
+
+        os.makedirs(os.path.join(temp_dir, "anat"))
+
+        bids_output_filter.run()

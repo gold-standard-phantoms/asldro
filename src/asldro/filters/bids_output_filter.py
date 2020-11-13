@@ -187,8 +187,12 @@ class BidsOutputFilter(BaseFilter):
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
         # map the image metadata to the json sidecar
         json_sidecar = map_dict(image.metadata, self.BIDS_MAPPING, io_map_optional=True)
-        series_number_string = f"_{image.metadata[self.SERIES_NUMBER]:03d}"
-        filename_prefix = self.inputs[self.KEY_FILENAME_PREFIX]
+        series_number_string = f"{image.metadata[self.SERIES_NUMBER]:03d}"
+        # if the `filename_prefix` is not empty add an underscore after it
+        if self.inputs[self.KEY_FILENAME_PREFIX] == "":
+            filename_prefix = ""
+        else:
+            filename_prefix = self.inputs[self.KEY_FILENAME_PREFIX] + "_"
         # amend json sidecar
         # add ASLDRO information
         json_sidecar[self.DRO_SOFTWARE] = "ASLDRO"
@@ -290,8 +294,9 @@ class BidsOutputFilter(BaseFilter):
                 "NONE",
             ]
 
-        # make the sub-directory
-        os.makedirs(os.path.join(output_directory, sub_directory))
+        # if it doesn't exist make the sub-directory
+        if not os.path.exists(os.path.join(output_directory, sub_directory)):
+            os.makedirs(os.path.join(output_directory, sub_directory))
 
         # construct filenames
         nifti_filename = (
