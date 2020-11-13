@@ -11,7 +11,7 @@ from asldro.containers.image import NiftiImageContainer, COMPLEX_IMAGE_TYPE
 
 @pytest.fixture(name="image_containers")
 def fixture_image_containers():
-    """ Return a dict of (nifti) image containers, where the keys are
+    """Return a dict of (nifti) image containers, where the keys are
     valid "image_nnnnn" string where nnnnnn==0 to 9. The number of
     prepending zeros is equal to the index.
     Each container is size 2x3x4. The value of each voxel is
@@ -19,11 +19,18 @@ def fixture_image_containers():
     There are two metadata fields:
     `to_list` is equal to the index of the container.
     `to_singleton` is always equal to 10
+    `even` is equal to the index of the container, but only present in
+    odd indices.
     the final image container has an extra `foo` metadata field.
     """
     num_image_containers = 10
     image_containers = {
-        f"image_{''.join(['0' for n in range(i)]) + str(i)}": NiftiImageContainer(
+        f"image_{''.join(['0' for _ in range(i)]) + str(i)}": NiftiImageContainer(
+            nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * i, affine=np.eye(4)),
+            metadata={"to_list": i, "to_singleton": 10, "even": i},
+        )
+        if i % 2 == 0
+        else NiftiImageContainer(
             nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * i, affine=np.eye(4)),
             metadata={"to_list": i, "to_singleton": 10},
         )
@@ -37,8 +44,8 @@ def fixture_image_containers():
 def test_combine_time_series_filter_good_input(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter with valid inputs, and check the
-    output image is as expected """
+    """Run the CombineTimeSeriesFilter with valid inputs, and check the
+    output image is as expected"""
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)
     a_filter.run()
@@ -46,6 +53,7 @@ def test_combine_time_series_filter_good_input(
     assert a_filter.outputs["image"].metadata == {
         "to_list": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         "to_singleton": 10,
+        "even": [0, None, 2, None, 4, None, 6, None, 8, None],
         "foo": "bar",
     }
 
@@ -64,8 +72,8 @@ def test_combine_time_series_filter_good_input(
 def test_combine_time_series_filter_repeat_index(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter where we have a repeat input index.
-    We should get a FilterInputValidationError error """
+    """Run the CombineTimeSeriesFilter where we have a repeat input index.
+    We should get a FilterInputValidationError error"""
     image_containers["image_7"] = NiftiImageContainer(
         nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * 7, affine=np.eye(4)),
         metadata={"to_list": 7, "to_singleton": 10},
@@ -80,22 +88,9 @@ def test_combine_time_series_filter_repeat_index(
 def test_combine_time_series_filter_missing_index(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter where we have a missing input index.
-    We should get a FilterInputValidationError error """
+    """Run the CombineTimeSeriesFilter where we have a missing input index.
+    We should get a FilterInputValidationError error"""
     image_containers.pop("image_0")
-    a_filter = CombineTimeSeriesFilter()
-    a_filter.add_inputs(image_containers)
-    with pytest.raises(FilterInputValidationError):
-        a_filter.run()
-
-
-def test_combine_time_series_filter_missing_metadata_array_value(
-    image_containers: Mapping[str, NiftiImageContainer]
-):
-    """ Run the CombineTimeSeriesFilter where all of the images have a metadata value which is
-    different, except one (so the array of output values cannot be created). We should
-    get a validation error """
-    image_containers["image_00000007"].metadata.pop("to_list")
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)
     with pytest.raises(FilterInputValidationError):
@@ -105,8 +100,8 @@ def test_combine_time_series_filter_missing_metadata_array_value(
 def test_combine_time_series_filter_mismatched_image_dimensions(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter where all of the images
-    have mismatched dimensions - check we get a FilterInputValidationError """
+    """Run the CombineTimeSeriesFilter where all of the images
+    have mismatched dimensions - check we get a FilterInputValidationError"""
     image_containers["image_0000006"].image = np.ones((3, 3, 3))
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)
@@ -117,8 +112,8 @@ def test_combine_time_series_filter_mismatched_image_dimensions(
 def test_combine_time_series_filter_non_image(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter where one of the image inputs
-    is not an imagecontainer - check we get a FilterInputValidationError """
+    """Run the CombineTimeSeriesFilter where one of the image inputs
+    is not an imagecontainer - check we get a FilterInputValidationError"""
     image_containers["image_0000006"] = "surprise!!!"
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)
@@ -129,8 +124,8 @@ def test_combine_time_series_filter_non_image(
 def test_combine_time_series_filter_with_single_complex(
     image_containers: Mapping[str, NiftiImageContainer]
 ):
-    """ Run the CombineTimeSeriesFilter where one of the image inputs
-    is complex - check we get a FilterInputValidationError """
+    """Run the CombineTimeSeriesFilter where one of the image inputs
+    is complex - check we get a FilterInputValidationError"""
     image_containers["image_0000006"].image_type = COMPLEX_IMAGE_TYPE
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)

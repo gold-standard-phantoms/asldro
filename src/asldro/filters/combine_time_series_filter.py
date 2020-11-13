@@ -81,21 +81,18 @@ class CombineTimeSeriesFilter(BaseFilter):
                 output_container.metadata[key] = containers[
                     present.index(True)
                 ].metadata[key]
-            elif sum(present) == len(present):
-                # The key appears in all containers
-                all_values = [container.metadata[key] for container in containers]
+            else:
+                # The key appears in more than one containers
+                all_values = [
+                    container.metadata[key] if key in container.metadata else None
+                    for container in containers
+                ]
                 if all_values.count(all_values[0]) == len(all_values):
                     # All values are the same - output that value for the given key
                     output_container.metadata[key] = containers[0].metadata[key]
                 else:
                     # The values are not the same - concatenate them into a list
                     output_container.metadata[key] = all_values
-            else:
-                raise ValueError(
-                    f"The key {key} appears in more than one, but fewer "
-                    "than all of the input image containers - no way to "
-                    "process this information"
-                )
 
         self.outputs[self.KEY_IMAGE] = output_container
 
@@ -129,8 +126,6 @@ class CombineTimeSeriesFilter(BaseFilter):
         All input images must be derived from BaseImageContainer, and non-complex.
         All input images must have the same dimensions.
         All input images must have three dimensions.
-        Check that, for each key in the metadata, it exists in either one, or all
-        of the input image containers.
         """
 
         indexed_containers = self._get_input_images()
@@ -181,17 +176,4 @@ class CombineTimeSeriesFilter(BaseFilter):
                 raise FilterInputValidationError(
                     f"Input image with index {index} has image type {COMPLEX_IMAGE_TYPE}, "
                     "this is not supported"
-                )
-
-        # Check that, for each key in the metadata, it exists in either one, or all
-        # of the input image containers
-        for key in {
-            key for container in containers for key in container.metadata.keys()
-        }:
-            present = [key in container.metadata for container in containers]
-            if not (sum(present) == 1 or sum(present) == len(present)):
-                raise FilterInputValidationError(
-                    f"The key {key} appears in more than one, but fewer "
-                    "than all of the input image containers - no way to "
-                    "process this information"
                 )
