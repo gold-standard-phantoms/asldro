@@ -179,6 +179,7 @@ def test_bids_output_filter_mock_data_structural():
             "series_description": "test structural series",
             "modality": "T1w",
             "voxel_size": [1.0, 1.0, 1.0],
+            "magnetic_field_strength": 3,
         }
         bids_output_filter = BidsOutputFilter()
         bids_output_filter.add_input("image", image)
@@ -204,6 +205,7 @@ def test_bids_output_filter_mock_data_structural():
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
             "ComplexImageComponent": "MAGNITUDE",
             "ImageType": ["ORIGINAL", "PRIMARY", "T1W", "NONE",],
+            "MagneticFieldStrength": 3,
         }
 
         # remove AcquisitionDateTime entry as this can't be compared here

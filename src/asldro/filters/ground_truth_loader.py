@@ -81,6 +81,7 @@ class GroundTruthLoaderFilter(BaseFilter):
     KEY_PARAMETERS = "parameters"
     KEY_QUANTITIES = "quantities"
     KEY_QUANTITY = "quantity"
+    KEY_MAG_STRENGTH = "magnetic_field_strength"
 
     def __init__(self):
         super().__init__("GroundTruthLoader")
@@ -115,8 +116,8 @@ class GroundTruthLoaderFilter(BaseFilter):
                 metadata[self.KEY_SEGMENTATION] = self.inputs[self.KEY_SEGMENTATION]
 
             nifti_image_type = image_container.nifti_type
-            metadata["magnetic_field_strength"] = self.inputs[self.KEY_PARAMETERS][
-                "magnetic_field_strength"
+            metadata[self.KEY_MAG_STRENGTH] = self.inputs[self.KEY_PARAMETERS][
+                self.KEY_MAG_STRENGTH
             ]
             metadata[self.KEY_QUANTITY] = quantity
             metadata[self.KEY_UNITS] = self.inputs[self.KEY_UNITS][i]

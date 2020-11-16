@@ -1,18 +1,6 @@
 Quickstart
 ==========
 
-Overview
---------
-
-ASL DRO is software that can generate digital reference objects for Arterial Spin Labelling (ASL) MRI.
-It creates synthetic raw ASL data according to set acquisition and data format parameters, based
-on input ground truth maps for:
-
-* Perfusion rate
-* Transit time
-* Intrinsic MRI parameters: M0, T1, T2, T2*
-* Tissue segmentation (defined as a single tissue type per voxel)
-
 Getting started
 ---------------
 
@@ -82,7 +70,10 @@ volume will have noise that is unique, but statistically the same.
 
 If ``desired_snr`` is set to ``0``, the resultant images will not have any noise applied. 
 
-Each pipeline outputs corresponding NIFTI files. 
+Each pipeline outputs files in BIDS (https://bids.neuroimaging.io/) format, consisting of a NIFTI
+image file and accompanying json sidecar. In the case of an ASL image an 
+additional *_aslcontext.tsv file is also generated which describes the ASL volumes
+present in the timeseries. 
 
 The DRO pipeline is summarised in this schematic (click to view full-size):
 

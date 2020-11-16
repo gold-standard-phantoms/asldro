@@ -162,6 +162,7 @@ class BidsOutputFilter(BaseFilter):
         SERIES_NUMBER: "SeriesNumber",
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
         GroundTruthLoaderFilter.KEY_UNITS: "Units",
+        GroundTruthLoaderFilter.KEY_MAG_STRENGTH: "MagneticFieldStrength",
     }
 
     ACQ_CONTRAST_MAPPING = {
