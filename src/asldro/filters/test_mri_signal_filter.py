@@ -374,8 +374,9 @@ def test_mri_signal_filter_gradient_echo(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "OTHER",
+        "mr_acq_type": "3D",
     }
 
     # edit mock_data["mag_enc"].metadata["image_flavour"] and check
@@ -387,8 +388,9 @@ def test_mri_signal_filter_gradient_echo(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
+        "mr_acq_type": "3D",
     }
 
 
@@ -409,8 +411,9 @@ def test_mri_signal_filter_spin_echo(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "OTHER",
+        "mr_acq_type": "3D",
     }
 
     # edit mock_data["mag_enc"].metadata["image_flavour"] and check
@@ -422,8 +425,9 @@ def test_mri_signal_filter_spin_echo(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
+        "mr_acq_type": "3D",
     }
 
 
@@ -447,10 +451,11 @@ def test_mri_signal_filter_inversion_recovery(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "OTHER",
         "inversion_time": mock_data["inversion_time"],
         "inversion_flip_angle": mock_data["inversion_flip_angle"],
+        "mr_acq_type": "3D",
     }
 
     # edit mock_data["mag_enc"].metadata["image_flavour"] and check
@@ -462,10 +467,11 @@ def test_mri_signal_filter_inversion_recovery(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
         "inversion_time": mock_data["inversion_time"],
         "inversion_flip_angle": mock_data["inversion_flip_angle"],
+        "mr_acq_type": "3D",
     }
 
 
@@ -604,8 +610,9 @@ def test_mri_signal_filter_image_flavour(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "ABCD",
+        "mr_acq_type": "3D",
     }
 
     test_data = deepcopy(mock_data)
@@ -619,6 +626,7 @@ def test_mri_signal_filter_image_flavour(mock_data):
         "acq_contrast": mock_data["acq_contrast"],
         "echo_time": mock_data["echo_time"],
         "repetition_time": mock_data["repetition_time"],
-        "flip_angle": mock_data["excitation_flip_angle"],
+        "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "ABCD",
+        "mr_acq_type": "3D",
     }

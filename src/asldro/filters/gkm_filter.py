@@ -9,7 +9,6 @@ from asldro.validators.parameters import (
     Parameter,
     range_inclusive_validator,
     greater_than_equal_to_validator,
-    range_exclusive_validator,
     from_list_validator,
     isinstance_validator,
 )
@@ -90,6 +89,7 @@ class GkmFilter(BaseFilter):
     KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
     KEY_T1_TISSUE = "t1_tissue"
     KEY_DELTA_M = "delta_m"
+    KEY_POST_LABEL_DELAY = "post_label_delay"
 
     # Value constants
     CASL = "casl"
@@ -278,13 +278,16 @@ class GkmFilter(BaseFilter):
         self.outputs[self.KEY_DELTA_M]: BaseImageContainer = self.inputs[
             self.KEY_PERFUSION_RATE
         ].clone()
+        # remove some metadata fields
+        self.outputs[self.KEY_DELTA_M].metadata.pop("units", None)
+        self.outputs[self.KEY_DELTA_M].metadata.pop("quantity", None)
         self.outputs[self.KEY_DELTA_M].image = delta_m
         self.outputs[self.KEY_DELTA_M].metadata = {
             **self.outputs[self.KEY_DELTA_M].metadata,
             **{
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
                 self.KEY_LABEL_DURATION: label_duration,
-                "post_label_delay": (signal_time - label_duration),
+                self.KEY_POST_LABEL_DELAY: (signal_time - label_duration),
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
                 self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,

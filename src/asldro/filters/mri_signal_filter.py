@@ -70,10 +70,11 @@ class MriSignalFilter(BaseFilter):
 
     * ``acq_contrast``
     * ``echo time``
-    * ``flip_angle``
+    * ``excitation_flip_angle``
     * ``image_flavour``
     * ``inversion_time``
     * ``inversion_flip_angle``
+    * ``mr_acq_type`` = "3D"
 
     ``image_flavour`` is obtained (in order of precedence):
 
@@ -128,6 +129,7 @@ class MriSignalFilter(BaseFilter):
     KEY_INVERSION_TIME = "inversion_time"
     KEY_IMAGE = "image"
     KEY_IMAGE_FLAVOUR = "image_flavour"
+    KEY_ACQ_TYPE = "mr_acq_type"
 
     # Value constants
     CONTRAST_GE = "ge"
@@ -179,6 +181,9 @@ class MriSignalFilter(BaseFilter):
         metadata[self.KEY_ACQ_CONTRAST] = acq_contrast
         metadata[self.KEY_ECHO_TIME] = echo_time
         metadata[self.KEY_REPETITION_TIME] = repetition_time
+        metadata[
+            self.KEY_ACQ_TYPE
+        ] = "3D"  # 2D not currently supported so everything is 3D
 
         # Gradient Echo Contrast. Equation is from p246 in the book MRI from Picture to Proton,
         # second edition, 2006, McRobbie et. al.
@@ -218,7 +223,9 @@ class MriSignalFilter(BaseFilter):
                 )
                 * exp_t2_star
             )
-            metadata["flip_angle"] = self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE)
+            metadata[self.KEY_EXCITATION_FLIP_ANGLE] = self.inputs.get(
+                self.KEY_EXCITATION_FLIP_ANGLE
+            )
 
         # Spin Echo Contrast, equation is the standard spin-echo signal equation assuming a 90°
         # excitation pulse and 180° refocusing pulse. Equation is from p69 in the book
@@ -238,7 +245,7 @@ class MriSignalFilter(BaseFilter):
                 + mag_enc
             ) * exp_te_t2
             # for spin echo the flip angle is assumed to be 90°
-            metadata["flip_angle"] = 90.0
+            metadata[self.KEY_EXCITATION_FLIP_ANGLE] = 90.0
 
         # Inversion Recovery contrast.  Equation is from equation 7 in
         # http://www.paul-tofts-phd.org.uk/talks/ismrm2009_rt.pdf
@@ -276,7 +283,9 @@ class MriSignalFilter(BaseFilter):
                 * exp_te_t2
             )
             # add ir specific metadata
-            metadata["flip_angle"] = self.inputs.get(self.KEY_EXCITATION_FLIP_ANGLE)
+            metadata[self.KEY_EXCITATION_FLIP_ANGLE] = self.inputs.get(
+                self.KEY_EXCITATION_FLIP_ANGLE
+            )
             metadata[self.KEY_INVERSION_FLIP_ANGLE] = self.inputs.get(
                 self.KEY_INVERSION_FLIP_ANGLE
             )
@@ -286,8 +295,13 @@ class MriSignalFilter(BaseFilter):
             self.KEY_T1
         ].clone()
         self.outputs[self.KEY_IMAGE].image = mri_signal
-        # replace the metadata field with the constructed one (we don't want to merge)
-        self.outputs[self.KEY_IMAGE].metadata = metadata
+        # merge the metadata field with the constructed one (we don't want to merge)
+        self.outputs[self.KEY_IMAGE].metadata = {
+            **self.outputs[self.KEY_IMAGE].metadata,
+            **metadata,
+        }
+        self.outputs[self.KEY_IMAGE].metadata.pop("units", None)
+        self.outputs[self.KEY_IMAGE].metadata.pop("quantity", None)
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation critera

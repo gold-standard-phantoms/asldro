@@ -109,6 +109,12 @@ GROUND_TRUTH = "ground_truth"
 STRUCTURAL = "structural"
 SUPPORTED_IMAGE_TYPES = [ASL, GROUND_TRUTH, STRUCTURAL]
 
+# Supported asl contexts
+M0SCAN = "m0scan"
+CONTROL = "control"
+LABEL = "label"
+SUPPORTED_ASL_CONTEXTS = [M0SCAN, CONTROL, LABEL]
+
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
     GROUND_TRUTH: ParameterValidator(
