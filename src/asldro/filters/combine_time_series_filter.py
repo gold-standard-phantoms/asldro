@@ -87,9 +87,15 @@ class CombineTimeSeriesFilter(BaseFilter):
                     container.metadata[key] if key in container.metadata else None
                     for container in containers
                 ]
+                # find values that are not None
+                values_not_none = [val for val in all_values if val is not None]
                 if all_values.count(all_values[0]) == len(all_values):
                     # All values are the same - output that value for the given key
                     output_container.metadata[key] = containers[0].metadata[key]
+                elif all_values.count(values_not_none[0]) == len(values_not_none):
+                    # All values that are not None are the same, output just that value for
+                    # given key
+                    output_container.metadata[key] = values_not_none[0]
                 else:
                     # The values are not the same - concatenate them into a list
                     output_container.metadata[key] = all_values

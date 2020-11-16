@@ -21,6 +21,7 @@ def fixture_image_containers():
     `to_singleton` is always equal to 10
     `even` is equal to the index of the container, but only present in
     odd indices.
+    `odd` is always equal to 1.5, but is only present in even indices, 
     the final image container has an extra `foo` metadata field.
     """
     num_image_containers = 10
@@ -32,7 +33,7 @@ def fixture_image_containers():
         if i % 2 == 0
         else NiftiImageContainer(
             nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * i, affine=np.eye(4)),
-            metadata={"to_list": i, "to_singleton": 10},
+            metadata={"to_list": i, "to_singleton": 10, "odd": 1.5},
         )
         for i in range(num_image_containers)
     }
@@ -55,6 +56,7 @@ def test_combine_time_series_filter_good_input(
         "to_singleton": 10,
         "even": [0, None, 2, None, 4, None, 6, None, 8, None],
         "foo": "bar",
+        "odd": 1.5,
     }
 
     # Test the image has been created correctly - checking voxel values
