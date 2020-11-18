@@ -110,12 +110,12 @@ def test_fourier_filters_with_test_data():
     """ Tests the fourier filters with some test data """
     json_filter = JsonLoaderFilter()
     json_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["json"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"]
     )
 
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["nii"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"]
     )
 
     ground_truth_filter = GroundTruthLoaderFilter()

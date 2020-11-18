@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Combine time-series images filter
 - Phase-magnitude filter
 - CLI tool to output the HRGT files
+- BIDS output
+- 1.5T and 3T HRGT files
 
 ## [1.0.0] - 2020-10-16
 ### Added

@@ -12,7 +12,7 @@ Below is an example input parameter file, giving its overall structure.
 
     {
         "global_configuration": {
-            "ground_truth": "hrgt_icbm_2009a_nls_v4"
+            "ground_truth": "hrgt_icbm_2009a_nls_3t"
         },
         "image_series": [
             {
@@ -45,10 +45,10 @@ ASLDRO will run:
 :ground_truth: (string) Determines which ground truth to be used. See :doc:`ground_truth` for more
     information. At present the following are supported:
 
-    * "hrgt_icbm_2009a_nls_v4" - based on MNI ICBM 2009a Nonlinear Symmetric template, 3T relaxation
+    * "hrgt_icbm_2009a_nls_3t" - based on MNI ICBM 2009a Nonlinear Symmetric template, 3T relaxation
       times.
-    * "hrgt_icbm_2009a_nls_v3" - based on MNI ICBM 2009a Nonlinear Symmetric template, 3T relaxation
-      times (slightly different to hrgt_icbm_2009a_nls_v4)
+    * "hrgt_icbm_2009a_nls_1.5t" - based on MNI ICBM 2009a Nonlinear Symmetric template, 1.5T relaxation
+      times.
 
 Image Series
 ------------
