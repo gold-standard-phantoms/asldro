@@ -1,7 +1,6 @@
 -r base.txt
 
 pytest==5.4.3
-pytest-xdist==1.33.0
 coverage==5.2
 pytest-cov==2.10.0
 tox==3.18.0
