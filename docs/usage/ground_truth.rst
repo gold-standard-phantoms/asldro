@@ -34,27 +34,61 @@ The json parameter file describes the following:
   than to include in BIDS field "MagneticFieldStrength".
 
 
-Different HRGT's are selected by modifiying the "ground_truth" entry in the input parameter file.
+Different HRGT's are selected by modifiying the "ground_truth" entry in the input parameter file to
+the name of the ground truth being used.  For example:
+
+.. code-block:: json
+
+    {
+        "global_configuration": {
+            "ground_truth": "hrgt_icbm_2009a_nls_3t"
+        },
+    }
+
 ASLDRO currently supports the following ground truths:
 
 
-hrgt_icbm_2009a_nls_v4
+hrgt_icbm_2009a_nls_3t
 ~~~~~~~~~~~~~~~~~~~~~~
 
+Normal adult 3T ground truth.
 A 1x1x1mm ground truth based on the MNI ICBM 2009a Nonlinear
 Symmetric template, obtained from http://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009,
 with quantitative parameters set based on supplied masks.  This ground truth has the following
 values for each tissue and quantity (corresponding to 3T):
 
-+--------------+----------------+--------------+----------+----------+----------+----------+
-| Tissue       | Perfusion Rate | Transit Time | T1       | T2       | T2*      | label    |
-|              | [ml/100g/min]  | [s]          | [s]      | [s]      | [s]      |          |
-+==============+================+==============+==========+==========+==========+==========+
-| Grey Matter  | 60.00          | 1.00         | 1.33     | 0.110    | 0.050    | 1        | 
-+--------------+----------------+--------------+----------+----------+----------+----------+
-| White Matter | 20.00          | 1.50         | 0.83     | 0.080    | 0.050    | 2        |
-+--------------+----------------+--------------+----------+----------+----------+----------+
-| CSF          | 0.00           | 1000.0       | 3.00     | 0.300    | 0.200    | 3        |
-+--------------+----------------+--------------+----------+----------+----------+----------+
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| Tissue       | Perfusion Rate | Transit Time | T1        | T2       | T2*      | label    |
+|              | [ml/100g/min]  | [s]          | [s]       | [s]      | [s]      |          |
++==============+================+==============+===========+==========+==========+==========+
+| Grey Matter  | 60.00          | 1.00         | 1.330     | 0.080    | 0.066    | 1        | 
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| White Matter | 20.00          | 1.50         | 0.830     | 0.110    | 0.053    | 2        |
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| CSF          | 0.00           | 1000.0       | 3.000     | 0.300    | 0.200    | 3        |
++--------------+----------------+--------------+-----------+----------+----------+----------+
+
+label is the integer value assigned to the tissue in the seg_label volume.
+
+
+hrgt_icbm_2009a_nls_1.5t
+~~~~~~~~~~~~~~~~~~~~~~
+
+Normal adult 1.5T ground truth.
+A 1x1x1mm ground truth based on the MNI ICBM 2009a Nonlinear
+Symmetric template, obtained from http://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009,
+with quantitative parameters set based on supplied masks.  This ground truth has the following
+values for each tissue and quantity (corresponding to 1.5T):
+
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| Tissue       | Perfusion Rate | Transit Time | T1        | T2       | T2*      | label    |
+|              | [ml/100g/min]  | [s]          | [s]       | [s]      | [s]      |          |
++==============+================+==============+===========+==========+==========+==========+
+| Grey Matter  | 60.00          | 1.00         | 1.100     | 0.092    | 0.084    | 1        | 
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| White Matter | 20.00          | 1.50         | 0.560     | 0.082    | 0.066    | 2        |
++--------------+----------------+--------------+-----------+----------+----------+----------+
+| CSF          | 0.00           | 1000.0       | 3.000     | 0.400    | 0.300    | 3        |
++--------------+----------------+--------------+-----------+----------+----------+----------+
 
 label is the integer value assigned to the tissue in the seg_label volume.

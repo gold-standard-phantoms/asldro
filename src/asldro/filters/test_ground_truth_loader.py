@@ -15,10 +15,7 @@ from asldro.containers.image import NiftiImageContainer
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 TEST_VOLUME_DIMENSIONS = (3, 3, 3, 1, 7)
-TEST_NIFTI_ONES = nib.Nifti2Image(
-    np.ones(TEST_VOLUME_DIMENSIONS),
-    affine=np.eye(4),
-)
+TEST_NIFTI_ONES = nib.Nifti2Image(np.ones(TEST_VOLUME_DIMENSIONS), affine=np.eye(4),)
 
 TEST_NIFTI_CON_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES)
 
@@ -105,15 +102,7 @@ def test_ground_truth_loader_filter_with_mock_data():
     ground_truth_filter.add_input("image", nifti_image_container)
     ground_truth_filter.add_input(
         "quantities",
-        [
-            "perfusion_rate",
-            "transit_time",
-            "t1",
-            "t2",
-            "t2_star",
-            "m0",
-            "seg_label",
-        ],
+        ["perfusion_rate", "transit_time", "t1", "t2", "t2_star", "m0", "seg_label",],
     )
     ground_truth_filter.add_input(
         "segmentation", {"csf": 3, "grey_matter": 1, "white_matter": 2}
@@ -212,11 +201,7 @@ def test_ground_truth_loader_filter_with_mock_data():
         "magnetic_field_strength": 3.0,
         "quantity": "seg_label",
         "units": "",
-        "segmentation": {
-            "csf": 3,
-            "grey_matter": 1,
-            "white_matter": 2,
-        },
+        "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2,},
     }
 
 
@@ -226,12 +211,12 @@ def test_ground_truth_loader_filter_with_test_data():
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["json"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"]
     )
 
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["nii"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"]
     )
 
     ground_truth_filter = GroundTruthLoaderFilter()

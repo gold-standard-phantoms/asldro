@@ -173,12 +173,12 @@ def test_add_complex_noise_filter_with_test_data():
     """ tests the complex noise filter with test data """
     json_filter = JsonLoaderFilter()
     json_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["json"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"]
     )
 
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_v3"]["nii"]
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"]
     )
 
     ground_truth_filter = GroundTruthLoaderFilter()
