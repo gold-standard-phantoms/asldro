@@ -15,3 +15,7 @@ GROUND_TRUTH_DATA = {
         "nii": os.path.join(DATA_DIR, "hrgt_ICBM_2009a_NLS_v4.nii.gz"),
     },
 }
+
+ASL_BIDS_SCHEMA = os.path.join(DATA_DIR, "asl_bids_validator.json")
+
+M0SCAN_BIDS_SCHEMA = os.path.join(DATA_DIR, "m0scan_bids_validator.json")

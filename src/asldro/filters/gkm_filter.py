@@ -112,14 +112,18 @@ class GkmFilter(BaseFilter):
         lambda_blood_brain: float = self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN]
         t1_arterial_blood: float = self.inputs[self.KEY_T1_ARTERIAL_BLOOD]
 
+        # blank dictionary for metadata to add
+        metadata = {}
         # if m0 is an image load that, if not then make a ndarray
-        # with the same value (makes the calculations more straightforward)
+        # with the same value (makes the calculations more straightforward) and also
+        # place the m0 value in the metadata field "m0"
         if isinstance(self.inputs[self.KEY_M0], BaseImageContainer):
             m0_tissue: np.ndarray = self.inputs[self.KEY_M0].image
         else:
             m0_tissue: np.ndarray = self.inputs[self.KEY_M0] * np.ones(
                 perfusion_rate.shape
             )
+            metadata[self.KEY_M0] = self.inputs[self.KEY_M0]
 
         # calculate M0b, handling runtime divide-by-zeros
         m0_arterial_blood = (
@@ -282,8 +286,10 @@ class GkmFilter(BaseFilter):
         self.outputs[self.KEY_DELTA_M].metadata.pop("units", None)
         self.outputs[self.KEY_DELTA_M].metadata.pop("quantity", None)
         self.outputs[self.KEY_DELTA_M].image = delta_m
-        self.outputs[self.KEY_DELTA_M].metadata = {
-            **self.outputs[self.KEY_DELTA_M].metadata,
+
+        # add fields to metadata
+        metadata = {
+            **metadata,
             **{
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
                 self.KEY_LABEL_DURATION: label_duration,
@@ -293,6 +299,11 @@ class GkmFilter(BaseFilter):
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,
                 "image_flavour": "PERFUSION",
             },
+        }
+        # merge this with the output image's metadata
+        self.outputs[self.KEY_DELTA_M].metadata = {
+            **self.outputs[self.KEY_DELTA_M].metadata,
+            **metadata,
         }
 
     def _validate_inputs(self):
