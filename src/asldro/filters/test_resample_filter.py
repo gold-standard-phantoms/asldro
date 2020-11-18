@@ -137,22 +137,18 @@ def test_resample_filter_mock_data():
 
     # compare outputs: image data
     numpy.testing.assert_array_equal(
-        np.asanyarray(resampled_image.dataobj),
-        resampled_numpy_container.image,
+        np.asanyarray(resampled_image.dataobj), resampled_numpy_container.image,
     )
     numpy.testing.assert_array_equal(
-        np.asanyarray(resampled_image.dataobj),
-        resampled_nifti_container.image,
+        np.asanyarray(resampled_image.dataobj), resampled_nifti_container.image,
     )
 
     # compare outputs: affine
     numpy.testing.assert_array_equal(
-        resampled_image.affine,
-        resampled_numpy_container.affine,
+        resampled_image.affine, resampled_numpy_container.affine,
     )
     numpy.testing.assert_array_equal(
-        resampled_image.affine,
-        resampled_nifti_container.affine,
+        resampled_image.affine, resampled_nifti_container.affine,
     )
 
 
@@ -252,14 +248,7 @@ def test_resample_filter_single_point_transformations(
     # define world coordinate origin (x,y,z) = (0,0,0) at (i,j,k) = (50,50,50)
     # and 1 voxel == 1mm isotropically
     # therefore according to RAS+:
-    affine = np.array(
-        (
-            (1, 0, 0, -50),
-            (0, 1, 0, -50),
-            (0, 0, 1, -50),
-            (0, 0, 0, 1),
-        )
-    )
+    affine = np.array(((1, 0, 0, -50), (0, 1, 0, -50), (0, 0, 1, -50), (0, 0, 0, 1),))
 
     # define a vector in this space: world coords (10, 10, 10)
     vector_image_coords = np.rint(
@@ -321,7 +310,7 @@ def test_resample_filter_metadata():
         "key1": 1,
         "key2": "two",
         "key3": [2, 4, 5],
-        "voxel_size": tuple(
+        "voxel_size": list(
             nib.affines.voxel_sizes(resample_filter.outputs["image"].affine)
         ),
     }

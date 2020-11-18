@@ -5,6 +5,7 @@ import logging
 from typing import Union, List
 from datetime import datetime, timezone
 import json
+from jsonschema import validate
 
 import nibabel as nib
 
@@ -39,6 +40,7 @@ from asldro.validators.user_parameter_input import (
     SUPPORTED_IMAGE_TYPES,
     SUPPORTED_ASL_CONTEXTS,
 )
+from asldro.data.filepaths import ASL_BIDS_SCHEMA, M0SCAN_BIDS_SCHEMA
 
 from asldro import __version__ as asldro_version
 
@@ -157,7 +159,7 @@ class BidsOutputFilter(BaseFilter):
         MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE: "FlipAngle",
         MriSignalFilter.KEY_INVERSION_TIME: "InversionTime",
         MriSignalFilter.KEY_ACQ_TYPE: "MrAcquisitionType",
-        MriSignalFilter.KEY_ACQ_CONTRAST: "PulseSequenceType",
+        MriSignalFilter.KEY_ACQ_CONTRAST: "ScanningSequence",
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
@@ -166,9 +168,9 @@ class BidsOutputFilter(BaseFilter):
     }
 
     ACQ_CONTRAST_MAPPING = {
-        MriSignalFilter.CONTRAST_GE: "Gradient Echo",
-        MriSignalFilter.CONTRAST_SE: "Spin Echo",
-        MriSignalFilter.CONTRAST_IR: "Inversion Recovery",
+        MriSignalFilter.CONTRAST_GE: "GR",
+        MriSignalFilter.CONTRAST_SE: "SE",
+        MriSignalFilter.CONTRAST_IR: "IR",
     }
 
     COMPLEX_IMAGE_COMPONENT_MAPPING = {
@@ -207,10 +209,11 @@ class BidsOutputFilter(BaseFilter):
         json_sidecar[self.ACQ_DATE_TIME] = datetime.now(timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%S.%f"
         )
-        # set the PulseSequenceType value according to the BIDS spec
-        if json_sidecar.get("PulseSequenceType") is not None:
-            json_sidecar["PulseSequenceType"] = self.ACQ_CONTRAST_MAPPING[
-                json_sidecar["PulseSequenceType"]
+
+        # set the ScanningSequence value according to the BIDS spec
+        if json_sidecar.get("ScanningSequence") is not None:
+            json_sidecar["ScanningSequence"] = self.ACQ_CONTRAST_MAPPING[
+                json_sidecar["ScanningSequence"]
             ]
 
         # set the ComplexImageType
@@ -261,6 +264,14 @@ class BidsOutputFilter(BaseFilter):
                     image.metadata["image_flavour"],
                     "NONE",
                 ]
+
+                # validate the sidecar against the ASL BIDS schema
+                # load in the ASL BIDS schema
+                with open(ASL_BIDS_SCHEMA) as file:
+                    asl_bids_schema = json.load(file)
+
+                validate(instance=json_sidecar, schema=asl_bids_schema)
+
             elif modality_label == "m0scan":
                 # set the ImageType field
                 json_sidecar["ImageType"] = [
@@ -269,6 +280,13 @@ class BidsOutputFilter(BaseFilter):
                     "PROTON_DENSITY",
                     "NONE",
                 ]
+
+                # validate the sidecar against the ASL BIDS schema
+                # load in the ASL BIDS schema
+                with open(M0SCAN_BIDS_SCHEMA) as file:
+                    m0scan_bids_schema = json.load(file)
+
+                validate(instance=json_sidecar, schema=m0scan_bids_schema)
 
         ## Series type 'structural'
         elif image.metadata[self.SERIES_TYPE] == STRUCTURAL:
@@ -375,10 +393,7 @@ class BidsOutputFilter(BaseFilter):
                     ]
                 ),
                 ASL_CONTEXT: Parameter(
-                    validators=for_each_validator(
-                        from_list_validator(SUPPORTED_ASL_CONTEXTS)
-                    ),
-                    optional=True,
+                    validators=isinstance_validator((str, list)), optional=True,
                 ),
                 GkmFilter.KEY_LABEL_TYPE: Parameter(
                     validators=isinstance_validator(str), optional=True,
@@ -428,11 +443,35 @@ class BidsOutputFilter(BaseFilter):
 
         # Specific validation for series_type == "asl"
         if metadata[self.SERIES_TYPE] == ASL:
+            # asl_context needs some further validating
             asl_context = metadata.get(ASL_CONTEXT)
             if asl_context is None:
                 raise FilterInputValidationError(
                     "metadata field 'asl_context' is required when `series_type` is 'asl'"
                 )
+            if isinstance(asl_context, str):
+                asl_context_validator = ParameterValidator(
+                    parameters={
+                        ASL_CONTEXT: Parameter(
+                            validators=from_list_validator(SUPPORTED_ASL_CONTEXTS),
+                        ),
+                    }
+                )
+
+            elif isinstance(asl_context, list):
+                asl_context_validator = ParameterValidator(
+                    parameters={
+                        ASL_CONTEXT: Parameter(
+                            validators=for_each_validator(
+                                from_list_validator(SUPPORTED_ASL_CONTEXTS)
+                            ),
+                        ),
+                    }
+                )
+            asl_context_validator.validate(
+                {"asl_context": asl_context}, error_type=FilterInputValidationError
+            )
+
             # determine the modality_label based on asl_context
             modality_label = self.determine_asl_modality_label(asl_context)
 

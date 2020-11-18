@@ -164,49 +164,56 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
                     test_filter.run()
 
 
-def test_bids_output_filter_mock_data_structural():
+@pytest.fixture(name="structural_input")
+def structural_input_fixture() -> (NiftiImageContainer, dict):
+    image = deepcopy(TEST_NIFTI_CON_ONES)
+    image.metadata = {
+        "echo_time": 0.01,
+        "repetition_time": 0.3,
+        "excitation_flip_angle": 30,
+        "mr_acq_type": "3D",
+        "acq_contrast": "ge",
+        "series_type": "structural",
+        "series_number": 1,
+        "series_description": "test structural series",
+        "modality": "T1w",
+        "voxel_size": [1.0, 1.0, 1.0],
+        "magnetic_field_strength": 3,
+    }
+
+    d = {
+        "EchoTime": 0.01,
+        "RepetitionTime": 0.3,
+        "FlipAngle": 30,
+        "MrAcquisitionType": "3D",
+        "ScanningSequence": "GR",
+        "SeriesNumber": 1,
+        "SeriesDescription": "test structural series",
+        "DROSoftware": "ASLDRO",
+        "DROSoftwareVersion": asldro_version,
+        "DROSoftwareUrl": [
+            "code: https://github.com/gold-standard-phantoms/asldro",
+            "pypi: https://pypi.org/project/asldro/",
+            "docs: https://asldro.readthedocs.io/",
+        ],
+        "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
+        "ComplexImageComponent": "MAGNITUDE",
+        "ImageType": ["ORIGINAL", "PRIMARY", "T1W", "NONE",],
+        "MagneticFieldStrength": 3,
+    }
+    return (image, d)
+
+
+def test_bids_output_filter_mock_data_structural(structural_input):
     """ Tests the BidsOutputFilter with some mock data """
     with TemporaryDirectory() as temp_dir:
-        image = deepcopy(TEST_NIFTI_CON_ONES)
-        image.metadata = {
-            "echo_time": 0.01,
-            "repetition_time": 0.3,
-            "excitation_flip_angle": 30,
-            "mr_acq_type": "3D",
-            "acq_contrast": "ge",
-            "series_type": "structural",
-            "series_number": 1,
-            "series_description": "test structural series",
-            "modality": "T1w",
-            "voxel_size": [1.0, 1.0, 1.0],
-            "magnetic_field_strength": 3,
-        }
+        image = structural_input[0]
+        d = structural_input[1]
         bids_output_filter = BidsOutputFilter()
         bids_output_filter.add_input("image", image)
         bids_output_filter.add_input("output_directory", temp_dir)
         bids_output_filter.add_input("filename_prefix", "prefix")
         bids_output_filter.run()
-
-        d = {
-            "EchoTime": 0.01,
-            "RepetitionTime": 0.3,
-            "FlipAngle": 30,
-            "MrAcquisitionType": "3D",
-            "PulseSequenceType": "Gradient Echo",
-            "SeriesNumber": 1,
-            "SeriesDescription": "test structural series",
-            "DROSoftware": "ASLDRO",
-            "DROSoftwareVersion": asldro_version,
-            "DROSoftwareUrl": [
-                "code: https://github.com/gold-standard-phantoms/asldro",
-                "pypi: https://pypi.org/project/asldro/",
-                "docs: https://asldro.readthedocs.io/",
-            ],
-            "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
-            "ComplexImageComponent": "MAGNITUDE",
-            "ImageType": ["ORIGINAL", "PRIMARY", "T1W", "NONE",],
-            "MagneticFieldStrength": 3,
-        }
 
         # remove AcquisitionDateTime entry as this can't be compared here
         acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
@@ -233,59 +240,68 @@ def test_bids_output_filter_mock_data_structural():
         assert loaded_json == bids_output_filter.outputs["sidecar"]
 
 
-def test_bids_output_filter_mock_data_asl():
+@pytest.fixture(name="asl_input")
+def asl_input_fixture() -> (NiftiImageContainer, dict):
+    """creates test data for testing BIDS output of an ASL image"""
+    image = deepcopy(TEST_NIFTI_CON_ONES)
+    image.metadata = {
+        "echo_time": 0.01,
+        "repetition_time": 0.3,
+        "excitation_flip_angle": 30,
+        "mr_acq_type": "3D",
+        "acq_contrast": "ge",
+        "series_type": "asl",
+        "series_number": 10,
+        "series_description": "test asl series",
+        "asl_context": "m0scan m0scan control label control label control label".split(),
+        "label_type": "pcasl",
+        "label_duration": 1.8,
+        "post_label_delay": 1.8,
+        "label_efficiency": 0.85,
+        "lambda_blood_brain": 0.90,
+        "t1_arterial_blood": 1.65,
+        "image_flavour": "PERFUSION",
+        "voxel_size": [1.0, 1.0, 1.0],
+    }
+
+    d = {
+        "EchoTime": 0.01,
+        "RepetitionTime": 0.3,
+        "FlipAngle": 30,
+        "MrAcquisitionType": "3D",
+        "ScanningSequence": "GR",
+        "SeriesNumber": 10,
+        "SeriesDescription": "test asl series",
+        "DROSoftware": "ASLDRO",
+        "DROSoftwareVersion": asldro_version,
+        "DROSoftwareUrl": [
+            "code: https://github.com/gold-standard-phantoms/asldro",
+            "pypi: https://pypi.org/project/asldro/",
+            "docs: https://asldro.readthedocs.io/",
+        ],
+        "LabelingType": "PCASL",
+        "LabelingDuration": 1.8,
+        "PostLabelingDelay": 1.8,
+        "LabelingEfficiency": 0.85,
+        "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
+        "M0": True,
+        "ComplexImageComponent": "MAGNITUDE",
+        "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
+    }
+    return (image, d)
+
+
+def test_bids_output_filter_mock_data_asl(asl_input):
     """ Tests the BidsOutputFilter with some mock data """
     with TemporaryDirectory() as temp_dir:
-        image = deepcopy(TEST_NIFTI_CON_ONES)
-        image.metadata = {
-            "echo_time": 0.01,
-            "repetition_time": 0.3,
-            "excitation_flip_angle": 30,
-            "mr_acq_type": "3D",
-            "acq_contrast": "ge",
-            "series_type": "asl",
-            "series_number": 10,
-            "series_description": "test asl series",
-            "asl_context": "m0scan m0scan control label control label control label".split(),
-            "label_type": "pcasl",
-            "label_duration": 1.8,
-            "post_label_delay": 1.8,
-            "label_efficiency": 0.85,
-            "lambda_blood_brain": 0.90,
-            "t1_arterial_blood": 1.65,
-            "image_flavour": "PERFUSION",
-            "voxel_size": [1.0, 1.0, 1.0],
-        }
+        image = asl_input[0]
+        d = asl_input[1]
+
         bids_output_filter = BidsOutputFilter()
         bids_output_filter.add_input("image", image)
         bids_output_filter.add_input("output_directory", temp_dir)
         bids_output_filter.add_input("filename_prefix", "prefix")
         bids_output_filter.run()
-
-        d = {
-            "EchoTime": 0.01,
-            "RepetitionTime": 0.3,
-            "FlipAngle": 30,
-            "MrAcquisitionType": "3D",
-            "PulseSequenceType": "Gradient Echo",
-            "SeriesNumber": 10,
-            "SeriesDescription": "test asl series",
-            "DROSoftware": "ASLDRO",
-            "DROSoftwareVersion": asldro_version,
-            "DROSoftwareUrl": [
-                "code: https://github.com/gold-standard-phantoms/asldro",
-                "pypi: https://pypi.org/project/asldro/",
-                "docs: https://asldro.readthedocs.io/",
-            ],
-            "LabelingType": "PCASL",
-            "LabelingDuration": 1.8,
-            "PostLabelingDelay": 1.8,
-            "LabelingEfficiency": 0.85,
-            "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
-            "M0": True,
-            "ComplexImageComponent": "MAGNITUDE",
-            "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
-        }
 
         # remove AcquisitionDateTime entry as this can't be compared here
         acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
@@ -329,6 +345,69 @@ def test_bids_output_filter_mock_data_asl():
             "control\n",
             "label",
         ]
+
+
+def test_bids_output_filter_m0_float(asl_input):
+    """Tests the BidsOutputFilter with mock ASL data where m0 is a float"""
+    with TemporaryDirectory() as temp_dir:
+        image = asl_input[0]
+        d = asl_input[1]
+        # first the ASL image, just control and label, with a float M0
+        image.metadata[
+            "asl_context"
+        ] = "control label control label control label".split()
+        image.metadata["m0"] = 100.0
+
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        d["M0"] = 100.0
+        # remove AcquisitionDateTime entry as this can't be compared here
+        acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
+        assert bids_output_filter.outputs["sidecar"] == d
+
+
+def test_bids_output_filter_m0scan(structural_input):
+    """Tests the BidsOutputFilter with mock ASL data where there is a separate m0 scan"""
+    with TemporaryDirectory() as temp_dir:
+        image = structural_input[0]
+        d = structural_input[1]
+        image.metadata["asl_context"] = "m0scan"
+        image.metadata["series_type"] = "asl"
+
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        d["ImageType"] = ["ORIGINAL", "PRIMARY", "PROTON_DENSITY", "NONE"]
+        # remove AcquisitionDateTime entry as this can't be compared here
+        acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
+        assert bids_output_filter.outputs["sidecar"] == d
+        bids_output_filter.outputs["sidecar"]["AcquisitionDateTime"] = acq_date_time
+
+        # Check filenames
+        assert bids_output_filter.outputs["filename"][0] == os.path.join(
+            temp_dir, "asl", "prefix_001_m0scan.nii.gz"
+        )
+        assert bids_output_filter.outputs["filename"][1] == os.path.join(
+            temp_dir, "asl", "prefix_001_m0scan.json"
+        )
+
+        # load in the files and check against what they should be
+        loaded_nifti = nib.load(bids_output_filter.outputs["filename"][0])
+        numpy.testing.assert_array_equal(
+            loaded_nifti.dataobj, TEST_NIFTI_CON_ONES.image
+        )
+        assert loaded_nifti.header == TEST_NIFTI_CON_ONES.header
+
+        with open(bids_output_filter.outputs["filename"][1], "r") as json_file:
+            loaded_json = json.load(json_file)
+        assert loaded_json == bids_output_filter.outputs["sidecar"]
 
 
 def test_bids_output_filter_mock_data_ground_truth():

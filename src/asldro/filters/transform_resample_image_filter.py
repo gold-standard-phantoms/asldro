@@ -143,7 +143,7 @@ class TransformResampleImageFilter(BaseFilter):
         # The ResampleFilter will have copied through the metadata from the input image, however
         # the voxel size should be recalculated as the output image doesn't have any rotations
         # applied. update metadata with the voxel sizes based on the updated affine
-        self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = tuple(
+        self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = list(
             nib.affines.voxel_sizes(self.outputs[self.KEY_IMAGE].affine)
         )
 

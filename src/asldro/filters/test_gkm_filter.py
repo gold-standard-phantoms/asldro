@@ -1,4 +1,4 @@
-""" GkmFilter tests """
+"""GkmFilter tests"""
 # pylint: disable=duplicate-code
 
 from copy import deepcopy
@@ -151,7 +151,7 @@ TIMECOURSE_PARAMS = (
 
 @pytest.fixture(name="pasl_input")
 def pasl_input_fixture() -> dict:
-    """ creates test data for testing the PASL model """
+    """creates test data for testing the PASL model"""
     np.random.seed(0)
     return {
         "perfusion_rate": NumpyImageContainer(
@@ -171,7 +171,7 @@ def pasl_input_fixture() -> dict:
 
 @pytest.fixture(name="casl_input")
 def casl_input_fixture() -> dict:
-    """ creates test data for testing the CASL/pCASL model """
+    """Creates test data for testing the CASL/pCASL model"""
     np.random.seed(0)
     return {
         "perfusion_rate": NumpyImageContainer(
@@ -190,7 +190,7 @@ def casl_input_fixture() -> dict:
 
 
 def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
-    """ Adds the data held within the input_data dictionary to the filter's inputs """
+    """Adds the data held within the input_data dictionary to the filter's inputs"""
     for key in input_data:
         input_filter.add_input(key, input_data[key])
 
@@ -352,7 +352,7 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
 
 
 def test_gkm_filter_pasl(pasl_input):
-    """ Test the GkmFilter for Pulsed ASL """
+    """Test the GkmFilter for Pulsed ASL"""
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
     gkm_filter.run()
@@ -391,7 +391,7 @@ def test_gkm_filter_pasl(pasl_input):
 
 
 def test_gkm_filter_casl(casl_input):
-    """ Test the GkmFilter for Continuous ASL """
+    """Test the GkmFilter for Continuous ASL"""
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
     gkm_filter.run()
@@ -477,7 +477,7 @@ def test_gkm_timecourse(
 
 
 def test_gkm_filter_metadata(casl_input):
-    """ Test the metadata output from GkmFilter """
+    """Test the metadata output from GkmFilter"""
     gkm_filter = GkmFilter()
     casl_input["perfusion_rate"].metadata = {
         "units": "ml/100g/min",
@@ -494,4 +494,27 @@ def test_gkm_filter_metadata(casl_input):
         "lambda_blood_brain": casl_input["lambda_blood_brain"],
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
+    }
+
+
+def test_gkm_filter_m0_float(casl_input):
+    """Test the GkmFilter when m0 is supplied as a number and not an image"""
+    # set m0 to a float
+    casl_input["m0"] = 100.0
+    casl_input["perfusion_rate"].metadata = {
+        "units": "ml/100g/min",
+        "quantity": "perfusion_rate",
+    }
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
+    assert gkm_filter.outputs["delta_m"].metadata == {
+        "label_type": casl_input["label_type"].lower(),
+        "label_duration": casl_input["label_duration"],
+        "post_label_delay": casl_input["signal_time"] - casl_input["label_duration"],
+        "label_efficiency": casl_input["label_efficiency"],
+        "lambda_blood_brain": casl_input["lambda_blood_brain"],
+        "t1_arterial_blood": casl_input["t1_arterial_blood"],
+        "image_flavour": "PERFUSION",
+        "m0": 100.0,
     }

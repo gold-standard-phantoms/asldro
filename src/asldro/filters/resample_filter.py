@@ -4,9 +4,7 @@ import numpy as np
 from nilearn.image import resample_img
 import nibabel as nib
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.containers.image import (
-    BaseImageContainer,
-)
+from asldro.containers.image import BaseImageContainer
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
@@ -59,7 +57,7 @@ class ResampleFilter(BaseFilter):
             target_shape=self.inputs[self.KEY_SHAPE],
         )
         self.outputs[self.KEY_IMAGE] = resampled_image
-        self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = tuple(
+        self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = list(
             nib.affines.voxel_sizes(resampled_image.nifti_image.affine)
         )
 
