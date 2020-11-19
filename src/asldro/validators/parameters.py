@@ -4,17 +4,17 @@ be found on the class 'ParameterValidator'
 """
 import re
 from copy import deepcopy
-from typing import Tuple, Union, List, Dict, Callable, Any
+from typing import Tuple, Union, List, Dict, Callable, Any, Type
 
 from asldro.containers.image import BaseImageContainer
 
 
 class ValidationError(Exception):
-    """ Used to indicate that a dictionary is invalid """
+    """Used to indicate that a dictionary is invalid"""
 
 
 class Validator:
-    """ All _validator functions return an object of this class.
+    """All _validator functions return an object of this class.
     The object can be called with a value to check whether the value
     is valid. A string method is also available to display the validator's
     criteria message.
@@ -174,7 +174,7 @@ def of_length_validator(length: int) -> Validator:
     )
 
 
-def list_of_type_validator(a_type: Union[type, Tuple[type]]) -> Validator:
+def list_of_type_validator(a_type: Union[type, Tuple[type, ...]]) -> Validator:
     """
     Validates that a given value is a list of the given type(s).
     a_type: a type e.g. str, or a tuple of types e.g. (int, str)
@@ -252,7 +252,8 @@ def reserved_string_list_validator(
     pattern = fr"^({concat_strings})({delimiter}({concat_strings}))*$"
     return Validator(
         regex_validator(pattern=pattern, case_insensitive=case_insensitive).func,
-        f"Value must be a string combination of {strings} separated by '_'{' (ignoring case)' if case_insensitive else ''}",
+        f"Value must be a string combination of {strings} separated by "
+        f"'_'{' (ignoring case)' if case_insensitive else ''}",
     )
 
 
@@ -275,12 +276,35 @@ def for_each_validator(item_validator=Validator) -> Validator:
     )
 
 
+def has_attribute_value_validator(
+    attribute_name: str, attribute_value: Any
+) -> Validator:
+    """Validates that the parameter has an attribute with the given name
+    and also that the attribute value matches a given value.
+    e.g.
+    has_attribute_value_validator("a_property", 500.0)
+    would create a validators that check that an object (`obj') has a property
+    `a_property` that matches 500.0. i.e. `obj.a_property == 500.0`
+    :param attribute_name: the attribute name to compare
+    :param attribute_value: the value of the attribute to compare against
+    """
+    if not isinstance(attribute_name, str):
+        raise TypeError("The attribute_name must be a string")
+
+    return Validator(
+        lambda value: hasattr(value, attribute_name)
+        and getattr(value, attribute_name) == attribute_value,
+        f"Value must have an attribute {attribute_name} with value {attribute_value}",
+    )
+
+
 class Parameter:
+    # pylint: disable=too-few-public-methods
     """ A description of a parameter which is to be validated against """
 
     def __init__(
         self,
-        validators: Union[callable, List[callable]],
+        validators: Union[Callable[..., bool], List[Callable[..., bool]]],
         default_value=None,
         optional=False,
     ):
@@ -308,7 +332,7 @@ class Parameter:
 
 
 class ParameterValidator:
-    """ Used to validate a dictionary of parameters specified with the Parameter class against
+    """Used to validate a dictionary of parameters specified with the Parameter class against
     an input dictionary. Will also insert any default values that are missing from the input
     dictionary.
     """
@@ -338,10 +362,22 @@ class ParameterValidator:
             if not isinstance(post_validator, Validator):
                 raise TypeError("All items in post_validators must be a Validator")
 
-        self.parameters: Dict[Parameter] = parameters
+        self.parameters: Dict[str, Parameter] = parameters
         self.post_validators: List[Validator] = post_validators
 
-    def validate(self, d: dict, error_type: type = ValidationError) -> dict:
+    def get_defaults(self):
+        """Return a dictionary of default values for each of the parameters
+        in the ParameterValidator. If a parameter does not have a default value,
+        it is excluded from the dictionary
+        :return: a dictionary of default parameter values
+        """
+        defaults = {}
+        for parameter_key, parameter_value in self.parameters.items():
+            if parameter_value.default_value is not None:
+                defaults[parameter_key] = parameter_value.default_value
+        return defaults
+
+    def validate(self, d: dict, error_type: Type[Exception] = ValidationError) -> dict:
         """
         Validate an input dictionary, replacing missing dictionary entries with default values.
         If any of the dictionary entries are invalid w.r.t. any of the validators, a
@@ -356,9 +392,7 @@ class ParameterValidator:
         """
         # error_type must derived from Exception
         if not issubclass(error_type, Exception):
-            raise TypeError(
-                f"error_type must be a subclass of Exception, is {error_type.__name__}."
-            )
+            raise TypeError("error_type must be a subclass of Exception")
         return_dict = deepcopy(d)
         errors = []
         # Check all non-optional parameters are present

@@ -46,6 +46,13 @@ python:
       - coverage_html_report
     expire_in: 1 day
 
+code_analysis:
+  stage: test
+  script:
+    - python3 -m pip install -r requirements/test.txt
+    - python3 -m pylint src
+  allow_failure: true
+
 deploy_production:
   stage: deploy
   script:

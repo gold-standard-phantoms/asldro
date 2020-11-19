@@ -1,4 +1,5 @@
-""" GkmFilter tests """
+"""GkmFilter tests"""
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 import pytest
@@ -150,7 +151,7 @@ TIMECOURSE_PARAMS = (
 
 @pytest.fixture(name="pasl_input")
 def pasl_input_fixture() -> dict:
-    """ creates test data for testing the PASL model """
+    """creates test data for testing the PASL model"""
     np.random.seed(0)
     return {
         "perfusion_rate": NumpyImageContainer(
@@ -170,7 +171,7 @@ def pasl_input_fixture() -> dict:
 
 @pytest.fixture(name="casl_input")
 def casl_input_fixture() -> dict:
-    """ creates test data for testing the CASL/pCASL model """
+    """Creates test data for testing the CASL/pCASL model"""
     np.random.seed(0)
     return {
         "perfusion_rate": NumpyImageContainer(
@@ -189,7 +190,7 @@ def casl_input_fixture() -> dict:
 
 
 def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
-    """ Adds the data held within the input_data dictionary to the filter's inputs """
+    """Adds the data held within the input_data dictionary to the filter's inputs"""
     for key in input_data:
         input_filter.add_input(key, input_data[key])
 
@@ -197,7 +198,7 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 
 def gkm_pasl_function(input_data: dict) -> np.ndarray:
-    """ Function that calculates the gkm for PASL
+    """Function that calculates the gkm for PASL
     Variable names match those in the GKM equations
     """
     f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
@@ -227,7 +228,7 @@ def gkm_pasl_function(input_data: dict) -> np.ndarray:
 
     delta_m = np.zeros(f.shape)
 
-    k: np.ndarray = (1 / t1b - 1 / t1_prime)
+    k: np.ndarray = 1 / t1b - 1 / t1_prime
 
     q_pasl_arriving = (
         np.exp(k * t) * (np.exp(-k * delta_t) - np.exp(-k * t)) / (k * (t - delta_t))
@@ -252,7 +253,8 @@ def gkm_pasl_function(input_data: dict) -> np.ndarray:
 
 
 def gkm_casl_function(input_data: dict) -> np.ndarray:
-    """ Function that calculates the gkm for CASL/pCASL
+    # pylint: disable=too-many-locals
+    """Function that calculates the gkm for CASL/pCASL
     Variable names match those in the GKM equations
     """
     f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
@@ -311,7 +313,7 @@ def gkm_casl_function(input_data: dict) -> np.ndarray:
     "validation_data", [TEST_DATA_DICT_PASL_M0_IM, TEST_DATA_DICT_PASL_M0_FLOAT]
 )
 def test_gkm_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the GkmFilter are incorrect or missing
     """
 
@@ -350,7 +352,7 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
 
 
 def test_gkm_filter_pasl(pasl_input):
-    """ Test the GkmFilter for Pulsed ASL """
+    """Test the GkmFilter for Pulsed ASL"""
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
     gkm_filter.run()
@@ -365,6 +367,9 @@ def test_gkm_filter_pasl(pasl_input):
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
     gkm_filter.run()
+
+    # check the m0 is added to the metadata, as all values of m0 for the image are the same
+    gkm_filter.outputs["delta_m"].metadata["m0"] = 1.0
     # 'delta_m' should be all zero
     numpy.testing.assert_array_equal(
         gkm_filter.outputs["delta_m"].image,
@@ -389,7 +394,7 @@ def test_gkm_filter_pasl(pasl_input):
 
 
 def test_gkm_filter_casl(casl_input):
-    """ Test the GkmFilter for Continuous ASL """
+    """Test the GkmFilter for Continuous ASL"""
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
     gkm_filter.run()
@@ -425,6 +430,8 @@ def test_gkm_filter_casl(casl_input):
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
     gkm_filter.run()
+    # check m0 is NOT added to the metadata, as the values are not all the same
+    assert "m0" not in gkm_filter.outputs["delta_m"].metadata
 
 
 @pytest.mark.parametrize(
@@ -439,7 +446,8 @@ def test_gkm_timecourse(
     alpha: str,
     expected: np.ndarray,
 ):
-    """ Tests the GkmFilter with timecourse data that is generated at multiple 'signal_time's.
+    # pylint: disable=too-many-arguments
+    """Tests the GkmFilter with timecourse data that is generated at multiple 'signal_time's.
 
     Arguments:
         f (float): Perfusion Rate, ml/100g/min
@@ -471,3 +479,48 @@ def test_gkm_timecourse(
         delta_m_timecourse[idx] = gkm_filter.outputs["delta_m"].image
     # arrays should be equal to 9 decimal places
     numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 10)
+
+
+def test_gkm_filter_metadata(casl_input):
+    """Test the metadata output from GkmFilter"""
+    gkm_filter = GkmFilter()
+    casl_input["perfusion_rate"].metadata = {
+        "units": "ml/100g/min",
+        "quantity": "perfusion_rate",
+    }
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
+
+    assert gkm_filter.outputs["delta_m"].metadata == {
+        "label_type": casl_input["label_type"].lower(),
+        "label_duration": casl_input["label_duration"],
+        "post_label_delay": casl_input["signal_time"] - casl_input["label_duration"],
+        "label_efficiency": casl_input["label_efficiency"],
+        "lambda_blood_brain": casl_input["lambda_blood_brain"],
+        "t1_arterial_blood": casl_input["t1_arterial_blood"],
+        "image_flavour": "PERFUSION",
+        "m0": 1.0,
+    }
+
+
+def test_gkm_filter_m0_float(casl_input):
+    """Test the GkmFilter when m0 is supplied as a number and not an image"""
+    # set m0 to a float
+    casl_input["m0"] = 100.0
+    casl_input["perfusion_rate"].metadata = {
+        "units": "ml/100g/min",
+        "quantity": "perfusion_rate",
+    }
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
+    assert gkm_filter.outputs["delta_m"].metadata == {
+        "label_type": casl_input["label_type"].lower(),
+        "label_duration": casl_input["label_duration"],
+        "post_label_delay": casl_input["signal_time"] - casl_input["label_duration"],
+        "label_efficiency": casl_input["label_efficiency"],
+        "lambda_blood_brain": casl_input["lambda_blood_brain"],
+        "t1_arterial_blood": casl_input["t1_arterial_blood"],
+        "image_flavour": "PERFUSION",
+        "m0": 100.0,
+    }

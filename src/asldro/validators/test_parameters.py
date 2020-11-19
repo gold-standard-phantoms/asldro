@@ -1,4 +1,5 @@
 """ parameters.py tests """
+from types import SimpleNamespace
 import pytest
 import numpy as np
 from asldro.validators.parameters import (
@@ -17,13 +18,14 @@ from asldro.validators.parameters import (
     greater_than_equal_to_validator,
     for_each_validator,
     isinstance_validator,
+    has_attribute_value_validator,
 )
 from asldro.containers.image import NumpyImageContainer, BaseImageContainer
 
 
 def test_range_inclusive_validator_creator():
-    """ Check the inclusive validator creator raises
-    errors when start >end """
+    """Check the inclusive validator creator raises
+    errors when start >end"""
 
     with pytest.raises(ValueError):
         range_inclusive_validator(2, 1)
@@ -60,8 +62,8 @@ def test_range_inclusive_validator_image_container():
 
 
 def test_range_exclusive_validator_creator():
-    """ Check the exclusive validator creator raises
-    errors when start >= end """
+    """Check the exclusive validator creator raises
+    errors when start >= end"""
     with pytest.raises(ValueError):
         range_exclusive_validator(1, 1)
     with pytest.raises(ValueError):
@@ -93,8 +95,8 @@ def test_range_exclusive_validator_image_container():
 
 
 def test_greater_than_validator_creator():
-    """ Check the greater_than_validator creator raises
-    errors when start is not a number type """
+    """Check the greater_than_validator creator raises
+    errors when start is not a number type"""
     with pytest.raises(TypeError):
         greater_than_validator("str")
     with pytest.raises(TypeError):
@@ -128,8 +130,8 @@ def test_greater_than_validator_image_container():
 
 
 def test_greater_than_equal_to_validator_creator():
-    """ Check the greater_than_equal_to_validator creator raises
-    errors when start is not a number type """
+    """Check the greater_than_equal_to_validator creator raises
+    errors when start is not a number type"""
     with pytest.raises(TypeError):
         greater_than_equal_to_validator("str")
     with pytest.raises(TypeError):
@@ -401,7 +403,8 @@ def test_reserved_string_list_validator():
     )
     assert (
         str(validator)
-        == "Value must be a string combination of ['M0', 'CONTROL', 'LABEL'] separated by '_' (ignoring case)"
+        == "Value must be a string combination of ['M0', 'CONTROL', 'LABEL'] "
+        "separated by '_' (ignoring case)"
     )
     assert validator("m0")
     assert validator("M0")
@@ -427,8 +430,8 @@ def test_for_each_validator():
 
     validator = for_each_validator(greater_than_validator(0.5))
     assert (
-        str(validator)
-        == "Must be a list or tuple and for each value in the list: Value(s) must be greater than 0.5"
+        str(validator) == "Must be a list or tuple and for each value in the "
+        "list: Value(s) must be greater than 0.5"
     )
     assert validator([0.6, 0.7, 0.8])
     assert validator((0.7, 0.51, 0.6))
@@ -436,6 +439,37 @@ def test_for_each_validator():
     assert not validator([0.1, 100, 0.9])
     assert not validator((0.7, 0.1, 0.6))
     assert not validator("not a list or tuple")
+
+
+def test_has_attribute_value_validator_creator():
+    """ Test the has_attribute_value_validator creator """
+
+    # attribute_name must be a string
+    with pytest.raises(TypeError):
+        has_attribute_value_validator(attribute_name=5, attribute_value=5)
+
+
+def test_has_attribute_value_validator():
+    """ Test the has_attribute_value_validator """
+
+    validator = has_attribute_value_validator(
+        attribute_name="a_property", attribute_value="foobar"
+    )
+    assert str(validator) == "Value must have an attribute a_property with value foobar"
+    # has the correct argument with the correct value
+    good_obj = SimpleNamespace(a_property="foobar", b_property=100)
+    # has the correct argument with the incorrect value
+    bad_obj = SimpleNamespace(a_property="notfoobar", b_property=3.0)
+    # has the incorrect argument
+    worse_obj = SimpleNamespace(not_a_property="notfoobar", b_property=1.0)
+
+    assert validator(good_obj)
+    assert not validator(bad_obj)
+    assert not validator(worse_obj)
+    # some other objects that won't have the `foobar` attribute
+    assert not validator("foobar")
+    assert not validator(1)
+    assert not validator([])
 
 
 def test_parameter_validator_valid():
@@ -453,8 +487,8 @@ def test_parameter_validator_valid():
 
 
 def test_parameter_validator_valid_with_optional_parameters():
-    """ Test the parameter validator with some valid example data
-    including a (missing) optional parameter """
+    """Test the parameter validator with some valid example data
+    including a (missing) optional parameter"""
     parameter_validator = ParameterValidator(
         {
             "foo": Parameter(reserved_string_list_validator(["foo", "bar"])),
@@ -495,7 +529,8 @@ def test_parameter_validator_multiple_validators():
 
     with pytest.raises(
         ValidationError,
-        match=r"Parameter a_number with value 1.7 does not meet the following criterion: Value must be in \[1.5, 1.6\]",
+        match=r"Parameter a_number with value 1.7 does not meet the following "
+        r"criterion: Value must be in \[1.5, 1.6\]",
     ):
         parameter_validator.validate({"a_number": 1.7})
 
@@ -514,7 +549,11 @@ def test_parameter_validator_multiple_errors():
 
     with pytest.raises(
         ValidationError,
-        match=r"^Parameter a_number with value 0.9 does not meet the following criterion: Value\(s\) must be between 1 and 2 \(inclusive\)\. Parameter a_number with value 0.9 does not meet the following criterion: Value must be in \[1.5, 1.6\]\. Parameter b_number with value \[1, 2\] does not meet the following criterion: Value must be a list of type str$",
+        match=r"^Parameter a_number with value 0.9 does not meet the following criterion: "
+        r"Value\(s\) must be between 1 and 2 \(inclusive\)\. Parameter a_number with value 0.9 "
+        r"does not meet the following criterion: Value must be in \[1.5, 1.6\]\. "
+        r"Parameter b_number with value \[1, 2\] does not meet the following criterion: "
+        r"Value must be a list of type str$",
     ):
         parameter_validator.validate({"a_number": 0.9, "b_number": [1, 2]})
 
@@ -524,9 +563,9 @@ def test_parameter_validator_bad_error_type():
 
     parameter_validator = ParameterValidator({})
     with pytest.raises(TypeError):
-        parameter_validator({}, error_type="foo")
+        parameter_validator.validate({}, error_type="foo")
     with pytest.raises(TypeError):
-        parameter_validator({}, error_type="foo")
+        parameter_validator.validate({}, error_type="foo")
 
     parameter_validator.validate(
         {}, error_type=ValidationError
@@ -542,4 +581,3 @@ def test_parameter_validator_change_error_type():
 
     with pytest.raises(RuntimeError):
         parameter_validator.validate({}, error_type=RuntimeError)
-

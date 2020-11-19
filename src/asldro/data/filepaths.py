@@ -5,6 +5,17 @@ import os
 DATA_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-HRGT_ICBM_2009A_NLS_V3_NIFTI = os.path.join(DATA_DIR, "hrgt_ICBM_2009a_NLS_v3.nii.gz")
+GROUND_TRUTH_DATA = {
+    "hrgt_icbm_2009a_nls_3t": {
+        "json": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_3t.json"),
+        "nii": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_3t.nii.gz"),
+    },
+    "hrgt_icbm_2009a_nls_1.5t": {
+        "json": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.json"),
+        "nii": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.nii.gz"),
+    },
+}
 
-HRGT_ICBM_2009A_NLS_V3_JSON = os.path.join(DATA_DIR, "hrgt_ICBM_2009a_NLS_v3.json")
+ASL_BIDS_SCHEMA = os.path.join(DATA_DIR, "asl_bids_validator.json")
+
+M0SCAN_BIDS_SCHEMA = os.path.join(DATA_DIR, "m0scan_bids_validator.json")

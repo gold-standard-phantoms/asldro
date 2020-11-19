@@ -10,12 +10,12 @@ from asldro.containers.image import BaseImageContainer
 
 
 def transform_resample_image(
-    image: [nib.Nifti1Image, nib.Nifti2Image],
+    image: Union[nib.Nifti1Image, nib.Nifti2Image, BaseImageContainer],
     translation: Tuple[float, float, float],
     rotation: Tuple[float, float, float],
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
-) -> Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]:
+) -> Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.ndarray]:
     """
     Transforms and resamples a nibabel NIFTI image in world-space
 
@@ -35,15 +35,14 @@ def transform_resample_image(
         scaling and not motion, i.e. the image FOV is the same as the input image FOV.
     :rtype: Tuple[Union[nib.Nifti2Image, nib.Nifti2Image], np.array]
     """
-    (target_affine, sampled_image_affine) = transform_resample_affine(
+    target_affine_with_motion, target_affine_no_motion = transform_resample_affine(
         image, translation, rotation, rotation_origin, target_shape
     )
-    sampled_image: nib.Nifti2Image = nil.image.resample_img(
-        image, target_affine=target_affine, target_shape=target_shape
+    resampled_image: nib.Nifti2Image = nil.image.resample_img(
+        image, target_affine=target_affine_with_motion, target_shape=target_shape
     )
-    # update the resampled image's affine
-    sampled_image.set_sform(sampled_image_affine)
-    return (sampled_image, target_affine)
+    resampled_image.set_sform(target_affine_no_motion)
+    return resampled_image, target_affine_with_motion
 
 
 def transform_resample_affine(
@@ -52,7 +51,7 @@ def transform_resample_affine(
     rotation: Tuple[float, float, float],
     rotation_origin: Tuple[float, float, float],
     target_shape: Tuple[int, int, int],
-) -> (np.array, np.array):
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Calculates the affine matrices that transform and resample an image in world-space. Note that
     while an image (NIFTI or BaseImageContainer derived) is accepted an an argument, the image
@@ -68,9 +67,10 @@ def transform_resample_affine(
     :type rotation_origin: Tuple[float, float, float]
     :param target_shape: target shape for the resampled image
     :type target_shape: Tuple[int, int, int]
-    :return: [`target_affine`, `resampled_image_affine`]. `target_affine` is the affine to supply to
-        a resampling function. Set the resampled image's affine to `resampled_image_affine`
-        so that it only has the resampling operation performed (not the motion)
+    :return: [`target_affine_with_motion`, `target_affine_no_motion`]. `target_affine_with_motion`
+        is the affine to supply to a resampling function.  After resampling theresampled image's
+        affine should be set to to `target_affine_no_motion` so that it only has the
+        image formation (scaling) operation performed (not the motion)
     :rtype: Tuple[np.array, np.array]
     """
     scale = np.array(image.shape) / np.array(target_shape)
@@ -82,7 +82,6 @@ def transform_resample_affine(
     motion_model_rotation_affine = (
         rot_x_mat(rotation[0]) @ rot_y_mat(rotation[1]) @ rot_z_mat(rotation[2])
     )
-    inverse_motion_model_rotation_affine = np.linalg.inv(motion_model_rotation_affine)
     motion_model_translation_affine = translate_mat(translation)
     rotation_centre_translation_affine = translate_mat(rotation_origin)
     inverse_rotation_centre_translation_affine = translate_mat(
@@ -97,18 +96,10 @@ def transform_resample_affine(
         @ inverse_rotation_centre_translation_affine
     )
 
-    # Assuming coordinates are in rotated world space, will perform the translation
-    # component of the motion model
-    rotated_world_space_translation_affine = (
-        motion_model_rotation_affine
-        @ motion_model_translation_affine
-        @ inverse_motion_model_rotation_affine
-    )
-
     # Assuming coordinates are in world space, will perform the rotation and
     # translation components of the motion model
     translated_rotated_world_space_affine = (
-        rotated_world_space_translation_affine @ world_space_rotation_affine
+        motion_model_translation_affine @ world_space_rotation_affine
     )
 
     # Will perform a voxel sampling as per the desired output_voxel_size (must be in
@@ -119,20 +110,26 @@ def transform_resample_affine(
     # - the motion model is applied
     # - the resampling is applied
     # - the FOV is created at the correct location by image-space translation
+
+    # set the target origin to the input image origin - this needs to account
+    # for the image scaling so divide by the output voxel size
+    resampling_translate_affine = inv(
+        translate_mat(source_image_to_world[:3, 3] / output_voxel_size)
+    )
+
     world_to_target_affine = (
-        translate_mat(
-            np.array(target_shape) / 2
-        )  # Set the target origin to the image centre (in image space)
+        resampling_translate_affine
         @ resampling_affine
         @ translated_rotated_world_space_affine
     )
     # Invert to get target to world space, as per the `affine` nifti specification
-    target_affine = inv(world_to_target_affine)
-    sampled_image_affine = inv(resampling_affine @ inv(image.affine))
-    return (target_affine, sampled_image_affine)
+    target_affine_with_motion = inv(world_to_target_affine)
+    target_affine_no_motion = inv(resampling_translate_affine @ resampling_affine)
+
+    return (target_affine_with_motion, target_affine_no_motion)
 
 
-def rot_x_mat(theta: float) -> np.array:
+def rot_x_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about x
 
     :param theta: angle to rotate about x in degrees
@@ -151,7 +148,7 @@ def rot_x_mat(theta: float) -> np.array:
     )
 
 
-def rot_y_mat(theta: float) -> np.array:
+def rot_y_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about y
 
     :param theta: angle to rotate about y in degrees
@@ -170,7 +167,7 @@ def rot_y_mat(theta: float) -> np.array:
     )
 
 
-def rot_z_mat(theta: float) -> np.array:
+def rot_z_mat(theta: float) -> np.ndarray:
     """creates a 4x4 affine performing rotations about z
 
     :param theta: angle to rotate about z in degrees
@@ -189,7 +186,9 @@ def rot_z_mat(theta: float) -> np.array:
     )
 
 
-def translate_mat(translation: Tuple[float, float, float]) -> np.array:
+def translate_mat(
+    translation: Union[Tuple[float, float, float], np.ndarray]
+) -> np.ndarray:
     """Creates a 4x4 affine performing translations
 
     :param vector: describes (x, y, z) to translate along respective axes
@@ -207,7 +206,7 @@ def translate_mat(translation: Tuple[float, float, float]) -> np.array:
     )
 
 
-def scale_mat(scale: Tuple[float, float, float]) -> np.array:
+def scale_mat(scale: Union[Tuple[float, float, float], np.ndarray]) -> np.ndarray:
     """Creates a 4x4 affine performing scaling
 
     :param vector: describes (sx, sy, sz) scaling factors

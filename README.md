@@ -1,4 +1,35 @@
+# Overview
+
+ASL DRO is software that can generate digital reference objects for Arterial Spin Labelling (ASL) MRI.
+It creates synthetic raw ASL data according to set acquisition and data format parameters, based
+on input ground truth maps for:
+
+
+* Perfusion rate
+
+
+* Transit time
+
+
+* Intrinsic MRI parameters: M0, T1, T2, T2\*
+
+
+* Tissue segmentation (defined as a single tissue type per voxel)
+
+Synthetic data is generated in Brain Imaging Data Structure format, comprising of a NIFTI image file
+and accompanying json sidecar containing parameters.
+
+ASLDRO was developed to address the need to test ASL image processing pipelines with data that has
+a known ground truth. A strong emphasis has been placed on ensuring traceability of the developed
+code, in particular with respect to testing.  The DRO pipelines uses a ‘pipe and filter’ architecture
+with ‘filters’ performing data processing, which provides a common interface between processing
+blocks.
+
 # Installation
+
+ASLDRO can be installed as a module directly from the python package index.  Once installed it can
+simply be run as a command-line tool.  For more information how to use a python package in this
+way please see [https://docs.python.org/3/installing/index.html](https://docs.python.org/3/installing/index.html)
 
 ## Python Version
 
@@ -85,24 +116,6 @@ Documentation Overview.
 
 # Quickstart
 
-## Overview
-
-ASL DRO is software that can generate digital reference objects for Arterial Spin Labelling (ASL) MRI.
-It creates synthetic raw ASL data according to set acquisition and data format parameters, based
-on input ground truth maps for:
-
-
-* Perfusion rate
-
-
-* Transit time
-
-
-* Intrinsic MRI parameters: M0, T1, T2, T2\*
-
-
-* Tissue segmentation (defined as a single tissue type per voxel)
-
 ## Getting started
 
 Eager to get started? This page gives a good introduction to ASL DRO.
@@ -130,64 +143,42 @@ asldro output params /path/to/input_params.json
 ```
 
 which will create the `/path/to/input_params.json` file. The parameters may be adjusted as
-necessary and used with the ‘generate’ command. The input parameters will include, as default:
+necessary and used with the ‘generate’ command.
+
+For details on input parameters see Parameters
+
+It is also possible to output the high-resolution ground-truth (HRGT) files.
+To get a list of the available data, type:
 
 ```
-{
-  "asl_context": "m0scan control label",
-  "label_type": "pcasl",
-  "label_duration": 1.8,
-  "signal_time": 3.6,
-  "label_efficiency": 0.85,
-  "echo_time": [0.01, 0.01, 0.01],
-  "repetition_time": [10.0, 5.0, 5.0],
-  "rot_z": [0.0, 0.0, 0.0],
-  "rot_y": [0.0, 0.0, 0.0],
-  "rot_x": [0.0, 0.0, 0.0],
-  "transl_x": [0.0, 0.0, 0.0],
-  "transl_y": [0.0, 0.0, 0.0],
-  "transl_z": [0.0, 0.0, 0.0],
-  "acq_matrix": [64, 64, 12],
-  "acq_contrast": "se",
-  "desired_snr": 10.0,
-  "random_seed": 0
-}
+asldro output hrgt -h
 ```
 
-The parameters may be adjusted as necessary. The parameter asl_context defines the number of
-simulated acquisition volumes that should be generated.  The following array parameters need to
-have the same number of entries as there are defined volumes:
+To output the HRGT, type:
 
+```
+asldro output hrgt HRGT OUTPUT_DIR
+```
 
-* `echo_time`
-
-
-* `repetition_time`
-
-
-* `rot_z`
-
-
-* `rot_y`
-
-
-* `rot_x`
-
-
-* `transl_x`
-
-
-* `transl_y`
-
-
-* `transl_z`
-
-For more details on input parameters see Parameters
+where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
 
 ## Pipeline details
 
-The DRO currently runs using the default ground truth.
-Future releases will allow this to be configured.  The pipeline comprises of:
+There are three pipelines available in ASLDRO
+
+
+* The full ASL pipeline.
+
+
+* A structural MRI pipeline (generates gradient echo, spin echo or inversion recovery signal).
+
+
+* A ground truth pipeline that simply resamples the input ground truth to the specified resolution.
+
+In a single instance of ASLDRO, the input parameter file can configure any number and configurations
+of these pipelines to be run, much in the way that this can be done on an MRI scanner.
+
+The full ASL pipeline comprises of:
 
 
 1. Loading in the ground truth volumes.
@@ -207,6 +198,9 @@ Future releases will allow this to be configured.  The pipeline comprises of:
 
 6. Adding instrument and physiological pseudorandom noise.
 
+The structural pipeline excludes the General Kinetic Model, and just generates volumes with synthetic
+MR contrast.  The ground truth pipeline only has the motion model and sampling.
+
 Each volume described in `asl_context` has the motion, resampling and noise processes applied
 independently. The rotation and translation arrays in the input parameters describe this motion, and
 the the random number generator is initialised with the same seed each time the DRO is run, so each
@@ -214,16 +208,16 @@ volume will have noise that is unique, but statistically the same.
 
 If `desired_snr` is set to `0`, the resultant images will not have any noise applied.
 
-Once the pipeline is run, the following images are created:
+Each pipeline outputs files in BIDS ([https://bids.neuroimaging.io/](https://bids.neuroimaging.io/)) format, consisting of a NIFTI
+image file and accompanying json sidecar. In the case of an ASL image an
+additional 
 
+```
+*
+```
 
-* Timeseries of magnitude ASL volumes in accordance with `asl_context` (asl_source_magnitude.nii.gz)
-
-
-* Ground truth perfusion rate, resampled to `acq_matrix` (gt_cbf_acq_res_nii.gz)
-
-
-* Ground truth tissue segmentation mask, resampled to `acq_matrix` (gt_labelmask_acq_res.nii.gz)
+_aslcontext.tsv file is also generated which describes the ASL volumes
+present in the timeseries.
 
 The DRO pipeline is summarised in this schematic (click to view full-size):
 

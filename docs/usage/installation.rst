@@ -1,6 +1,9 @@
 Installation
 ============
 
+ASLDRO can be installed as a module directly from the python package index.  Once installed it can
+simply be run as a command-line tool.  For more information how to use a python package in this
+way please see https://docs.python.org/3/installing/index.html
 
 Python Version
 --------------

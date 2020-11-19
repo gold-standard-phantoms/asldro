@@ -8,18 +8,17 @@ from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
     isinstance_validator,
-    greater_than_validator,
     greater_than_equal_to_validator,
 )
 
 
 class AddComplexNoiseFilter(FilterBlock):
-    """ A filter that adds normally distributed random noise
+    """A filter that adds normally distributed random noise
     to the real and imaginary parts of the fourier transform of the input image.
 
     **Inputs**
 
-    Input parameters are all keyword arguments for the :class:`AddComplexNoiseFilter.add_inputs()` 
+    Input parameters are all keyword arguments for the :class:`AddComplexNoiseFilter.add_inputs()`
     member function.  They are also accessible via class constants, for example
     :class:`AddComplexNoiseFilter.KEY_SNR`.
 
@@ -54,14 +53,15 @@ class AddComplexNoiseFilter(FilterBlock):
         super().__init__(name="Add Complex Noise")
 
     def _create_filter_block(self):
-        """ Fourier transforms the input and reference images, calculates
+        """Fourier transforms the input and reference images, calculates
         the noise amplitude, adds this to the FT of the input image, then
-        inverse fourier transforms to obtain the output image """
+        inverse fourier transforms to obtain the output image"""
 
         input_image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
 
-        # if self.inputs["snr"] == 0  then the input image should just be passed through to the output.
-        # because this is a filter block it needs to be done by another filter - fortunately
+        # if self.inputs["snr"] == 0  then the input image should just be
+        # passed through to the output.
+        # Because this is a filter block it needs to be done by another filter - fortunately
         # the AddNoiseFilter does just this when AddNoiseFilter.inputs["snr"] = 0
         if self.inputs[self.KEY_SNR] == 0:
 
@@ -69,31 +69,28 @@ class AddComplexNoiseFilter(FilterBlock):
             add_noise_filter.add_input(self.KEY_IMAGE, input_image)
             add_noise_filter.add_input(self.KEY_SNR, self.inputs[self.KEY_SNR])
             return add_noise_filter
+        # snr is greater than 0 so run the filter block normally
+        # Fourier transform the input image
+        image_fft_filter = FftFilter()
+        image_fft_filter.add_input(self.KEY_IMAGE, input_image)
+
+        # Create the noise filter
+        add_noise_filter = AddNoiseFilter()
+        add_noise_filter.add_parent_filter(image_fft_filter)
+        add_noise_filter.add_input(self.KEY_SNR, self.inputs[self.KEY_SNR])
+
+        # If present load the reference image, if not, copy the input_image
+        if self.KEY_REF_IMAGE in self.inputs:
+            add_noise_filter.add_input(
+                self.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE]
+            )
         else:
-            # snr is greater than 0 so run the filter block normally
-            # Fourier transform the input image
-            image_fft_filter = FftFilter()
-            image_fft_filter.add_input(self.KEY_IMAGE, input_image)
+            add_noise_filter.add_input(self.KEY_REF_IMAGE, self.inputs[self.KEY_IMAGE])
 
-            # Create the noise filter
-            add_noise_filter = AddNoiseFilter()
-            add_noise_filter.add_parent_filter(image_fft_filter)
-            add_noise_filter.add_input(self.KEY_SNR, self.inputs[self.KEY_SNR])
-
-            # If present load the reference image, if not, copy the input_image
-            if self.KEY_REF_IMAGE in self.inputs:
-                add_noise_filter.add_input(
-                    self.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE]
-                )
-            else:
-                add_noise_filter.add_input(
-                    self.KEY_REF_IMAGE, self.inputs[self.KEY_IMAGE]
-                )
-
-            # Inverse Fourier Transform and set the output
-            ifft_filter = IfftFilter()
-            ifft_filter.add_parent_filter(add_noise_filter)
-            return ifft_filter
+        # Inverse Fourier Transform and set the output
+        ifft_filter = IfftFilter()
+        ifft_filter.add_parent_filter(add_noise_filter)
+        return ifft_filter
 
     def _validate_inputs(self):
         """

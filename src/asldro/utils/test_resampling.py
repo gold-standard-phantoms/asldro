@@ -1,4 +1,5 @@
 """ Tests for the utility functions in resampling.py """
+# pylint: disable=duplicate-code
 
 from typing import Tuple, Union
 import pytest
@@ -31,8 +32,18 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (32, 32, 32),  # target_shape
-        (-6.0, -6.0, -6.0, 1.0),  # expected_target
-        (10.0, 10.0, 10.0, 1.0),  # expected_resampled
+        (
+            10.0,
+            10.0,
+            10.0,
+            1.0,
+        ),  # expected_target
+        (
+            10.0,
+            10.0,
+            10.0,
+            1.0,
+        ),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -40,8 +51,18 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (4.0, 4.0, 4.0, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (
+            20.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_target
+        (
+            20.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -49,8 +70,18 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (-86, 4.0, 4.0, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (
+            -70.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_target
+        (
+            20.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_resampled
     ),
     (
         TEST_NIFTI_CONTAINER_ONES,  # image
@@ -58,8 +89,18 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (0, 4.0, 5.656854249492380, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (
+            -0.000000000,
+            20.000000000,
+            28.284271247,
+            1.000000000,
+        ),  # expected_target
+        (
+            20.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_resampled
     ),
     (
         TEST_NUMPY_CONTAINER_ONES,  # image
@@ -67,8 +108,18 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 5.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (-26.464466094067262, 4.0, 7.121320343559638, 1.0),  # expected_target
-        (20.0, 20.0, 20.0, 1.0),  # expected_resampled
+        (
+            -17.677669530,
+            20.000000000,
+            8.535533906,
+            1.000000000,
+        ),  # expected_target
+        (
+            20.0,
+            20.0,
+            20.0,
+            1.0,
+        ),  # expected_resampled
     ),
 )
 
@@ -87,7 +138,8 @@ def test_transform_resample_affine(
     expected_target: Tuple[float, float, float, float],
     expected_resampled: Tuple[float, float, float, float],
 ):
-    """ test the function transform_resample_affine
+    # pylint: disable=too-many-arguments
+    """test the function transform_resample_affine
     To simplify inputs, the resultant affines are multiplied by the vector (10.0, 10.0, 10.0, 1.0)
     and this value compared withe expected values
 
@@ -107,7 +159,7 @@ def test_transform_resample_affine(
     :param expected_resampled: expected value of target_affine @ vector (homogeneous coords)
     :type expected_resampled: Tuple[float, float, float, float]
 
-     """
+    """
     target_affine, resampled_affine = rs.transform_resample_affine(
         image, translation, rotation, rotation_origin, target_shape
     )
@@ -124,52 +176,10 @@ def test_transform_resample_image_mock_data():
     """ Test the transform_resample_image function with mock data"""
     # Create some synthetic data
 
-    grid = np.mgrid[0:128, 0:128]
-    circle = (
-        np.sum((grid - np.array([32, 32])[:, np.newaxis, np.newaxis]) ** 2, axis=0)
-        < 256
-    )
-    diamond = (
-        np.sum(np.abs(grid - np.array([75, 32])[:, np.newaxis, np.newaxis]), axis=0)
-        < 16
-    )
-    rectangle = (
-        np.max(np.abs(grid - np.array([64, 64])[:, np.newaxis, np.newaxis]), axis=0)
-        < 16
-    )
-    image = np.zeros_like(circle)
-    image = image + circle + 2.0 * rectangle + 3.0 * diamond + np.eye(128)
-
-    image = numpy.expand_dims(image, axis=2)
-
-    # define world coordinate origin (x,y,z) = (0,0,0) at (i,j,k) = (64,64,1)
-    # and 1 voxel == 1mm isotropically
-    # therefore according to RAS+:
-    source_affine = np.array(
-        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, -0.5), (0, 0, 0, 1))
-    )
-
     rotation = (0.0, 0.0, 45.0)
-    rotation_origin = tuple(
-        np.array(nil.image.coord_transform(75, 32, 0, source_affine)).astype(float)
-    )
-    # rotation_origin = (0.0, 0.0, 0.0)
     translation = (0.0, 10.0, 0.0)
     target_shape = (64, 64, 1)
-
-    image[
-        tuple(
-            np.rint(
-                nil.image.coord_transform(
-                    rotation_origin[0],
-                    rotation_origin[1],
-                    rotation_origin[2],
-                    np.linalg.inv(source_affine),
-                )
-            ).astype(np.int32)
-        )
-    ] = 5.0
-    nifti_image = nib.Nifti2Image(image, affine=source_affine)
+    (nifti_image, rotation_origin) = create_test_image()
 
     # use transform_resample_affine to obtain the affine
     target_affine_1, resampled_affine = rs.transform_resample_affine(
@@ -196,8 +206,67 @@ def test_transform_resample_image_mock_data():
     numpy.testing.assert_array_equal(resampled_affine, resampled_nifti_2.affine)
 
 
+def create_test_image() -> Tuple[NiftiImageContainer, Tuple[float, float, float]]:
+    grid = np.mgrid[0:128, 0:128]
+    circle = (
+        np.sum((grid - np.array([32, 32])[:, np.newaxis, np.newaxis]) ** 2, axis=0)
+        < 256
+    )
+    diamond = (
+        np.sum(np.abs(grid - np.array([75, 32])[:, np.newaxis, np.newaxis]), axis=0)
+        < 16
+    )
+    rectangle = (
+        np.max(np.abs(grid - np.array([64, 64])[:, np.newaxis, np.newaxis]), axis=0)
+        < 16
+    )
+    image = np.zeros_like(circle)
+    image = image + circle + 2.0 * rectangle + 3.0 * diamond + np.eye(128)
+
+    image = np.expand_dims(image, axis=2)
+
+    # define world coordinate origin (x,y,z) = (0,0,0) at (i,j,k) = (64,64,1)
+    # and 1 voxel == 1mm isotropically
+    # therefore according to RAS+:
+    source_affine = np.array(
+        ((1, 0, 0, -64), (0, 1, 0, -64), (0, 0, 1, -0.5), (0, 0, 0, 1))
+    )
+
+    rotation_origin = tuple(
+        np.array(nil.image.coord_transform(75, 32, 0, source_affine)).astype(float)
+    )
+
+    image[
+        tuple(
+            np.rint(
+                nil.image.coord_transform(
+                    rotation_origin[0],
+                    rotation_origin[1],
+                    rotation_origin[2],
+                    np.linalg.inv(source_affine),
+                )
+            ).astype(np.int32)
+        )
+    ] = 5.0
+
+    image[
+        tuple(
+            np.rint(
+                nil.image.coord_transform(
+                    0,
+                    0,
+                    0,
+                    np.linalg.inv(source_affine),
+                )
+            ).astype(np.int32)
+        )
+    ] = 6.0
+    return (nib.Nifti2Image(image, affine=source_affine), rotation_origin)
+
+
 @pytest.mark.parametrize(
-    "theta, expected", atd.ROT_X_TEST_DATA,
+    "theta, expected",
+    atd.ROT_X_TEST_DATA,
 )
 def test_rot_x_mat(theta: float, expected: np.ndarray):
     """ Tests rot_x_mat with some angles, comparing against expected values """
@@ -205,7 +274,8 @@ def test_rot_x_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "theta, expected", atd.ROT_Y_TEST_DATA,
+    "theta, expected",
+    atd.ROT_Y_TEST_DATA,
 )
 def test_rot_y_mat(theta: float, expected: np.ndarray):
     """ Tests rot_y_mat with some angles, comparing against expected values """
@@ -213,7 +283,8 @@ def test_rot_y_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "theta, expected", atd.ROT_Z_TEST_DATA,
+    "theta, expected",
+    atd.ROT_Z_TEST_DATA,
 )
 def test_rot_z_mat(theta: float, expected: np.ndarray):
     """ Tests rot_z_mat with some angles, comparing against expected values """
@@ -221,7 +292,8 @@ def test_rot_z_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "vector, expected", atd.TRANSLATE_TEST_DATA,
+    "vector, expected",
+    atd.TRANSLATE_TEST_DATA,
 )
 def test_translate_mat(vector: Tuple[float, float, float], expected: np.ndarray):
     """ Tests translate_mat with some translation vectors, comparing against expected values """
@@ -229,7 +301,8 @@ def test_translate_mat(vector: Tuple[float, float, float], expected: np.ndarray)
 
 
 @pytest.mark.parametrize(
-    "scale, expected", atd.SCALE_TEST_DATA,
+    "scale, expected",
+    atd.SCALE_TEST_DATA,
 )
 def test_scale_mat(scale: Tuple[float, float, float], expected: np.ndarray):
     """ Tests scale_mat with some scale factors, comparing against expected values """

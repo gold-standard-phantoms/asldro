@@ -1,4 +1,5 @@
 """ Transform Resample image Filter Tests """
+# pylint: disable=duplicate-code
 
 from copy import deepcopy
 
@@ -60,7 +61,7 @@ def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
 def test_transform_resample_image_filter_validate_inputs(validation_data: dict):
-    """ Check a FilterInputValidationError is raised when the
+    """Check a FilterInputValidationError is raised when the
     inputs to the TransformResampleImageFilter are incorrect or missing
     """
     # Check with all data that should pass
@@ -171,7 +172,7 @@ def test_transform_resample_image_filter_mock_data():
     ]
 
     ### function called here
-    str_nifti, target_affine = transform_resample_image(
+    str_nifti, _ = transform_resample_image(
         nifti_image, translation, rotation, rotation_origin, target_shape
     )
 
@@ -179,3 +180,9 @@ def test_transform_resample_image_filter_mock_data():
     numpy.testing.assert_array_equal(str_nifti.dataobj, new_nifti_container.image)
     # Affines should match
     numpy.testing.assert_array_equal(str_nifti.affine, new_nifti_container.affine)
+
+    # confirm the voxel_size is calculated correctly.
+    numpy.testing.assert_array_equal(
+        new_nifti_container.metadata["voxel_size"],
+        nib.affines.voxel_sizes(new_nifti_container.affine),
+    )

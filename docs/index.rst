@@ -1,6 +1,8 @@
 Welcome to ASL DRO's documentation!
 ===================================
 
+.. include:: usage/overview.rst
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -8,7 +10,8 @@ Welcome to ASL DRO's documentation!
    usage/installation
    usage/quickstart
    usage/development
-   usage/parameters
+   usage/parameters   
+   usage/ground_truth
    api
 
 

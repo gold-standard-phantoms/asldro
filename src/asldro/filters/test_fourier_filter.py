@@ -1,4 +1,5 @@
 """ FftFilter and IfftFilter tests """
+# pylint: disable=duplicate-code
 
 import pytest
 import numpy as np
@@ -8,23 +9,21 @@ from asldro.filters.fourier_filter import FftFilter, IfftFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.containers.image import (
+    COMPLEX_IMAGE_TYPE,
     NiftiImageContainer,
     NumpyImageContainer,
     SPATIAL_DOMAIN,
     INVERSE_DOMAIN,
 )
 from asldro.filters.nifti_loader import NiftiLoaderFilter
-from asldro.data.filepaths import (
-    HRGT_ICBM_2009A_NLS_V3_JSON,
-    HRGT_ICBM_2009A_NLS_V3_NIFTI,
-)
+from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 
 
 def test_fourier_filters_ifft_validation():
-    """ Check that running an ifft on in SPATIAL_DOMAIN image raises a
-    FilterInputValidationError """
+    """Check that running an ifft on in SPATIAL_DOMAIN image raises a
+    FilterInputValidationError"""
     image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=SPATIAL_DOMAIN)
 
@@ -35,8 +34,8 @@ def test_fourier_filters_ifft_validation():
 
 
 def test_fourier_filters_fft_validation():
-    """ Check that running an fft on an INVERSE_DOMAIN image raises a
-    FilterInputValidationError """
+    """Check that running an fft on an INVERSE_DOMAIN image raises a
+    FilterInputValidationError"""
     image_data = np.random.normal(0, 1, TEST_VOLUME_DIMENSIONS)
     image_container = NumpyImageContainer(image=image_data, data_domain=INVERSE_DOMAIN)
 
@@ -47,8 +46,8 @@ def test_fourier_filters_fft_validation():
 
 
 def test_fourier_filter_wrong_input_type_error():
-    """ Check a FilterInputValidationError is raises when the inputs
-    to the fourier filter `image` is incorrect or missing """
+    """Check a FilterInputValidationError is raises when the inputs
+    to the fourier filter `image` is incorrect or missing"""
 
     ifft_filter = IfftFilter()
     ifft_filter.add_input("dummy", 1)  # won't run without input
@@ -68,8 +67,7 @@ def test_fourier_filter_wrong_input_type_error():
 
 
 def test_fourier_filters_with_mock_data():
-    """ Test the fft filter with some data + its discrete fourier transform
-    """
+    """Test the fft filter with some data + its discrete fourier transform"""
     # Create a 3D numpy image of normally distributed noise
     # fft to obtain k-space data, then ifft that to go back
     # to the image
@@ -89,11 +87,17 @@ def test_fourier_filters_with_mock_data():
     # Check that the output of the fft_filter is in the INVERSE_DOMAIN
     assert fft_filter.outputs["image"].data_domain == INVERSE_DOMAIN
 
+    # Check the output image is labelled as COMPLEX
+    assert fft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
+
     # Compare the fft_filter output image with kspace_data
     numpy.testing.assert_array_equal(fft_filter.outputs["image"].image, kspace_data)
 
     # Check that the output of the ifft_filter is in the SPATIAL_DOMAIN
     assert ifft_filter.outputs["image"].data_domain == SPATIAL_DOMAIN
+
+    # Check the output image is labelled as COMPLEX
+    assert ifft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
 
     # Compare the ifft_filter_output image with inverse_transformed_image_data
     numpy.testing.assert_array_equal(
@@ -104,12 +108,15 @@ def test_fourier_filters_with_mock_data():
 @pytest.mark.slow
 def test_fourier_filters_with_test_data():
     """ Tests the fourier filters with some test data """
-
     json_filter = JsonLoaderFilter()
-    json_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_JSON)
+    json_filter.add_input(
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"]
+    )
 
     nifti_filter = NiftiLoaderFilter()
-    nifti_filter.add_input("filename", HRGT_ICBM_2009A_NLS_V3_NIFTI)
+    nifti_filter.add_input(
+        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"]
+    )
 
     ground_truth_filter = GroundTruthLoaderFilter()
     ground_truth_filter.add_parent_filter(nifti_filter)
@@ -135,11 +142,17 @@ def test_fourier_filters_with_test_data():
     # Check that the output of the fft_filter is in the INVERSE_DOMAIN
     assert fft_filter.outputs["image"].data_domain == INVERSE_DOMAIN
 
+    # Check the output image is labelled as COMPLEX
+    assert fft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
+
     # Compare the fft_filter output image with kspace_data
     numpy.testing.assert_array_equal(fft_filter.outputs["image"].image, m0_kspace_array)
 
     # Check that the output of the ifft_filter is in the SPATIAL_DOMAIN
     assert ifft_filter.outputs["image"].data_domain == SPATIAL_DOMAIN
+
+    # Check the output image is labelled as COMPLEX
+    assert ifft_filter.outputs["image"].image_type == COMPLEX_IMAGE_TYPE
 
     # Compare the ifft_filter_output image with inverse_transformed_image_data
     numpy.testing.assert_array_equal(
