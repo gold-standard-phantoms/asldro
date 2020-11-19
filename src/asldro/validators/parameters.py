@@ -4,7 +4,7 @@ be found on the class 'ParameterValidator'
 """
 import re
 from copy import deepcopy
-from typing import Tuple, Union, List, Dict, Callable, Any
+from typing import Tuple, Union, List, Dict, Callable, Any, Type
 
 from asldro.containers.image import BaseImageContainer
 
@@ -174,7 +174,7 @@ def of_length_validator(length: int) -> Validator:
     )
 
 
-def list_of_type_validator(a_type: Union[type, Tuple[type]]) -> Validator:
+def list_of_type_validator(a_type: Union[type, Tuple[type, ...]]) -> Validator:
     """
     Validates that a given value is a list of the given type(s).
     a_type: a type e.g. str, or a tuple of types e.g. (int, str)
@@ -304,7 +304,7 @@ class Parameter:
 
     def __init__(
         self,
-        validators: Union[callable, List[callable]],
+        validators: Union[Callable[..., bool], List[Callable[..., bool]]],
         default_value=None,
         optional=False,
     ):
@@ -362,7 +362,7 @@ class ParameterValidator:
             if not isinstance(post_validator, Validator):
                 raise TypeError("All items in post_validators must be a Validator")
 
-        self.parameters: Dict[Parameter] = parameters
+        self.parameters: Dict[str, Parameter] = parameters
         self.post_validators: List[Validator] = post_validators
 
     def get_defaults(self):
@@ -377,7 +377,7 @@ class ParameterValidator:
                 defaults[parameter_key] = parameter_value.default_value
         return defaults
 
-    def validate(self, d: dict, error_type: type = ValidationError) -> dict:
+    def validate(self, d: dict, error_type: Type[Exception] = ValidationError) -> dict:
         """
         Validate an input dictionary, replacing missing dictionary entries with default values.
         If any of the dictionary entries are invalid w.r.t. any of the validators, a
@@ -392,9 +392,7 @@ class ParameterValidator:
         """
         # error_type must derived from Exception
         if not issubclass(error_type, Exception):
-            raise TypeError(
-                f"error_type must be a subclass of Exception, is {error_type.__name__}."
-            )
+            raise TypeError("error_type must be a subclass of Exception")
         return_dict = deepcopy(d)
         errors = []
         # Check all non-optional parameters are present

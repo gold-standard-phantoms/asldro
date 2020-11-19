@@ -119,6 +119,12 @@ class GkmFilter(BaseFilter):
         # place the m0 value in the metadata field "m0"
         if isinstance(self.inputs[self.KEY_M0], BaseImageContainer):
             m0_tissue: np.ndarray = self.inputs[self.KEY_M0].image
+            # Get a flattened view of nD numpy array
+            flatten_arr = np.ravel(m0_tissue)
+            # Check if all value in array are equal and update metadata if so
+            if np.all(m0_tissue == flatten_arr[0]):
+                metadata[self.KEY_M0] = flatten_arr[0]
+
         else:
             m0_tissue: np.ndarray = self.inputs[self.KEY_M0] * np.ones(
                 perfusion_rate.shape
@@ -160,11 +166,8 @@ class GkmFilter(BaseFilter):
             # do GKM for PASL
             logger.info("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (
-                (1 / t1_arterial_blood if t1_arterial_blood != 0 else 0)
-                - np.divide(
-                    1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0
-                )
-            )
+                1 / t1_arterial_blood if t1_arterial_blood != 0 else 0
+            ) - np.divide(1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0)
             # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
             # numerator and denominator separately for q_pasl_arriving
             numerator = np.exp(k * signal_time) * (
@@ -307,7 +310,7 @@ class GkmFilter(BaseFilter):
         }
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation criteria
+        """Checks that the inputs meet their validation criteria
         'perfusion_rate' must be derived from BaseImageContainer and be >= 0
         'transit_time' must be derived from BaseImageContainer and be >= 0
         'm0' must be either a float or derived from BaseImageContainer and be >= 0
@@ -319,7 +322,7 @@ class GkmFilter(BaseFilter):
         't1_arterial_blood' must be a float between 0 and 100
 
         all BaseImageContainers supplied should be the same dimensions
-         """
+        """
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_PERFUSION_RATE: Parameter(

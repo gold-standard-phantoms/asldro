@@ -14,52 +14,77 @@ from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.containers.image import NiftiImageContainer
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 
-TEST_VOLUME_DIMENSIONS = (3, 3, 3, 1, 7)
-TEST_NIFTI_ONES = nib.Nifti2Image(np.ones(TEST_VOLUME_DIMENSIONS), affine=np.eye(4),)
 
-TEST_NIFTI_CON_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES)
+@pytest.fixture(name="input_validation_dict")
+def input_validation_dict_fixture():
+    """Returns an object of tuples containing test data for
+    input validation of the GroundTruthLoaderFilter"""
+    test_volume_dimensions = (3, 3, 3, 1, 7)
+    test_nifti_ones = nib.Nifti2Image(
+        np.ones(test_volume_dimensions),
+        affine=np.eye(4),
+    )
 
-PAR_DICT = {
-    "lambda_blood_brain": 0.9,
-    "t1_arterial_blood": 1.65,
-    "magnetic_field_strength": 3.0,
-}
+    test_nifti_con_ones = NiftiImageContainer(nifti_img=test_nifti_ones)
 
-SEG_DICT = {"csf": 3, "grey_matter": 1, "white_matter": 2}
+    par_dict = {
+        "lambda_blood_brain": 0.9,
+        "t1_arterial_blood": 1.65,
+        "magnetic_field_strength": 3.0,
+    }
 
-QUANTITIES = [
-    "perfusion_rate",
-    "transit_time",
-    "t1",
-    "t2",
-    "t2_star",
-    "m0",
-    "seg_label",
-]
-UNITS = ["ml/100g/min", "s", "s", "s", "s", "", ""]
+    seg_dict = {"csf": 3, "grey_matter": 1, "white_matter": 2}
 
-INPUT_VALIDATION_DICT = {
-    "image": (False, TEST_NIFTI_CON_ONES, TEST_NIFTI_ONES, 1, "str"),
-    "quantities": (False, QUANTITIES, "str", 1, PAR_DICT),
-    "units": (False, UNITS, UNITS[:6], "str", 1, PAR_DICT),
-    "parameters": (False, PAR_DICT, "str", TEST_NIFTI_CON_ONES, 1),
-    "segmentation": (False, SEG_DICT, "str", TEST_NIFTI_CON_ONES, 1),
-}
+    quantities = [
+        "perfusion_rate",
+        "transit_time",
+        "t1",
+        "t2",
+        "t2_star",
+        "m0",
+        "seg_label",
+    ]
+    units = ["ml/100g/min", "s", "s", "s", "s", "", ""]
+
+    # tuples where
+    # 0:      is_optional
+    # 1:      correct values
+    # 2:end   values that should fail
+    return {
+        "image": (False, test_nifti_con_ones, test_nifti_ones, 1, "str"),
+        "quantities": (False, quantities, "str", 1, par_dict),
+        "units": (False, units, units[:6], "str", 1, par_dict),
+        "parameters": (False, par_dict, "str", test_nifti_con_ones, 1),
+        "segmentation": (False, seg_dict, "str", test_nifti_con_ones, 1),
+        "image_override": (
+            True,  # is optional
+            {"m0": 10, "t2": 1.1},  # good data
+            {"bad_key": 10, "t2": 1.1},  # no bad_key quantity
+            {"m0": "a_str"},  # values must be int/float
+            "a_str",  # must be dictionary input
+        ),
+        "parameter_override": (
+            True,  # is optional
+            {"lambda_blood_brain": 10, "t1_arterial_blood": 1.1},  # good data
+            {"lambda_blood_brain": "a_str"},  # values must be int/float
+            "a_str",  # must be dictionary input
+        ),
+    }
 
 
-def test_ground_truth_loader_validate_inputs():
+def test_ground_truth_loader_validate_inputs(input_validation_dict: dict):
     """Check a GroundTruthLoaderFilter is raised when the inputs to the
     AppendMetadataFilter are incorrect or missing"""
     filter_to_test = GroundTruthLoaderFilter
     test_filter = filter_to_test()
-    test_data = deepcopy(INPUT_VALIDATION_DICT)
+    test_data = deepcopy(input_validation_dict)
 
     # check with inputs that should pass
     for data_key in test_data:
         test_filter.add_input(data_key, test_data[data_key][1])
 
-    for inputs_key in INPUT_VALIDATION_DICT:
-        test_data = deepcopy(INPUT_VALIDATION_DICT)
+    for inputs_key in input_validation_dict:
+        test_data = deepcopy(input_validation_dict)
         test_filter = filter_to_test()
         is_optional: bool = test_data[inputs_key][0]
 
@@ -76,7 +101,7 @@ def test_ground_truth_loader_validate_inputs():
                 test_filter.run()
 
         # Try data that should fail
-        for test_value in INPUT_VALIDATION_DICT[inputs_key][2:]:
+        for test_value in input_validation_dict[inputs_key][2:]:
             test_filter = filter_to_test()
             for data_key in test_data:
                 test_filter.add_input(data_key, test_data[data_key][1])
@@ -86,9 +111,9 @@ def test_ground_truth_loader_validate_inputs():
                 test_filter.run()
 
 
-def test_ground_truth_loader_filter_with_mock_data():
-    """Test the ground truth loader filter with some mock data"""
-
+@pytest.fixture(name="mock_data")
+def mock_data_fixture() -> dict:
+    """Mock data inputs for GroundTruthLoaderFilter"""
     images = [np.ones(shape=(3, 3, 3, 1), dtype=np.float32) * i for i in range(7)]
 
     stacked_image = np.stack(arrays=images, axis=4)
@@ -98,25 +123,31 @@ def test_ground_truth_loader_filter_with_mock_data():
 
     nifti_image_container = NiftiImageContainer(nifti_img=img)
 
-    ground_truth_filter = GroundTruthLoaderFilter()
-    ground_truth_filter.add_input("image", nifti_image_container)
-    ground_truth_filter.add_input(
-        "quantities",
-        ["perfusion_rate", "transit_time", "t1", "t2", "t2_star", "m0", "seg_label",],
-    )
-    ground_truth_filter.add_input(
-        "segmentation", {"csf": 3, "grey_matter": 1, "white_matter": 2}
-    )
-    ground_truth_filter.add_input(
-        "parameters",
-        {
+    return {
+        "image": nifti_image_container,
+        "quantities": [
+            "perfusion_rate",
+            "transit_time",
+            "t1",
+            "t2",
+            "t2_star",
+            "m0",
+            "seg_label",
+        ],
+        "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
+        "parameters": {
             "lambda_blood_brain": 0.9,
             "t1_arterial_blood": 1.65,
             "magnetic_field_strength": 3.0,
         },
-    )
-    ground_truth_filter.add_input("units", ["ml/100g/min", "s", "s", "s", "s", "", ""])
+        "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
+    }
 
+
+def test_ground_truth_loader_filter_with_mock_data(mock_data: dict):
+    """Test the ground truth loader filter with some mock data"""
+    ground_truth_filter = GroundTruthLoaderFilter()
+    ground_truth_filter.add_inputs(mock_data)
     # Should run without error
     ground_truth_filter.run()
 
@@ -201,7 +232,11 @@ def test_ground_truth_loader_filter_with_mock_data():
         "magnetic_field_strength": 3.0,
         "quantity": "seg_label",
         "units": "",
-        "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2,},
+        "segmentation": {
+            "csf": 3,
+            "grey_matter": 1,
+            "white_matter": 2,
+        },
     }
 
 
@@ -225,3 +260,40 @@ def test_ground_truth_loader_filter_with_test_data():
 
     # Should run without error
     ground_truth_filter.run()
+
+
+def test_ground_truth_loader_filter_with_image_overrides(mock_data: dict):
+    """Test the image_override input functionality"""
+    mock_data[GroundTruthLoaderFilter.KEY_IMAGE_OVERRIDE] = {
+        "m0": 5,
+        "t1": 1.0,
+    }
+    gt_filter = GroundTruthLoaderFilter()
+    gt_filter.add_inputs(mock_data)
+    gt_filter.run()
+    numpy.testing.assert_array_equal(
+        gt_filter.outputs["m0"].image,
+        np.full(shape=(3, 3, 3), fill_value=5),
+    )
+    numpy.testing.assert_array_equal(
+        gt_filter.outputs["t1"].image,
+        np.full(shape=(3, 3, 3), fill_value=1.0),
+    )
+
+
+def test_ground_truth_loader_filter_with_parameter_overrides(mock_data: dict):
+    """Test the parameter_override input functionality"""
+    mock_data[GroundTruthLoaderFilter.KEY_PARAMETER_OVERRIDE] = {
+        "lambda_blood_brain": 3.1,
+        "a_new_parameter": 1,
+    }
+    gt_filter = GroundTruthLoaderFilter()
+    gt_filter.add_inputs(mock_data)
+    gt_filter.run()
+    for item in {
+        "lambda_blood_brain": 3.1,
+        "t1_arterial_blood": 1.65,
+        "magnetic_field_strength": 3.0,
+        "a_new_parameter": 1,
+    }.items():
+        assert item in gt_filter.outputs.items()
