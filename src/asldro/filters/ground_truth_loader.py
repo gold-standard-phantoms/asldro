@@ -39,11 +39,11 @@ class GroundTruthLoaderFilter(BaseFilter):
     :param 'image_override': (optional) dictionary containing single-value override values
     for any of the 'image' that are loaded. The keys must match the quantity name
     defined in 'quantities'.
-    :param 'image_override': dict
+    :type 'image_override': dict
     :param 'parameter_override': (optional) dictionary containing single-value override values
     for any of the 'parameters' that are loaded. The keys must match the key defined in
     'parameters'.
-    :param 'parameter_override': dict
+    :type 'parameter_override': dict
 
     **Outputs**
 
