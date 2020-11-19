@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI tool to output the HRGT files
 - BIDS output
 - 1.5T and 3T HRGT files
+- Allow overriding the ground truth values in the input parameter file
 
 ## [1.0.0] - 2020-10-16
 ### Added

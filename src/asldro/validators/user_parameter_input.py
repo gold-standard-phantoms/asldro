@@ -37,7 +37,19 @@ INPUT_PARAMETER_SCHEMA = {
                 "ground_truth": {
                     "type": "string",
                     "enum": ["hrgt_icbm_2009a_nls_3t", "hrgt_icbm_2009a_nls_1.5t"],
-                }
+                },
+                "image_override": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[A-Za-z_][A-Za-z0-9_]*": {"type": "number"}
+                    },
+                },
+                "parameter_override": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[A-Za-z_][A-Za-z0-9_]*": {"type": "number"}
+                    },
+                },
             },
             "additionalProperties": False,
         },
@@ -374,7 +386,11 @@ def get_example_input_params() -> dict:
     """
     return validate_input_params(
         {
-            "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_3t"},
+            "global_configuration": {
+                "ground_truth": "hrgt_icbm_2009a_nls_3t",
+                "image_override": {},
+                "parameter_override": {},
+            },
             "image_series": [
                 {
                     "series_type": IMAGE_TYPE,

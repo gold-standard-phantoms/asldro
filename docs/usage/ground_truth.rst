@@ -33,7 +33,6 @@ The json parameter file describes the following:
   strength that the HRGT is for.  ASLDRO does use the magnetic field strength parameter, other 
   than to include in BIDS field "MagneticFieldStrength".
 
-
 Different HRGT's are selected by modifiying the "ground_truth" entry in the input parameter file to
 the name of the ground truth being used.  For example:
 
@@ -44,7 +43,7 @@ the name of the ground truth being used.  For example:
             "ground_truth": "hrgt_icbm_2009a_nls_3t"
         },
     }
-
+HRGT parameters and image values can be augmented using the input parameter file. See :doc:`parameters` for more information.
 ASLDRO currently supports the following ground truths:
 
 

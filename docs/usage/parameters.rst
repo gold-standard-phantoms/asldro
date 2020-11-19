@@ -13,6 +13,8 @@ Below is an example input parameter file, giving its overall structure.
     {
         "global_configuration": {
             "ground_truth": "hrgt_icbm_2009a_nls_3t"
+            "image_override": {},
+            "parameter_override": {},
         },
         "image_series": [
             {
@@ -49,6 +51,8 @@ ASLDRO will run:
       times.
     * "hrgt_icbm_2009a_nls_1.5t" - based on MNI ICBM 2009a Nonlinear Symmetric template, 1.5T relaxation
       times.
+:image_override: (object) Contains key/value pairs which will override any of the ground truth images with a given value. For example, if you wish to use a constant "m0", the ``image_override`` should be set to ``{"m0": n}``, where ``n`` is the floating point or integer value required.
+:parameter_override: (object) Contains key/value pairs which will override any of the ground truth parameters. For example, you might want to change ``lambda_blood_brain`` to 0.85, in which case you would set ``parameter_override`` to ``{"lambda_blood_brain": 0.85}``.
 
 Image Series
 ------------

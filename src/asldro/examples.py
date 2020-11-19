@@ -34,8 +34,7 @@ EXTENSION_MAPPING = {".zip": "zip", ".tar.gz": "gztar"}
 
 
 def splitext(path):
-    """
-    The normal os.path.splitext treats path/example.tar.gz
+    """The normal os.path.splitext treats path/example.tar.gz
     as having a filepath of path/example.tar with a .gz
     extension - this fixes it"""
     for ext in [".tar.gz", ".tar.bz2"]:
@@ -88,9 +87,23 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     json_filter.add_input("filename", ground_truth_json)
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input("filename", ground_truth_nifti)
+
     ground_truth_filter = GroundTruthLoaderFilter()
     ground_truth_filter.add_parent_filter(nifti_filter)
     ground_truth_filter.add_parent_filter(json_filter)
+    # Pull out the parameters that might override values in the ground_truth
+    ground_truth_filter.add_inputs(
+        {
+            "image_override": input_params["global_configuration"]["image_override"]
+            if "image_override" in input_params["global_configuration"]
+            else {},
+            "parameter_override": input_params["global_configuration"][
+                "parameter_override"
+            ]
+            if "parameter_override" in input_params["global_configuration"]
+            else {},
+        }
+    )
     ground_truth_filter.run()
 
     logger.info("JsonLoaderFilter outputs:\n%s", pprint.pformat(json_filter.outputs))
@@ -308,7 +321,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
             acquire_mri_image_filter.add_inputs(
-                struct_params, io_map_optional=True,
+                struct_params,
+                io_map_optional=True,
             )
 
             append_metadata_filter = AppendMetadataFilter()

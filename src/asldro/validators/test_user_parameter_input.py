@@ -123,7 +123,7 @@ def test_ground_truth_user_input_defaults_created():
 
 
 def test_mismatch_asl_context_array_sizes():
-    """ Check that if the length of any of:
+    """Check that if the length of any of:
     - echo_time
     - repetition_time
     - rot_z
@@ -173,7 +173,11 @@ def test_mismatch_asl_context_array_sizes():
 def input_params():
     """ A valid input parameter config """
     return {
-        "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_3t"},
+        "global_configuration": {
+            "ground_truth": "hrgt_icbm_2009a_nls_3t",
+            "image_override": {"m0": 5.0},
+            "parameter_override": {"lambda_blood_brain": 0.85},
+        },
         "image_series": [
             {
                 "series_type": "asl",
@@ -204,13 +208,17 @@ def input_params():
 
 
 def test_valid_input_params(input_params: dict):
-    """ Test that a valid input parameter file is parsed without
-    raising an exception and that the appropriate defaults are inserted """
+    """Test that a valid input parameter file is parsed without
+    raising an exception and that the appropriate defaults are inserted"""
     # Should not raise an exception
     parsed_input = validate_input_params(input_params)
 
     assert parsed_input == {
-        "global_configuration": {"ground_truth": "hrgt_icbm_2009a_nls_3t"},
+        "global_configuration": {
+            "ground_truth": "hrgt_icbm_2009a_nls_3t",
+            "image_override": {"m0": 5.0},
+            "parameter_override": {"lambda_blood_brain": 0.85},
+        },
         "image_series": [
             {
                 "series_type": "asl",
@@ -279,19 +287,26 @@ def test_valid_input_params(input_params: dict):
 
 
 def test_invalid_data_input_params(input_params: dict):
-    """ Tests that bad ground_truth data set in the input parameters
+    """Tests that bad ground_truth data set in the input parameters
     raises appropriate Expections (should always be
-    asldro.validators.parameters.ValidationError) """
+    asldro.validators.parameters.ValidationError)"""
 
     input_params["global_configuration"]["ground_truth"] = "i_dont_exist"
+    with pytest.raises(ValidationError):
+        validate_input_params(input_params)
+    input_params["global_configuration"]["image_override"] = "a_string"
+    with pytest.raises(ValidationError):
+        validate_input_params(input_params)
+
+    input_params["global_configuration"]["image_override"] = {"m0": "a_string"}
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
 
 
 def test_bad_series_type_input_params(input_params: dict):
-    """ Tests that bad series_type data set in the input parameters
+    """Tests that bad series_type data set in the input parameters
     raises appropriate Expections (should always be
-    asldro.validators.parameters.ValidationError) """
+    asldro.validators.parameters.ValidationError)"""
 
     input_params["image_series"][0]["series_type"] = "magic"
     with pytest.raises(ValidationError):
@@ -299,8 +314,8 @@ def test_bad_series_type_input_params(input_params: dict):
 
 
 def test_missing_series_parameters_inserts_defaults(input_params: dict):
-    """ Tests that if series_parameters are completely missing for
-    an image series, the defaults are inserted """
+    """Tests that if series_parameters are completely missing for
+    an image series, the defaults are inserted"""
 
     input_params["image_series"][0].pop("series_parameters")
 
@@ -334,6 +349,6 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
 
 
 def test_example_input_params_valid():
-    """ Just test that the generated example input parameters pass
-    the validation """
+    """Just test that the generated example input parameters pass
+    the validation"""
     validate_input_params(get_example_input_params())
