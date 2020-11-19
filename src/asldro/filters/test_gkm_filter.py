@@ -367,6 +367,9 @@ def test_gkm_filter_pasl(pasl_input):
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
     gkm_filter.run()
+
+    # check the m0 is added to the metadata, as all values of m0 for the image are the same
+    gkm_filter.outputs["delta_m"].metadata["m0"] = 1.0
     # 'delta_m' should be all zero
     numpy.testing.assert_array_equal(
         gkm_filter.outputs["delta_m"].image,
@@ -427,6 +430,8 @@ def test_gkm_filter_casl(casl_input):
     gkm_filter = GkmFilter()
     gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
     gkm_filter.run()
+    # check m0 is NOT added to the metadata, as the values are not all the same
+    assert "m0" not in gkm_filter.outputs["delta_m"].metadata
 
 
 @pytest.mark.parametrize(
@@ -494,6 +499,7 @@ def test_gkm_filter_metadata(casl_input):
         "lambda_blood_brain": casl_input["lambda_blood_brain"],
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
+        "m0": 1.0,
     }
 
 
