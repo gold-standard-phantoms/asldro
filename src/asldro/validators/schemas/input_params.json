@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "required": ["global_configuration", "image_series"],
+  "properties": {
+    "global_configuration": {
+      "type": "object",
+      "required": ["ground_truth"],
+      "properties": {
+        "ground_truth": {
+          "type": "string",
+          "enum": ["hrgt_icbm_2009a_nls_3t", "hrgt_icbm_2009a_nls_1.5t"]
+        },
+        "image_override": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*": { "type": "number" }
+          }
+        },
+        "parameter_override": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*": { "type": "number" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "image_series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["series_type"],
+        "properties": {
+          "series_type": {
+            "type": "string",
+            "enum": ["asl", "structural", "ground_truth"]
+          },
+          "series_description": { "type": "string" },
+          "series_parameters": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -3,24 +3,33 @@
 import os
 import json
 
-from jsonschema.exceptions import ValidationError
+import jsonschema
 
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
-from asldro.validators.ground_truth_json import validate_input
 
 
 class JsonLoaderFilter(BaseFilter):
     """A filter for loading a JSON file.
 
-    Must have a single string input named 'filename'.
+    **Inputs**
+
+    Input parameters are all keyword arguments for the :class:`JsonLoaderFilter.add_inputs()`
+    member function.  They are also accessible via class constants, for example
+    :class:`JsonLoaderFilter.KEY_FILENAME`.
+
+    :param 'filename': The path to the JSON file to load
+    :type 'filename': str
+    :param 'schema': (optional) The schema to validate against (in python dict format). Some schemas
+    can be found in asldro.validators.schemas, or one can just in input here.
+    :param 'schema': dict
+
+    **Outputs**
 
     Creates a multiple outputs, based on the root
     key,value pairs in the JSON filter. For example:
     { "foo": 1, "bar": "test"} will create two outputs named
     "foo" and "bar" with integer and string values respectively.
     The outputs may also be nested i.e. object or arrays.
-    However - it will only load JSON file matching the validation schema
-    in asldro.validators.ground_truth_json
     """
 
     def __init__(self):
@@ -35,8 +44,9 @@ class JsonLoaderFilter(BaseFilter):
     def _validate_inputs(self):
         """There must be an input named `filename`.
         It must end in .json. It must
-        point to a existing file. The file contents must
-        be valid as per the JSON ground truth schema"""
+        point to a existing file.
+        If 'schema' is defined, it must exist in the schema database and
+        the input JSON must be verified by the schema."""
 
         if self.inputs.get("filename", None) is None:
             raise FilterInputValidationError(
@@ -59,8 +69,9 @@ class JsonLoaderFilter(BaseFilter):
                 f"{self.inputs['filename']} does not exist"
             )
 
-        with open(self.inputs["filename"]) as file:
-            try:
-                validate_input(json.load(file))
-            except ValidationError as error:
-                raise FilterInputValidationError from error
+        if "schema" in self.inputs:
+            with open(self.inputs["filename"]) as file:
+                try:
+                    jsonschema.validate(json.load(file), self.inputs["schema"])
+                except jsonschema.ValidationError as error:
+                    raise FilterInputValidationError from error

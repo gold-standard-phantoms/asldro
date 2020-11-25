@@ -24,58 +24,9 @@ from asldro.validators.parameters import (
     of_length_validator,
     for_each_validator,
 )
+from asldro.validators.schemas.index import SCHEMAS
 
-INPUT_PARAMETER_SCHEMA = {
-    "type": "object",
-    "required": ["global_configuration", "image_series"],
-    "properties": {
-        "global_configuration": {
-            "type": "object",
-            "required": ["ground_truth"],
-            "properties": {
-                # must be updated with available datasets
-                "ground_truth": {
-                    "type": "string",
-                    "enum": ["hrgt_icbm_2009a_nls_3t", "hrgt_icbm_2009a_nls_1.5t"],
-                },
-                "image_override": {
-                    "type": "object",
-                    "patternProperties": {
-                        "^[A-Za-z_][A-Za-z0-9_]*": {"type": "number"}
-                    },
-                },
-                "parameter_override": {
-                    "type": "object",
-                    "patternProperties": {
-                        "^[A-Za-z_][A-Za-z0-9_]*": {"type": "number"}
-                    },
-                },
-            },
-            "additionalProperties": False,
-        },
-        "image_series": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["series_type"],
-                "properties": {
-                    "series_type": {
-                        "type": "string",
-                        "enum": ["asl", "structural", "ground_truth"],
-                    },
-                    "series_description": {"type": "string"},  # optional
-                    # This is not validated here - see the ParameterValidator below
-                    "series_parameters": {
-                        "type": "object"
-                    },  # if missing, defaults are used
-                },
-                "additionalProperties": False,
-            },
-        },
-    },
-    "additionalProperties": False,
-}
-
+INPUT_PARAMETER_SCHEMA = SCHEMAS["input_params"]
 
 # String constants
 ASL_CONTEXT = "asl_context"

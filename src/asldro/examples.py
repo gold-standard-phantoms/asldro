@@ -20,6 +20,7 @@ from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
 from asldro.filters.append_metadata_filter import AppendMetadataFilter
 from asldro.filters.bids_output_filter import BidsOutputFilter
 from asldro.data.filepaths import GROUND_TRUTH_DATA
+from asldro.validators.schemas.index import SCHEMAS
 
 from asldro.validators.user_parameter_input import (
     validate_input_params,
@@ -85,6 +86,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
 
     json_filter = JsonLoaderFilter()
     json_filter.add_input("filename", ground_truth_json)
+    json_filter.add_input("schema", SCHEMAS["ground_truth"])
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input("filename", ground_truth_nifti)
 
