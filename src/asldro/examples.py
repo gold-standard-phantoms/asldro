@@ -398,6 +398,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                         ),
                     },
                 }
+                resample_filter.add_inputs(ground_truth_params)
                 resample_filter.run()
                 append_metadata_filter = AppendMetadataFilter()
                 append_metadata_filter.add_parent_filter(resample_filter)
