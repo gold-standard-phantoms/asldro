@@ -7,8 +7,18 @@
       "required": ["ground_truth"],
       "properties": {
         "ground_truth": {
-          "type": "string",
-          "enum": ["hrgt_icbm_2009a_nls_3t", "hrgt_icbm_2009a_nls_1.5t"]
+          "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["nii", "json"],
+              "additionalProperties": false,
+              "properties": {
+                "nii": { "type": "string" },
+                "json": { "type": "string" }
+              }
+            }
+          ]
         },
         "image_override": {
           "type": "object",
