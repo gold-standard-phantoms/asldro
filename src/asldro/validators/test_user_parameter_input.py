@@ -178,6 +178,11 @@ def input_params():
             "ground_truth": "hrgt_icbm_2009a_nls_3t",
             "image_override": {"m0": 5.0},
             "parameter_override": {"lambda_blood_brain": 0.85},
+            "ground_truth_modulate": {
+                "t1": {"scale": 0.5},
+                "t2": {"offset": 2},
+                "m0": {"scale": 2, "offset": 1.5},
+            },
         },
         "image_series": [
             {
@@ -218,6 +223,11 @@ def fixture_expected_parsed_input():
             },
             "image_override": {"m0": 5.0},
             "parameter_override": {"lambda_blood_brain": 0.85},
+            "ground_truth_modulate": {
+                "t1": {"scale": 0.5},
+                "t2": {"offset": 2},
+                "m0": {"scale": 2, "offset": 1.5},
+            },
         },
         "image_series": [
             {

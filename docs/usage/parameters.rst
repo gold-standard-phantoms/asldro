@@ -12,7 +12,7 @@ Below is an example input parameter file, giving its overall structure.
 
     {
         "global_configuration": {
-            "ground_truth": "hrgt_icbm_2009a_nls_3t"
+            "ground_truth": "hrgt_icbm_2009a_nls_3t",
             "image_override": {},
             "parameter_override": {},
         },
@@ -53,6 +53,24 @@ ASLDRO will run:
       times.
 :image_override: (object) Contains key/value pairs which will override any of the ground truth images with a given value. For example, if you wish to use a constant "m0", the ``image_override`` should be set to ``{"m0": n}``, where ``n`` is the floating point or integer value required.
 :parameter_override: (object) Contains key/value pairs which will override any of the ground truth parameters. For example, you might want to change ``lambda_blood_brain`` to 0.85, in which case you would set ``parameter_override`` to ``{"lambda_blood_brain": 0.85}``.
+:ground_truth_modulate: (object) Contains key/value pairs which will modulate any of the ground truth images with a given scale and/or offset. For example, you might want to apply a scale of 0.9 and an offset of 1 to the 'm0' image, therefore, the required dictionary input for 'ground_truth_modulate' would be: ``{"m0":{"scale": 0.9, "offset": 1}}``. Note that the scaling is applied before the offset (see :class:`asldro.filters.scale_offset_filter.ScaleOffsetFilter` for more details).
+A more complete example is given below:
+
+.. code-block:: json
+
+    {
+        "global_configuration": {
+            "ground_truth": "hrgt_icbm_2009a_nls_3t"
+            "image_override": {"m0", 5.2},
+            "parameter_override": {"lambda_blood_brain": 0.85},
+            "ground_truth_modulate": {
+                "m0": {"scale": 0.9, "offset": 1},
+                "t1": {"offset": 0.5},
+                "t2": {"scale": 1.1}
+            }
+        },
+    ...,
+    }
 
 Image Series
 ------------
