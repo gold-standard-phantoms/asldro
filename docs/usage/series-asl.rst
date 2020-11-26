@@ -63,17 +63,3 @@ defined in ``asl_context``.
     y-axis in mm. Defaults to ``[0.0, 0.0, 0.0]``.
 :transl_z: (array of floats, optional): Translation of the ground truth model in world space along the
     z-axis in mm. Defaults to ``[0.0, 0.0, 0.0]``.
-
-
-Non-functional parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The following parameters can be found in the code, but their functionality is not yet implemented.
-In a future release, values supplied here will override the values supplied by the ground truth.
-
-:lambda_blood_brain: (float, optional): value for the blood-brain-partition-coefficient in ml/g.
-    Ground Truth value ``0.9``.
-:t1_arterial_blood: (float, optional): Longitudinal relaxation time of arterial blood in seconds.
-    Ground Truth value ``1.65``.
-:m0: (float, optional): Equilibrium magnetisation, supplied as a single global value. The Ground
-  Truth provides an image of M0.
