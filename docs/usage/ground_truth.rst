@@ -42,9 +42,34 @@ the name of the ground truth being used.  For example:
         "global_configuration": {
             "ground_truth": "hrgt_icbm_2009a_nls_3t"
         },
+        ...
     }
+will use the built-in ground truth "hrgt_icbm_2009a_nls_3t" (see below for more details of these datasets). In addition, it is possible to specify your own ground truth files by using one of the following:
+
+.. code-block:: json
+
+    {
+        "global_configuration": {
+            "ground_truth": "/path/to/nifti_file.nii"
+        },
+        ...
+    }
+or:
+
+.. code-block:: json
+
+    {
+        "global_configuration": {
+            "ground_truth": {
+                "nii": "/path/to/nifti_file.nii.gz"},
+                "json": "/path/to/json_file.json"}
+        },
+        ...
+    }
+In the two examples above, the first example assumes there is a JSON file at precisely the same path with the same filename, except for a '.json' extension instead of a '.nii'/'.nii.gz' extension. The second example uses an explicitly defined filename for each file type, and may have different paths.
+
 HRGT parameters and image values can be augmented using the input parameter file. See :doc:`parameters` for more information.
-ASLDRO currently supports the following ground truths:
+ASLDRO currently supports the following built-in ground truths:
 
 
 hrgt_icbm_2009a_nls_3t

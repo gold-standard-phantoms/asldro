@@ -6,8 +6,10 @@ The validator may be used with:
 `d` will now contain the input dictionary with any defaults values added.
 A ValidationError will be raised if any validation rules fail.
 """
+import os
 from copy import deepcopy
 import jsonschema
+from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 from asldro.validators.parameters import (
     ParameterValidator,
@@ -25,6 +27,7 @@ from asldro.validators.parameters import (
     for_each_validator,
 )
 from asldro.validators.schemas.index import SCHEMAS
+from asldro.utils.general import splitext
 
 INPUT_PARAMETER_SCHEMA = SCHEMAS["input_params"]
 
@@ -323,6 +326,43 @@ def validate_input_params(input_params: dict) -> dict:
         image_series["series_parameters"] = IMAGE_TYPE_VALIDATOR[
             image_series["series_type"]
         ].validate(image_series["series_parameters"])
+
+    # Determine whether the ground truth is a valid filename (and exists)
+    # or is a pre-existing dataset in the asldro data
+    ground_truth_params = validated_input_params["global_configuration"]["ground_truth"]
+
+    if isinstance(ground_truth_params, dict):
+        # The input is already a dict with the filename included, so don't do anything
+        pass
+    elif ground_truth_params in GROUND_TRUTH_DATA.keys():
+        # The input is a string - use it to look up the relevant files from the
+        # included datasets
+        # Replace the 'ground_truth' with the paths to the nii.gz and json files
+        validated_input_params["global_configuration"]["ground_truth"] = deepcopy(
+            GROUND_TRUTH_DATA[ground_truth_params]
+        )
+    else:
+        # Assume the ground_truth_str is a path to the nifti file, and there is an
+        # associated json file
+        if not ground_truth_params.endswith((".nii", ".nii.gz")):
+            raise ValidationError(
+                f"The ground truth {ground_truth_params} must be one of: "
+                f'{". ".join(GROUND_TRUTH_DATA.keys())} or be a .nii or .nii.gz file'
+            )
+        validated_input_params["global_configuration"]["ground_truth"] = {
+            "nii": ground_truth_params,
+            "json": splitext(ground_truth_params)[0] + ".json",
+        }
+
+    ground_truth_dict = validated_input_params["global_configuration"]["ground_truth"]
+    for filetype in ["json", "nii"]:
+        if not (
+            os.path.exists(ground_truth_dict[filetype])
+            and os.path.isfile(ground_truth_dict[filetype])
+        ):
+            raise ValidationError(
+                f"Ground truth file {ground_truth_dict[filetype]} does not exist"
+            )
 
     return validated_input_params
 

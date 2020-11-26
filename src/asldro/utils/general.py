@@ -1,4 +1,5 @@
 """ General utilities """
+import os
 from typing import Any, Mapping, Dict
 
 
@@ -31,3 +32,13 @@ def map_dict(
         for map_from, map_to in io_map.items()
         if (not io_map_optional) or map_from in input_dict
     }
+
+
+def splitext(path):
+    """The normal os.path.splitext treats path/example.tar.gz
+    as having a filepath of path/example.tar with a .gz
+    extension - this fixes it"""
+    for ext in [".tar.gz", ".tar.bz2", ".nii.gz"]:
+        if path.lower().endswith(ext.lower()):
+            return path[: -len(ext)], path[-len(ext) :]
+    return os.path.splitext(path)
