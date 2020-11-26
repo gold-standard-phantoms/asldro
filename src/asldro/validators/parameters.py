@@ -37,7 +37,7 @@ class Validator:
         return self.criteria_message
 
 
-def isinstance_validator(a_type: Union[type, Tuple[type]]) -> Validator:
+def isinstance_validator(a_type: Union[type, Tuple[type, ...]]) -> Validator:
     """
     Validates that a given value is an instance of the given type(s) (or or derived from).
     a_type: a type e.g. str, or a tuple of types e.g. (int, str)

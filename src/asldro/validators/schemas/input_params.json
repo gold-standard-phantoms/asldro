@@ -23,13 +23,25 @@
         "image_override": {
           "type": "object",
           "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*": { "type": "number" }
+            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
           }
         },
         "parameter_override": {
           "type": "object",
           "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*": { "type": "number" }
+            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
+          }
+        },
+        "ground_truth_modulate": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "object",
+              "properties": {
+                "scale": { "type": "number" },
+                "offset": { "type": "number" }
+              }
+            }
           }
         }
       },

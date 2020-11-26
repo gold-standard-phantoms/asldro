@@ -1,5 +1,6 @@
 """ Ground truth loader filter """
 import copy
+import jsonschema
 import numpy as np
 
 from asldro.containers.image import NiftiImageContainer
@@ -10,6 +11,7 @@ from asldro.validators.parameters import (
     isinstance_validator,
     for_each_validator,
 )
+from asldro.validators.schemas.index import SCHEMAS
 
 
 class GroundTruthLoaderFilter(BaseFilter):
@@ -44,6 +46,16 @@ class GroundTruthLoaderFilter(BaseFilter):
     for any of the 'parameters' that are loaded. The keys must match the key defined in
     'parameters'.
     :type 'parameter_override': dict
+    :param 'ground_truth_modulate': dictionary with keys corresponding with quantity names.
+    The possible dictionary values (both optional) are:
+    {
+        "scale": N,
+        "offset": M
+    }
+    Any corresponding images will have the corresponding scale and offset applied before being
+    output. See :class:`ScaleOffsetFilter` for more details.
+    :type 'ground_truth_modulate': dict
+
 
     **Outputs**
 
@@ -57,8 +69,10 @@ class GroundTruthLoaderFilter(BaseFilter):
     which will be converted to a uint16 data type.
     If 'override_image' is defined, the corresponding 'image' will be set to the overriding
     value before being output.
-    If 'override_parameters' is define, the corresponding parameter will be set to the
+    If 'override_parameters' is defined, the corresponding parameter will be set to the
     overriding value before being output.
+    If 'ground_truth_modulate' is defined, the corresponding 'image'(s) will be scaled and/or
+    offset by the corresponding values.
     The keys-value pairs in the input 'parameters' will also
     be destructured and piped through to the output, for example:
     :param 't1': volume of T1 relaxation times
@@ -95,6 +109,7 @@ class GroundTruthLoaderFilter(BaseFilter):
     KEY_MAG_STRENGTH = "magnetic_field_strength"
     KEY_IMAGE_OVERRIDE = "image_override"
     KEY_PARAMETER_OVERRIDE = "parameter_override"
+    KEY_GROUND_TRUTH_MODULATE = "ground_truth_modulate"
 
     def __init__(self):
         super().__init__("GroundTruthLoader")
@@ -143,12 +158,30 @@ class GroundTruthLoaderFilter(BaseFilter):
             metadata[self.KEY_QUANTITY] = quantity
             metadata[self.KEY_UNITS] = self.inputs[self.KEY_UNITS][i]
 
+            # If we have a ground_truth_modulate input, and this quantity is to be modulated
+            if (
+                "ground_truth_modulate" in self.inputs
+                and quantity in self.inputs["ground_truth_modulate"]
+            ):
+                scale_offset = self.inputs["ground_truth_modulate"][quantity]
+                if "scale" in scale_offset:
+                    # Allow unsafe casting (allow data-type conversion)
+                    image_data = np.multiply(
+                        image_data, scale_offset["scale"], casting="unsafe"
+                    )
+                if "offset" in scale_offset:
+                    # Allow unsafe casting (allow data-type conversion)
+                    image_data = np.add(
+                        image_data, scale_offset["offset"], casting="unsafe"
+                    )
+
             new_image_container = NiftiImageContainer(
                 nifti_img=nifti_image_type(
                     dataobj=image_data, affine=image_container.affine, header=header
                 ),
                 metadata=metadata,
             )
+
             self.outputs[quantity] = new_image_container
 
         # Get the parameter_override dictionary (empty dict if it doesn't exist)
@@ -189,6 +222,9 @@ class GroundTruthLoaderFilter(BaseFilter):
                 ),
                 self.KEY_SEGMENTATION: Parameter(validators=isinstance_validator(dict)),
                 self.KEY_PARAMETERS: Parameter(validators=isinstance_validator(dict)),
+                self.KEY_GROUND_TRUTH_MODULATE: Parameter(
+                    validators=isinstance_validator(dict), optional=True
+                ),
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
@@ -239,3 +275,13 @@ class GroundTruthLoaderFilter(BaseFilter):
                     raise FilterInputValidationError(
                         f"{key} is not in the input 'quantities' list"
                     )
+        if self.KEY_GROUND_TRUTH_MODULATE in self.inputs:
+            try:
+                jsonschema.validate(
+                    self.inputs[self.KEY_GROUND_TRUTH_MODULATE],
+                    SCHEMAS["input_params"]["properties"]["global_configuration"][
+                        "properties"
+                    ]["ground_truth_modulate"],
+                )
+            except jsonschema.ValidationError as exception:
+                raise FilterInputValidationError from exception

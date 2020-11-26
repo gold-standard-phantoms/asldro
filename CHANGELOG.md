@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Allow using an input (external) HRGT file.
+- Modulation of ground truth quantities by a scale and offset value
 
 ### Fixed
 - Bug that caused ground truth not to be resampled before being output

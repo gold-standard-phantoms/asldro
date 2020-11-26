@@ -84,6 +84,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             ]
             if "parameter_override" in input_params["global_configuration"]
             else {},
+            "ground_truth_modulate": input_params["global_configuration"][
+                "ground_truth_modulate"
+            ]
+            if "ground_truth_modulate" in input_params["global_configuration"]
+            else {},
         }
     )
     ground_truth_filter.run()
