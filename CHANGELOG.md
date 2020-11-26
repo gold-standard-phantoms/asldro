@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug that caused ground truth not to be resampled before being output
 
+### Changed
+- JSON loader filter can take any JSON schema (or none)
+
 ## [2.0.0] - 2020-11-19
 ### Added
 - Inversion recovery MRI model
