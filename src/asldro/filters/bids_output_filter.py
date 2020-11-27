@@ -165,20 +165,34 @@ class BidsOutputFilter(BaseFilter):
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
         GroundTruthLoaderFilter.KEY_UNITS: "Units",
         GroundTruthLoaderFilter.KEY_MAG_STRENGTH: "MagneticFieldStrength",
+        GroundTruthLoaderFilter.KEY_SEGMENTATION: "LabelMap",
+        GroundTruthLoaderFilter.KEY_QUANTITY: "Quantity",
     }
 
+    # maps ASLDRO MRI contrast to BIDS contrast names
     ACQ_CONTRAST_MAPPING = {
         MriSignalFilter.CONTRAST_GE: "GR",
         MriSignalFilter.CONTRAST_SE: "SE",
         MriSignalFilter.CONTRAST_IR: "IR",
     }
 
+    # maps ASLDRO image type names to complex components used in BIDS
     COMPLEX_IMAGE_COMPONENT_MAPPING = {
         REAL_IMAGE_TYPE: "REAL",
         IMAGINARY_IMAGE_TYPE: "IMAGINARY",
         COMPLEX_IMAGE_TYPE: "COMPLEX",
         PHASE_IMAGE_TYPE: "PHASE",
         MAGNITUDE_IMAGE_TYPE: "MAGNITUDE",
+    }
+
+    # Maps ASLDRO tissue types to BIDS standard naming
+    LABEL_MAP_MAPPING = {
+        "background": "BG",
+        "grey_matter": "GM",
+        "white_matter": "WM",
+        "csf": "CSF",
+        "vascular": "VS",
+        "lesion": "L",
     }
 
     def __init__(self):
@@ -306,6 +320,14 @@ class BidsOutputFilter(BaseFilter):
             modality_label = (
                 f"ground_truth_{image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]}"
             )
+            # if there is a LabelMap field, use LABEL_MAP_MAPPING to change the subfield names to
+            # the BIDS standard
+            if json_sidecar.get("LabelMap") is not None:
+                json_sidecar["LabelMap"] = map_dict(
+                    json_sidecar["LabelMap"],
+                    io_map=self.LABEL_MAP_MAPPING,
+                    io_map_optional=True,
+                )
             json_sidecar["ImageType"] = [
                 "ORIGINAL",
                 "PRIMARY",
