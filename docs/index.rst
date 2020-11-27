@@ -1,4 +1,4 @@
-Welcome to ASL DRO's documentation!
+Welcome to ASL DRO's documentation
 ===================================
 
 .. include:: usage/overview.rst
@@ -9,9 +9,9 @@ Welcome to ASL DRO's documentation!
 
    usage/installation
    usage/quickstart
-   usage/development
-   usage/parameters   
+   usage/parameters
    usage/ground_truth
+   usage/development  
    api
 
 
