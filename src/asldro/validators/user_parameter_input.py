@@ -261,7 +261,7 @@ IMAGE_TYPE_VALIDATOR = {
                 default_value="se",
             ),
             DESIRED_SNR: Parameter(
-                validators=greater_than_equal_to_validator(0), default_value=10.0
+                validators=greater_than_equal_to_validator(0), default_value=100.0
             ),
             RANDOM_SEED: Parameter(
                 validators=greater_than_equal_to_validator(0), default_value=0
