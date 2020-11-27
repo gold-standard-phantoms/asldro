@@ -7,7 +7,7 @@ gradient or spin echo contrast, motion is optionally applied, and an image is ac
 specified acquisition resolution.
 
 All parameters have defaults if omitted; the default parameters result in a "White Paper"
-style acquisition (pCASL, 1.8s label duration, 1.8s PLD etc) with one M0, one Control and one Label
+style acquisition (pCASL, 1.8s label duration, 1.8s PLD etc.) with one M0, one Control and one Label
 volume and SNR of 10. All strings are case-insensitive, for example "pcasl", "pCASL" and "PCASL"
 are all valid.
 
