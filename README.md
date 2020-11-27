@@ -24,6 +24,7 @@ a known ground truth. A strong emphasis has been placed on ensuring traceability
 code, in particular with respect to testing.  The DRO pipelines uses a ‘pipe and filter’ architecture
 with ‘filters’ performing data processing, which provides a common interface between processing
 blocks.
+
 # Installation
 
 ASLDRO can be installed as a module directly from the python package index.  Once installed it can
@@ -112,6 +113,7 @@ $ pip install asldro
 
 ASL DRO is now installed. Check out the Quickstart or go to the
 Documentation Overview.
+
 # Quickstart
 
 ## Getting started
@@ -216,6 +218,7 @@ The DRO pipeline is summarised in this schematic (click to view full-size):
 
 
 ![image](docs/images/asldro.png)
+
 # Development
 
 Development of this software project must comply with a few code styling/quality rules and processes:
