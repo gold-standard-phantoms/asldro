@@ -210,13 +210,7 @@ If `desired_snr` is set to `0`, the resultant images will not have any noise app
 
 Each pipeline outputs files in BIDS ([https://bids.neuroimaging.io/](https://bids.neuroimaging.io/)) format, consisting of a NIFTI
 image file and accompanying json sidecar. In the case of an ASL image an
-additional 
-
-```
-*
-```
-
-_aslcontext.tsv file is also generated which describes the ASL volumes
+additional ‘\*_aslcontext.tsv’ file is also generated which describes the ASL volumes
 present in the timeseries.
 
 The DRO pipeline is summarised in this schematic (click to view full-size):

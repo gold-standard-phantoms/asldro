@@ -440,6 +440,7 @@ def test_bids_output_filter_mock_data_ground_truth():
             ],
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
             "Units": "s",
+            "Quantity": "t1",
             "ComplexImageComponent": "MAGNITUDE",
             "ImageType": ["ORIGINAL", "PRIMARY", "T1", "NONE",],
         }
@@ -455,6 +456,75 @@ def test_bids_output_filter_mock_data_ground_truth():
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
             temp_dir, "ground_truth", "prefix_110_ground_truth_t1.json"
+        )
+
+        # load in the files and check against what they should be
+        loaded_nifti = nib.load(bids_output_filter.outputs["filename"][0])
+        numpy.testing.assert_array_equal(
+            loaded_nifti.dataobj, TEST_NIFTI_CON_ONES.image
+        )
+        assert loaded_nifti.header == TEST_NIFTI_CON_ONES.header
+
+        with open(bids_output_filter.outputs["filename"][1], "r") as json_file:
+            loaded_json = json.load(json_file)
+        assert loaded_json == bids_output_filter.outputs["sidecar"]
+
+
+def test_bids_output_filter_mock_data_ground_truth_seg_label():
+    """ Tests the BidsOutputFilter with some mock data """
+    with TemporaryDirectory() as temp_dir:
+        image = deepcopy(TEST_NIFTI_CON_ONES)
+        image.metadata = {
+            "series_type": "ground_truth",
+            "series_number": 110,
+            "series_description": "test ground truth series",
+            "quantity": "seg_label",
+            "segmentation": {
+                "background": 0,
+                "grey_matter": 1,
+                "white_matter": 2,
+                "csf": 3,
+                "vascular": 4,
+                "lesion": 5,
+            },
+            "units": "",
+            "voxel_size": [1.0, 1.0, 1.0],
+        }
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        d = {
+            "SeriesNumber": 110,
+            "SeriesDescription": "test ground truth series",
+            "DROSoftware": "ASLDRO",
+            "DROSoftwareVersion": asldro_version,
+            "DROSoftwareUrl": [
+                "code: https://github.com/gold-standard-phantoms/asldro",
+                "pypi: https://pypi.org/project/asldro/",
+                "docs: https://asldro.readthedocs.io/",
+            ],
+            "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
+            "Units": "",
+            "Quantity": "seg_label",
+            "LabelMap": {"BG": 0, "GM": 1, "WM": 2, "CSF": 3, "VS": 4, "L": 5,},
+            "ComplexImageComponent": "MAGNITUDE",
+            "ImageType": ["ORIGINAL", "PRIMARY", "SEG_LABEL", "NONE",],
+        }
+
+        # remove AcquisitionDateTime entry as this can't be compared here
+        acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
+        assert bids_output_filter.outputs["sidecar"] == d
+        bids_output_filter.outputs["sidecar"]["AcquisitionDateTime"] = acq_date_time
+
+        # Check filenames
+        assert bids_output_filter.outputs["filename"][0] == os.path.join(
+            temp_dir, "ground_truth", "prefix_110_ground_truth_seg_label.nii.gz"
+        )
+        assert bids_output_filter.outputs["filename"][1] == os.path.join(
+            temp_dir, "ground_truth", "prefix_110_ground_truth_seg_label.json"
         )
 
         # load in the files and check against what they should be

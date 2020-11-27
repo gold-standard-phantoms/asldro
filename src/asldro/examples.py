@@ -1,6 +1,5 @@
 """ Examples of filter chains """
 import pprint
-import os
 import logging
 import shutil
 from tempfile import TemporaryDirectory
@@ -20,6 +19,8 @@ from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
 from asldro.filters.append_metadata_filter import AppendMetadataFilter
 from asldro.filters.bids_output_filter import BidsOutputFilter
 from asldro.data.filepaths import GROUND_TRUTH_DATA
+from asldro.utils.general import splitext
+from asldro.validators.schemas.index import SCHEMAS
 
 from asldro.validators.user_parameter_input import (
     validate_input_params,
@@ -31,16 +32,6 @@ logger = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS = [".zip", ".tar.gz"]
 # Used in shutil.make_archive
 EXTENSION_MAPPING = {".zip": "zip", ".tar.gz": "gztar"}
-
-
-def splitext(path):
-    """The normal os.path.splitext treats path/example.tar.gz
-    as having a filepath of path/example.tar with a .gz
-    extension - this fixes it"""
-    for ext in [".tar.gz", ".tar.bz2"]:
-        if path.lower().endswith(ext.lower()):
-            return path[: -len(ext)], path[-len(ext) :]
-    return os.path.splitext(path)
 
 
 def run_full_pipeline(input_params: dict = None, output_filename: str = None):
@@ -69,24 +60,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
     # Validate parameter and update defaults
     input_params = validate_input_params(input_params)
 
-    # Load in the ground truth
-    if input_params["global_configuration"]["ground_truth"] not in GROUND_TRUTH_DATA:
-        raise ValueError(
-            "Global configuration "
-            f"{input_params['global_configuration']['ground_truth']} "
-            "does not correspond with accepted ground truths"
-        )
-    ground_truth_nifti = GROUND_TRUTH_DATA[
-        input_params["global_configuration"]["ground_truth"]
-    ]["nii"]
-    ground_truth_json = GROUND_TRUTH_DATA[
-        input_params["global_configuration"]["ground_truth"]
-    ]["json"]
-
     json_filter = JsonLoaderFilter()
-    json_filter.add_input("filename", ground_truth_json)
+    json_filter.add_input(
+        "filename", input_params["global_configuration"]["ground_truth"]["json"]
+    )
+    json_filter.add_input("schema", SCHEMAS["ground_truth"])
     nifti_filter = NiftiLoaderFilter()
-    nifti_filter.add_input("filename", ground_truth_nifti)
+    nifti_filter.add_input(
+        "filename", input_params["global_configuration"]["ground_truth"]["nii"]
+    )
 
     ground_truth_filter = GroundTruthLoaderFilter()
     ground_truth_filter.add_parent_filter(nifti_filter)
@@ -101,6 +83,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                 "parameter_override"
             ]
             if "parameter_override" in input_params["global_configuration"]
+            else {},
+            "ground_truth_modulate": input_params["global_configuration"][
+                "ground_truth_modulate"
+            ]
+            if "ground_truth_modulate" in input_params["global_configuration"]
             else {},
         }
     )
@@ -398,6 +385,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
                         ),
                     },
                 }
+                resample_filter.add_inputs(ground_truth_params)
                 resample_filter.run()
                 append_metadata_filter = AppendMetadataFilter()
                 append_metadata_filter.add_parent_filter(resample_filter)

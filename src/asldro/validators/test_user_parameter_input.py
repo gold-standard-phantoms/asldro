@@ -2,6 +2,7 @@
 # pylint: disable=redefined-outer-name
 from copy import deepcopy
 import pytest
+from asldro.data.filepaths import GROUND_TRUTH_DATA
 from asldro.validators.parameters import ValidationError
 from asldro.validators.user_parameter_input import (
     IMAGE_TYPE_VALIDATOR,
@@ -61,7 +62,7 @@ def test_asl_user_input_defaults_created():
         "label_duration": 1.8,
         "signal_time": 3.6,
         "label_efficiency": 0.85,
-        "desired_snr": 10,
+        "desired_snr": 100,
         "acq_matrix": [64, 64, 12],
         "acq_contrast": "se",
         "random_seed": 0,
@@ -177,6 +178,11 @@ def input_params():
             "ground_truth": "hrgt_icbm_2009a_nls_3t",
             "image_override": {"m0": 5.0},
             "parameter_override": {"lambda_blood_brain": 0.85},
+            "ground_truth_modulate": {
+                "t1": {"scale": 0.5},
+                "t2": {"offset": 2},
+                "m0": {"scale": 2, "offset": 1.5},
+            },
         },
         "image_series": [
             {
@@ -207,17 +213,21 @@ def input_params():
     }
 
 
-def test_valid_input_params(input_params: dict):
-    """Test that a valid input parameter file is parsed without
-    raising an exception and that the appropriate defaults are inserted"""
-    # Should not raise an exception
-    parsed_input = validate_input_params(input_params)
-
-    assert parsed_input == {
+@pytest.fixture(name="expected_parsed_input")
+def fixture_expected_parsed_input():
+    return {
         "global_configuration": {
-            "ground_truth": "hrgt_icbm_2009a_nls_3t",
+            "ground_truth": {
+                "nii": GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"],
+                "json": GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"],
+            },
             "image_override": {"m0": 5.0},
             "parameter_override": {"lambda_blood_brain": 0.85},
+            "ground_truth_modulate": {
+                "t1": {"scale": 0.5},
+                "t2": {"offset": 2},
+                "m0": {"scale": 2, "offset": 1.5},
+            },
         },
         "image_series": [
             {
@@ -238,7 +248,7 @@ def test_valid_input_params(input_params: dict):
                     "label_duration": 1.8,
                     "signal_time": 3.6,
                     "label_efficiency": 0.85,
-                    "desired_snr": 10.0,
+                    "desired_snr": 100.0,
                     "acq_contrast": "se",
                     "random_seed": 0,
                     "excitation_flip_angle": 90.0,
@@ -284,6 +294,36 @@ def test_valid_input_params(input_params: dict):
             },
         ],
     }
+
+
+def test_valid_input_params(input_params: dict, expected_parsed_input: dict):
+    """Test that a valid input parameter file is parsed without
+    raising an exception and that the appropriate defaults are inserted"""
+    # Should not raise an exception
+    parsed_input = validate_input_params(input_params)
+
+    assert parsed_input == expected_parsed_input
+
+    # Also, try changing the ground_truth to the nifti file
+    # in the HRGT data (JSON file assumed same name)
+    input_params["global_configuration"]["ground_truth"] = GROUND_TRUTH_DATA[
+        "hrgt_icbm_2009a_nls_3t"
+    ]["nii"]
+    # Should not raise an exception
+    parsed_input = validate_input_params(input_params)
+
+    assert parsed_input == expected_parsed_input
+
+    # Also, try changing the ground_truth to the nifti file/json file
+    # in the HRGT data
+    input_params["global_configuration"]["ground_truth"] = {
+        "nii": GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"],
+        "json": GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"],
+    }
+    # Should not raise an exception
+    parsed_input = validate_input_params(input_params)
+
+    assert parsed_input == expected_parsed_input
 
 
 def test_invalid_data_input_params(input_params: dict):
@@ -338,7 +378,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "label_duration": 1.8,
             "signal_time": 3.6,
             "label_efficiency": 0.85,
-            "desired_snr": 10.0,
+            "desired_snr": 100.0,
             "acq_contrast": "se",
             "random_seed": 0,
             "excitation_flip_angle": 90.0,
@@ -350,5 +390,5 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
 
 def test_example_input_params_valid():
     """Just test that the generated example input parameters pass
-    the validation"""
+    the validation (validated internally)"""
     validate_input_params(get_example_input_params())

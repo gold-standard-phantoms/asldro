@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "required": ["global_configuration", "image_series"],
+  "properties": {
+    "global_configuration": {
+      "type": "object",
+      "required": ["ground_truth"],
+      "properties": {
+        "ground_truth": {
+          "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["nii", "json"],
+              "additionalProperties": false,
+              "properties": {
+                "nii": { "type": "string" },
+                "json": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "image_override": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
+          }
+        },
+        "parameter_override": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
+          }
+        },
+        "ground_truth_modulate": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "object",
+              "properties": {
+                "scale": { "type": "number" },
+                "offset": { "type": "number" }
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "image_series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["series_type"],
+        "properties": {
+          "series_type": {
+            "type": "string",
+            "enum": ["asl", "structural", "ground_truth"]
+          },
+          "series_description": { "type": "string" },
+          "series_parameters": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

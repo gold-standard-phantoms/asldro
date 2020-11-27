@@ -144,6 +144,39 @@ def mock_data_fixture() -> dict:
     }
 
 
+def test_ground_truth_filter_apply_scale_offset(mock_data: dict):
+    """Test the ground truth loader when applying a scale and offset to the
+    ground truth data"""
+    ground_truth_filter = GroundTruthLoaderFilter()
+    ground_truth_filter.add_inputs(mock_data)
+    ground_truth_filter.add_input(
+        "ground_truth_modulate",
+        {
+            "t1": {"scale": 5},
+            "t2": {"offset": -1},
+            "t2_star": {"scale": 0.5, "offset": 5},
+        },
+    )
+    ground_truth_filter.run()
+    assert ground_truth_filter.outputs["t1"].image.dtype == np.float32
+    numpy.testing.assert_array_equal(
+        ground_truth_filter.outputs["t1"].image,
+        (np.ones((3, 3, 3), dtype=np.float32) * 2) * 5,
+    )
+
+    assert ground_truth_filter.outputs["t2"].image.dtype == np.float32
+    numpy.testing.assert_array_equal(
+        ground_truth_filter.outputs["t2"].image,
+        (np.ones((3, 3, 3), dtype=np.float32) * 3) - 1,
+    )
+
+    assert ground_truth_filter.outputs["t2_star"].image.dtype == np.float32
+    numpy.testing.assert_array_equal(
+        ground_truth_filter.outputs["t2_star"].image,
+        (np.ones((3, 3, 3), dtype=np.float32) * 4) * 0.5 + 5,
+    )
+
+
 def test_ground_truth_loader_filter_with_mock_data(mock_data: dict):
     """Test the ground truth loader filter with some mock data"""
     ground_truth_filter = GroundTruthLoaderFilter()

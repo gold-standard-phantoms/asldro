@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2020-11-27
+### Added
+- Allow using an input (external) HRGT file.
+- Modulation of ground truth quantities by a scale and offset value
+
+### Fixed
+- Bug that caused ground truth not to be resampled before being output
+
+### Changed
+- JSON loader filter can take any JSON schema (or none)
+
 ## [2.0.0] - 2020-11-19
 ### Added
 - Inversion recovery MRI model

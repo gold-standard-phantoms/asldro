@@ -69,29 +69,27 @@ def test_json_loader_input_validation_schema_mismatch():
     with TemporaryDirectory() as temp_dir:
         # JSON file (quantities mispelt)
         input_dict = {
-            "quantes": [
-                "perfusion_rate",
-                "transit_time",
-                "t1",
-                "t2",
-                "t2_star",
-                "m0",
-                "seg_label",
-            ],
-            "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
-            "parameters": {
-                "lambda_blood_brain": 0.9,
-                "t1_arterial_blood": 1.65,
-                "magnetic_field_strength": 3.0,
-            },
+            "numbers": [1, "not_a_number", 3],
+            "string": "foobar",
         }
         temp_file = os.path.join(temp_dir, "file.json")
         with open(temp_file, "w") as file:
             json.dump(input_dict, file)
 
         json_loader_filter.add_input("filename", temp_file)
+        json_loader_filter.add_input(
+            "schema",
+            {
+                "type": "object",
+                "required": ["numbers", "string"],
+                "properties": {
+                    "numbers": {"type": "array", "items": {"type": "number"}},
+                    "string": {"type": "string"},
+                },
+            },
+        )
         with pytest.raises(FilterInputValidationError):
-            json_loader_filter.run()
+            json_loader_filter.run()  # JSON not valid against schema
 
 
 def test_json_loader_input_validation_correct_functionality():
@@ -103,55 +101,29 @@ def test_json_loader_input_validation_correct_functionality():
     with TemporaryDirectory() as temp_dir:
         # JSON file (quantities mispelt)
         input_dict = {
-            "quantities": [
-                "perfusion_rate",
-                "transit_time",
-                "t1",
-                "t2",
-                "t2_star",
-                "m0",
-                "seg_label",
-            ],
-            "units": ["ml/100g/min", "s", "s", "s", "s", "", ""],
-            "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2},
-            "parameters": {
-                "lambda_blood_brain": 0.9,
-                "t1_arterial_blood": 1.65,
-                "magnetic_field_strength": 3.0,
-            },
+            "numbers": [1, 2, 3],
+            "string": "foobar",
         }
         temp_file = os.path.join(temp_dir, "file.json")
         with open(temp_file, "w") as file:
             json.dump(input_dict, file)
 
         json_loader_filter.add_input("filename", temp_file)
+        json_loader_filter.add_input(
+            "schema",
+            {
+                "type": "object",
+                "required": ["numbers", "string"],
+                "properties": {
+                    "numbers": {"type": "array", "items": {"type": "number"}},
+                    "string": {"type": "string"},
+                },
+            },
+        )
         json_loader_filter.run()
-        assert json_loader_filter.outputs["quantities"] == [
-            "perfusion_rate",
-            "transit_time",
-            "t1",
-            "t2",
-            "t2_star",
-            "m0",
-            "seg_label",
+        assert json_loader_filter.outputs["numbers"] == [
+            1,
+            2,
+            3,
         ]
-        assert json_loader_filter.outputs["segmentation"] == {
-            "csf": 3,
-            "grey_matter": 1,
-            "white_matter": 2,
-        }
-        assert json_loader_filter.outputs["parameters"] == {
-            "lambda_blood_brain": 0.9,
-            "t1_arterial_blood": 1.65,
-            "magnetic_field_strength": 3.0,
-        }
-
-        assert json_loader_filter.outputs["units"] == [
-            "ml/100g/min",
-            "s",
-            "s",
-            "s",
-            "s",
-            "",
-            "",
-        ]
+        assert json_loader_filter.outputs["string"] == "foobar"
