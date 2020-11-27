@@ -60,7 +60,7 @@ A more complete example is given below:
 
     {
         "global_configuration": {
-            "ground_truth": "hrgt_icbm_2009a_nls_3t"
+            "ground_truth": "hrgt_icbm_2009a_nls_3t",
             "image_override": {"m0", 5.2},
             "parameter_override": {"lambda_blood_brain": 0.85},
             "ground_truth_modulate": {
