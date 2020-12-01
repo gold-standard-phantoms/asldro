@@ -197,7 +197,7 @@ def structural_input_fixture() -> (NiftiImageContainer, dict):
             "docs: https://asldro.readthedocs.io/",
         ],
         "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
-        "ComplexImageComponent": "MAGNITUDE",
+        "ComplexImageComponent": "REAL",
         "ImageType": ["ORIGINAL", "PRIMARY", "T1W", "NONE",],
         "MagneticFieldStrength": 3,
     }
@@ -285,7 +285,7 @@ def asl_input_fixture() -> (NiftiImageContainer, dict):
         "LabelingEfficiency": 0.85,
         "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
         "M0": True,
-        "ComplexImageComponent": "MAGNITUDE",
+        "ComplexImageComponent": "REAL",
         "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
     }
     return (image, d)
@@ -441,7 +441,7 @@ def test_bids_output_filter_mock_data_ground_truth():
             "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
             "Units": "s",
             "Quantity": "t1",
-            "ComplexImageComponent": "MAGNITUDE",
+            "ComplexImageComponent": "REAL",
             "ImageType": ["ORIGINAL", "PRIMARY", "T1", "NONE",],
         }
 
@@ -510,7 +510,7 @@ def test_bids_output_filter_mock_data_ground_truth_seg_label():
             "Units": "",
             "Quantity": "seg_label",
             "LabelMap": {"BG": 0, "GM": 1, "WM": 2, "CSF": 3, "VS": 4, "L": 5,},
-            "ComplexImageComponent": "MAGNITUDE",
+            "ComplexImageComponent": "REAL",
             "ImageType": ["ORIGINAL", "PRIMARY", "SEG_LABEL", "NONE",],
         }
 
@@ -576,6 +576,18 @@ def test_bids_output_filter_determine_asl_modality_label():
 
 def test_bids_output_filter_complex_image_component():
     """tests that the field ComplexImageComponent is correctly set"""
+    with TemporaryDirectory() as temp_dir:
+        image = deepcopy(TEST_NIFTI_CON_ONES)
+        image.image_type = "MAGNITUDE_IMAGE_TYPE"
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert (
+            bids_output_filter.outputs["sidecar"]["ComplexImageComponent"]
+            == "MAGNITUDE"
+        )
+
     with TemporaryDirectory() as temp_dir:
         image = deepcopy(TEST_NIFTI_CON_ONES)
         image.image_type = "REAL_IMAGE_TYPE"
