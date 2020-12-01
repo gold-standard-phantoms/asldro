@@ -13,6 +13,8 @@ from asldro.containers.image import (
     BaseImageContainer,
     COMPLEX_IMAGE_TYPE,
     MAGNITUDE_IMAGE_TYPE,
+    REAL_IMAGE_TYPE,
+    IMAGINARY_IMAGE_TYPE,
     NiftiImageContainer,
     PHASE_IMAGE_TYPE,
     SPATIAL_DOMAIN,
@@ -42,10 +44,7 @@ def fixture_test_image():
         magnitude_data,
         phase_data,
         NiftiImageContainer(
-            nifti_img=nib.Nifti1Image(
-                dataobj=complex_data,
-                affine=np.eye(4),
-            ),
+            nifti_img=nib.Nifti1Image(dataobj=complex_data, affine=np.eye(4),),
             image_type=COMPLEX_IMAGE_TYPE,
             data_domain=SPATIAL_DOMAIN,
         ),
@@ -97,17 +96,89 @@ def test_phase_magnitude_filter_validator_non_image_input():
         phase_magnitude_filter.run()
 
 
-def test_phase_magnitude_filter_validator_non_complex_input(
+def test_phase_magnitude_filter_validator_phase_input(
     test_data: Tuple[np.ndarray, np.ndarray, BaseImageContainer]
 ):
     """Run the phase_magnitude_filter with non-complex data.
     Check we get a FilterInputValidationError"""
     _, _, image_container = test_data
 
-    # Non complex input
-    image_container.image_type = MAGNITUDE_IMAGE_TYPE
+    # phase input
+    image_container.image_type = PHASE_IMAGE_TYPE
 
     phase_magnitude_filter = PhaseMagnitudeFilter()
     phase_magnitude_filter.add_input(PhaseMagnitudeFilter.KEY_IMAGE, image_container)
     with pytest.raises(FilterInputValidationError):
         phase_magnitude_filter.run()
+
+
+def test_phase_magnitude_filter_real_input(
+    test_data: Tuple[np.ndarray, np.ndarray, BaseImageContainer]
+):
+    """Run the phase_magnitude_filter with non-complex data and image_type=REAL_IMAGE_TYPE.
+    """
+    _, _, image_container = test_data
+
+    # real input
+    image_container.image = np.real(image_container.image)
+    image_container.image_type = REAL_IMAGE_TYPE
+
+    phase_magnitude_filter = PhaseMagnitudeFilter()
+    phase_magnitude_filter.add_input(PhaseMagnitudeFilter.KEY_IMAGE, image_container)
+    phase_magnitude_filter.run()
+
+    nptesting.assert_array_almost_equal(
+        phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_MAGNITUDE].image,
+        np.abs(image_container.image),
+    )
+    nptesting.assert_array_almost_equal(
+        phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_PHASE].image,
+        np.angle(image_container.image),
+    )
+
+
+def test_phase_magnitude_filter_imaginary_input(
+    test_data: Tuple[np.ndarray, np.ndarray, BaseImageContainer]
+):
+    """Run the phase_magnitude_filter with non-complex data and image_type=IMAGINARY_IMAGE_TYPE.
+    """
+    _, _, image_container = test_data
+
+    # real input
+    image_container.image = np.imag(image_container.image)
+    image_container.image_type = IMAGINARY_IMAGE_TYPE
+
+    phase_magnitude_filter = PhaseMagnitudeFilter()
+    phase_magnitude_filter.add_input(PhaseMagnitudeFilter.KEY_IMAGE, image_container)
+    phase_magnitude_filter.run()
+
+    nptesting.assert_array_almost_equal(
+        phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_MAGNITUDE].image,
+        np.abs(image_container.image),
+    )
+    nptesting.assert_array_almost_equal(
+        phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_PHASE].image,
+        np.angle(image_container.image * np.exp(1j * np.pi / 2)),
+    )
+
+
+def test_phase_magnitude_filter_magnitude_input(
+    test_data: Tuple[np.ndarray, np.ndarray, BaseImageContainer]
+):
+    """Run the phase_magnitude_filter with non-complex data and image_type=MAGNITUDE_IMAGE_TYPE.
+    """
+    _, _, image_container = test_data
+
+    # real input
+    image_container.image = np.abs(image_container.image)
+    image_container.image_type = MAGNITUDE_IMAGE_TYPE
+
+    phase_magnitude_filter = PhaseMagnitudeFilter()
+    phase_magnitude_filter.add_input(PhaseMagnitudeFilter.KEY_IMAGE, image_container)
+    phase_magnitude_filter.run()
+
+    nptesting.assert_array_almost_equal(
+        phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_MAGNITUDE].image,
+        np.abs(image_container.image),
+    )
+    assert phase_magnitude_filter.outputs[PhaseMagnitudeFilter.KEY_PHASE] is None
