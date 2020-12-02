@@ -4,6 +4,8 @@ import numpy as np
 from asldro.containers.image import (
     BaseImageContainer,
     COMPLEX_IMAGE_TYPE,
+    REAL_IMAGE_TYPE,
+    IMAGINARY_IMAGE_TYPE,
     MAGNITUDE_IMAGE_TYPE,
     PHASE_IMAGE_TYPE,
 )
@@ -29,7 +31,7 @@ class PhaseMagnitudeFilter(BaseFilter):
     member function. They are also accessible via class constants,
     for example :class:`AcquireMriImageFilter.KEY_IMAGE`
 
-    :param 'image': The complex input image data
+    :param 'image': The input data image, cannot be a phase image
     :type 'image': BaseImageContainer
 
     **Outputs**
@@ -54,14 +56,25 @@ class PhaseMagnitudeFilter(BaseFilter):
         input complex data and return them as separate image containers
         """
         image: BaseImageContainer = self.inputs["image"]
-
         phase = image.clone()
-        phase.image = np.angle(phase.image)
         phase.image_type = PHASE_IMAGE_TYPE
-
         magnitude = image.clone()
-        magnitude.image = np.absolute(magnitude.image)
         magnitude.image_type = MAGNITUDE_IMAGE_TYPE
+
+        # do the same for both complex and real `image_type`
+        if image.image_type in [COMPLEX_IMAGE_TYPE, REAL_IMAGE_TYPE]:
+            phase.image = np.angle(image.image)
+            magnitude.image = np.absolute(image.image)
+
+        # apply a phase shift of 90° when calculating the phase
+        elif image.image_type == IMAGINARY_IMAGE_TYPE:
+            phase.image = np.angle(image.image * np.exp(1j * np.pi / 2))
+            magnitude.image = np.absolute(image.image)
+
+        # phase is undefined if only magnitude is supplied
+        elif image.image_type == MAGNITUDE_IMAGE_TYPE:
+            magnitude.image = np.absolute(image.image)
+            phase = None
 
         self.outputs[self.KEY_PHASE] = phase
         self.outputs[self.KEY_MAGNITUDE] = magnitude
@@ -74,11 +87,15 @@ class PhaseMagnitudeFilter(BaseFilter):
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_IMAGE: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                        has_attribute_value_validator("image_type", COMPLEX_IMAGE_TYPE),
-                    ]
+                    validators=[isinstance_validator(BaseImageContainer),]
                 )
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
+
+        # raise an error if the input image is a phase image.
+        if self.inputs[self.KEY_IMAGE].image_type == PHASE_IMAGE_TYPE:
+            raise FilterInputValidationError(
+                "input 'image' has attribute 'image_type' with value 'PHASE_IMAGE_TYPE', this is"
+                "not supported"
+            )

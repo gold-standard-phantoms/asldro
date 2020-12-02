@@ -443,7 +443,7 @@ def test_image_container_image_type_good_bad_initialisation():
         image_container = NumpyImageContainer(
             image=np.zeros((3, 3, 3), dtype=dtype)
         )  # OK
-        assert image_container.image_type == MAGNITUDE_IMAGE_TYPE
+        assert image_container.image_type == REAL_IMAGE_TYPE
 
         # Check that correct dtype/image_type combos are OK
         for image_type in [
