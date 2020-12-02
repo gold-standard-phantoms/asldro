@@ -20,26 +20,34 @@ from asldro.validators.parameters import (
 
 
 class PhaseMagnitudeFilter(BaseFilter):
-    r"""A filter block that will take complex image data and convert it into
+    r"""A filter block that will take image data and convert it into
     its Phase and Magnitude components. Typically, this will be used after
     a :class:`.AcquireMriImageFilter` which contains real and imaginary
-    components
+    components, however it may also be used with image data that is of type:
+    
+    * ``REAL_IMAGE_TYPE``: in which case the phase is 0° where the image value is
+      positive, and 180° where it is negative.
+    * ``IMAGINARY_IMAGE_TYPE``: in which case the phase is 90° where the image value
+      is positive, and 270° where it is negative.
+    * ``MAGNITUDE_IMAGE_TYPE``: in which case the phase cannot be defined and so
+      the output phase image is set to ``None``.
+    
 
     **Inputs**
 
     Input Parameters are all keyword arguments for the :class:`PhaseMagnitudeFilter.add_inputs()`
     member function. They are also accessible via class constants,
-    for example :class:`AcquireMriImageFilter.KEY_IMAGE`
+    for example :class:`PhaseMagnitudeFilter.KEY_IMAGE`
 
     :param 'image': The input data image, cannot be a phase image
     :type 'image': BaseImageContainer
 
     **Outputs**
 
-    :param 'phase': Phase image (will have `image_type`==PHASE_IMAGE_TYPE)
+    :param 'phase': Phase image (will have ``image_type==PHASE_IMAGE_TYPE``)
     :type 'phase': BaseImageContainer
 
-    :param 'magnitude': Magnitude image (will have `image_type`==MAGNITUDE_IMAGE_TYPE)
+    :param 'magnitude': Magnitude image (will have ``image_type==MAGNITUDE_IMAGE_TYPE``)
     :type 'magnitude': BaseImageContainer
     """
 
@@ -53,7 +61,7 @@ class PhaseMagnitudeFilter(BaseFilter):
 
     def _run(self):
         """Calculate the phase and magnitude components from the
-        input complex data and return them as separate image containers
+        input image data and return them as separate image containers
         """
         image: BaseImageContainer = self.inputs["image"]
         phase = image.clone()
@@ -82,7 +90,7 @@ class PhaseMagnitudeFilter(BaseFilter):
     def _validate_inputs(self):
         """Validate the inputs.
         'image' must be derived from BaseImageContainer and have
-        a COMPLEX `image_type` instance variable.
+        an  ``image_type`` attribute that is not equal to 'PHASE_IMAGE_TYPE'.
         """
         input_validator = ParameterValidator(
             parameters={
