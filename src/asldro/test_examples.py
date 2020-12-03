@@ -31,3 +31,16 @@ def test_run_full_pipeline_extended_params():
 
     run_full_pipeline(input_params=input_params)
 
+
+@pytest.mark.slow
+def test_run_full_pipeline_snr_zero():
+    """Runs the full ASL DRO pipeline with the SNR=zero to check this works"""
+    input_params = get_example_input_params()
+
+    input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
+    # remove the ground truth and structural image series
+    input_params["image_series"].pop(-1)
+    input_params["image_series"].pop(-1)
+
+    run_full_pipeline(input_params=input_params)
+

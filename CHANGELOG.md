@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2020-12-03
+### Fixed
+- Bug that caused an error if the SNR was set to 0.
+
+### Changed
+- Default 'image_type' attribute of image containers is now 'REAL_IMAGE_TYPE'
+- PhaseMagnitudeFilter now accepts additional 'image_type'
+- Supplied ground truths (hrgt_icbm_2009a_nls_3t and hrgt_icbm_2009a_nls_31.5t)
+  have had their transit times changed to 0.8s for Grey Matter and 1.2s for
+  White Matter.
+
 ## [2.1.0] - 2020-11-27
 ### Added
 - Allow using an input (external) HRGT file.

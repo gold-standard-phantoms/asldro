@@ -40,7 +40,7 @@ class BaseImageContainer(ABC):
     - MAGNITUDE_IMAGE_TYPE
     - PHASE_IMAGE_TYPE
     - COMPLEX_IMAGE_TYPE
-    if this is not specified, it will be set to MAGNITUDE_IMAGE_TYPE for scalar
+    if this is not specified, it will be set to REAL_IMAGE_TYPE for scalar
     image dtypes and COMPLEX_IMAGE_TYPE for complex dtypes
     :param metadata: a metadata dictionary which is associated with the image data.
     This might contain, for example, timing parameters associated with the image
@@ -65,7 +65,7 @@ class BaseImageContainer(ABC):
             if self.image.dtype in [np.complex64, np.complex128]:
                 image_type = COMPLEX_IMAGE_TYPE
             else:
-                image_type = MAGNITUDE_IMAGE_TYPE
+                image_type = REAL_IMAGE_TYPE
 
         # Check the image_type is in the valid options
         if image_type not in [
