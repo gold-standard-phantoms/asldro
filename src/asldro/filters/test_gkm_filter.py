@@ -481,7 +481,7 @@ def test_gkm_timecourse(
     numpy.testing.assert_array_almost_equal(delta_m_timecourse, expected, 10)
 
 
-def test_gkm_filter_metadata(casl_input):
+def test_gkm_filter_metadata_casl(casl_input):
     """Test the metadata output from GkmFilter"""
     gkm_filter = GkmFilter()
     casl_input["perfusion_rate"].metadata = {
@@ -498,6 +498,29 @@ def test_gkm_filter_metadata(casl_input):
         "label_efficiency": casl_input["label_efficiency"],
         "lambda_blood_brain": casl_input["lambda_blood_brain"],
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
+        "image_flavour": "PERFUSION",
+        "m0": 1.0,
+    }
+
+
+def test_gkm_filter_metadata_pasl(pasl_input):
+    """Test the metadata output from GkmFilter"""
+    gkm_filter = GkmFilter()
+    pasl_input["perfusion_rate"].metadata = {
+        "units": "ml/100g/min",
+        "quantity": "perfusion_rate",
+    }
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
+    gkm_filter.run()
+
+    assert gkm_filter.outputs["delta_m"].metadata == {
+        "label_type": pasl_input["label_type"].lower(),
+        "bolus_cut_off_flag": True,
+        "bolus_cut_off_delay_time": pasl_input["label_duration"],
+        "post_label_delay": pasl_input["signal_time"] - pasl_input["label_duration"],
+        "label_efficiency": pasl_input["label_efficiency"],
+        "lambda_blood_brain": pasl_input["lambda_blood_brain"],
+        "t1_arterial_blood": pasl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
         "m0": 1.0,
     }

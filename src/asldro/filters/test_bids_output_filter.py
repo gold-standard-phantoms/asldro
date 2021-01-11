@@ -40,7 +40,7 @@ METDATA_VALIDATION_DICT_STRUCT = {
     "modality": [False, "T1w", "t1w", 1],
 }
 
-METDATA_VALIDATION_DICT_ASL = {
+METDATA_VALIDATION_DICT_CASL = {
     "series_number": [False, 1, "001", 1.0],
     "series_type": [False, "asl", "struct", 1],
     "asl_context": [False, ["m0scan", "control", "label"], 1, "str"],
@@ -49,6 +49,18 @@ METDATA_VALIDATION_DICT_ASL = {
     "image_flavour": [False, "PERFUSION", 1, TEST_NIFTI_ONES],
     "post_label_delay": [False, 1.8, 1, (3.2, 4.5, 6.7)],
 }
+
+METDATA_VALIDATION_DICT_PASL = {
+    "series_number": [False, 1, "001", 1.0],
+    "series_type": [False, "asl", "struct", 1],
+    "asl_context": [False, ["m0scan", "control", "label"], 1, "str"],
+    "bolus_cut_off_flag": [False, True, 1, "str"],
+    "bolus_cut_off_delay_time": [False, 1.8, 1, "str"],
+    "label_type": [False, "pasl", 1, TEST_NIFTI_ONES],
+    "image_flavour": [False, "PERFUSION", 1, TEST_NIFTI_ONES],
+    "post_label_delay": [False, 1.8, 1, (3.2, 4.5, 6.7)],
+}
+
 
 METDATA_VALIDATION_DICT_GROUND_TRUTH = {
     "series_number": [False, 1, "001", 1.0],
@@ -106,7 +118,8 @@ def test_bids_output_filter_validate_inputs():
     "validation_metadata",
     [
         METDATA_VALIDATION_DICT_STRUCT,
-        METDATA_VALIDATION_DICT_ASL,
+        METDATA_VALIDATION_DICT_CASL,
+        METDATA_VALIDATION_DICT_PASL,
         METDATA_VALIDATION_DICT_GROUND_TRUTH,
     ],
 )
@@ -183,7 +196,7 @@ def structural_input_fixture() -> (NiftiImageContainer, dict):
 
     d = {
         "EchoTime": 0.01,
-        "RepetitionTime": 0.3,
+        "RepetitionTimePreparation": 0.3,
         "FlipAngle": 30,
         "MrAcquisitionType": "3D",
         "ScanningSequence": "GR",
@@ -262,11 +275,12 @@ def asl_input_fixture() -> (NiftiImageContainer, dict):
         "t1_arterial_blood": 1.65,
         "image_flavour": "PERFUSION",
         "voxel_size": [1.0, 1.0, 1.0],
+        "background_suppression": False,
     }
 
     d = {
         "EchoTime": 0.01,
-        "RepetitionTime": 0.3,
+        "RepetitionTimePreparation": 0.3,
         "FlipAngle": 30,
         "MrAcquisitionType": "3D",
         "ScanningSequence": "GR",
@@ -279,14 +293,15 @@ def asl_input_fixture() -> (NiftiImageContainer, dict):
             "pypi: https://pypi.org/project/asldro/",
             "docs: https://asldro.readthedocs.io/",
         ],
-        "LabelingType": "PCASL",
+        "ArterialSpinLabelingType": "PCASL",
         "LabelingDuration": 1.8,
         "PostLabelingDelay": 1.8,
         "LabelingEfficiency": 0.85,
         "AcquisitionVoxelSize": [1.0, 1.0, 1.0],
-        "M0": True,
+        "M0Type": "Included",
         "ComplexImageComponent": "REAL",
         "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
+        "BackgroundSuppression": False,
     }
     return (image, d)
 
@@ -364,7 +379,8 @@ def test_bids_output_filter_m0_float(asl_input):
         bids_output_filter.add_input("filename_prefix", "prefix")
         bids_output_filter.run()
 
-        d["M0"] = 100.0
+        d["M0Type"] = "Estimate"
+        d["M0Estimate"] = 100.0
         # remove AcquisitionDateTime entry as this can't be compared here
         acq_date_time = bids_output_filter.outputs["sidecar"].pop("AcquisitionDateTime")
         assert bids_output_filter.outputs["sidecar"] == d

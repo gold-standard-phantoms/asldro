@@ -82,6 +82,11 @@ class MriSignalFilter(BaseFilter):
     #. If present, derived from the metadata in the input ``mag_enc``
     #. "OTHER"
 
+    If ``image_flavour`` is ``"PERFUSION"`` (i.e. an ASL image) then the following will be added:
+
+    * ``background_suppression`` = ``False`` - indicating that the ASL scan is not background
+      suppressed.
+
     The following equations are used to compute the MRI signal:
 
 
@@ -130,6 +135,7 @@ class MriSignalFilter(BaseFilter):
     KEY_IMAGE = "image"
     KEY_IMAGE_FLAVOUR = "image_flavour"
     KEY_ACQ_TYPE = "mr_acq_type"
+    KEY_BACKGROUND_SUPPRESSION = "background_suppression"
 
     # Value constants
     CONTRAST_GE = "ge"
@@ -160,6 +166,10 @@ class MriSignalFilter(BaseFilter):
         # if present override image_flavour with the input
         if self.inputs.get(self.KEY_IMAGE_FLAVOUR) is not None:
             metadata["image_flavour"] = self.inputs.get(self.KEY_IMAGE_FLAVOUR)
+
+        # if ``image_flavour`` is "PERFUSION" add a  ``background_suppression``` key as False
+        if metadata["image_flavour"] == "PERFUSION":
+            metadata[self.KEY_BACKGROUND_SUPPRESSION] = False
 
         acq_contrast: str = self.inputs[self.KEY_ACQ_CONTRAST]
         echo_time: float = self.inputs[self.KEY_ECHO_TIME]
