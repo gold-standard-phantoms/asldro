@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 class BidsOutputFilter(BaseFilter):
     """ A filter that will output an input image container in Brain Imaging Data Structure
-    (BIDS) format.
+    (BIDS) format, in accordance with the version 1.5.0 specification.
 
     BIDS comprises of a NIFTI image file and accompanying .json sidecar that contains additional
     parameters.  More information on BIDS can be found at https://bids.neuroimaging.io/
@@ -129,7 +129,10 @@ class BidsOutputFilter(BaseFilter):
     :type 'label_efficiency': float
     :param 'image_flavour': a string that is used as the third entry in the BIDS field ``ImageType``
         (corresponding with the dicom tag (0008,0008).  For ASL images this should be 'PERFUSION'.
-    "type 'image_flavour': str
+    :type 'image_flavour': str
+
+    Input image metadata will be mapped to corresponding BIDS fields.  See 
+    :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping. 
     """
 
     # Key Constants
@@ -147,19 +150,22 @@ class BidsOutputFilter(BaseFilter):
     DRO_SOFTWARE_URL = "DROSoftwareUrl"
     ACQ_DATE_TIME = "AcquisitionDateTime"
     IMAGE_TYPE = "ImageType"
+    M0_TYPE = "M0Type"
+    M0_ESTIMATE = "M0Estimate"
 
     # metadata parameters to BIDS fields mapping dictionary
     BIDS_MAPPING = {
-        GkmFilter.KEY_LABEL_TYPE: "LabelingType",
+        GkmFilter.KEY_LABEL_TYPE: "ArterialSpinLabelingType",
         GkmFilter.KEY_LABEL_DURATION: "LabelingDuration",
         GkmFilter.KEY_LABEL_EFFICIENCY: "LabelingEfficiency",
         GkmFilter.KEY_POST_LABEL_DELAY: "PostLabelingDelay",
         MriSignalFilter.KEY_ECHO_TIME: "EchoTime",
-        MriSignalFilter.KEY_REPETITION_TIME: "RepetitionTime",
+        MriSignalFilter.KEY_REPETITION_TIME: "RepetitionTimePreparation",
         MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE: "FlipAngle",
         MriSignalFilter.KEY_INVERSION_TIME: "InversionTime",
         MriSignalFilter.KEY_ACQ_TYPE: "MrAcquisitionType",
         MriSignalFilter.KEY_ACQ_CONTRAST: "ScanningSequence",
+        MriSignalFilter.KEY_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
@@ -167,6 +173,8 @@ class BidsOutputFilter(BaseFilter):
         GroundTruthLoaderFilter.KEY_MAG_STRENGTH: "MagneticFieldStrength",
         GroundTruthLoaderFilter.KEY_SEGMENTATION: "LabelMap",
         GroundTruthLoaderFilter.KEY_QUANTITY: "Quantity",
+        GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: "BolusCutOffFlag",
+        GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: "BolusCutOffDelayTime",
     }
 
     # maps ASLDRO MRI contrast to BIDS contrast names
@@ -256,20 +264,23 @@ class BidsOutputFilter(BaseFilter):
                     sub_directory,
                     f"{filename_prefix}" + series_number_string + "_aslcontext.tsv",
                 )
-                # BIDS spec states LabelingType should be uppercase
-                json_sidecar["LabelingType"] = json_sidecar["LabelingType"].upper()
+                # BIDS spec states ArterialSpinLabelingType should be uppercase
+                json_sidecar["ArterialSpinLabelingType"] = json_sidecar[
+                    "ArterialSpinLabelingType"
+                ].upper()
 
                 # set the BIDS field M0 correctly
                 if any("m0scan" in s for s in image.metadata[ASL_CONTEXT]):
-                    # if aslcontext contains one or more "m0scan" volumes set to True to indicate
+                    # if aslcontext contains one or more "m0scan" volumes set to "Included" to indicate
                     # "WithinASL"
-                    json_sidecar["M0"] = True
+                    json_sidecar[self.M0_TYPE] = "Included"
                 elif isinstance(image.metadata["m0"], float):
                     # numerical value of m0 supplied so use this.
-                    json_sidecar["M0"] = image.metadata["m0"]
+                    json_sidecar[self.M0_TYPE] = "Estimate"
+                    json_sidecar[self.M0_ESTIMATE] = image.metadata["m0"]
                 else:
-                    # no numeric value or m0scan, so set to False
-                    json_sidecar["M0"] = False
+                    # no numeric value or m0scan, so set to "Absent"
+                    json_sidecar[self.M0_TYPE] = "Absent"
 
                 # set the ImageType field
                 json_sidecar["ImageType"] = [
@@ -423,6 +434,12 @@ class BidsOutputFilter(BaseFilter):
                 GkmFilter.KEY_LABEL_DURATION: Parameter(
                     validators=isinstance_validator(float), optional=True
                 ),
+                GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: Parameter(
+                    validators=isinstance_validator(float), optional=True
+                ),
+                GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: Parameter(
+                    validators=isinstance_validator(bool), optional=True
+                ),
                 GkmFilter.KEY_POST_LABEL_DELAY: Parameter(
                     validators=isinstance_validator(float), optional=True
                 ),
@@ -504,11 +521,6 @@ class BidsOutputFilter(BaseFilter):
                         "metadata field 'label_type' is required for 'series_type'"
                         + " and 'modality' is 'asl'"
                     )
-                if metadata.get(GkmFilter.KEY_LABEL_DURATION) is None:
-                    raise FilterInputValidationError(
-                        "metadata field 'label_duration' is required for 'series_type'"
-                        + " and 'modality' is 'asl'"
-                    )
                 if metadata.get(GkmFilter.KEY_POST_LABEL_DELAY) is None:
                     raise FilterInputValidationError(
                         "metadata field 'post_label_delay' is required for 'series_type'"
@@ -519,6 +531,31 @@ class BidsOutputFilter(BaseFilter):
                         "metadata field 'image_flavour' is required for 'series_type'"
                         + " and 'modality' is 'asl'"
                     )
+
+                if metadata.get(GkmFilter.KEY_LABEL_TYPE) == (
+                    GkmFilter.CASL or GkmFilter.PCASL
+                ):
+                    # validation specific to (p)casl
+                    if metadata.get(GkmFilter.KEY_LABEL_DURATION) is None:
+                        raise FilterInputValidationError(
+                            "metadata field 'label_duration' is required for 'series_type'"
+                            + "and 'modality' is 'asl', and 'label_type' is 'pcasl' or 'casl'"
+                        )
+                elif metadata.get(GkmFilter.KEY_LABEL_TYPE) == GkmFilter.PASL:
+                    # validation specific to pasl
+                    if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_FLAG) is None:
+                        raise FilterInputValidationError(
+                            "metadata field 'bolus_cut_off_flag' is required for"
+                            + " 'series_type and 'modality' is 'asl', "
+                            + "and 'label_type' is 'pasl'"
+                        )
+                    if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_FLAG):
+                        if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME) is None:
+                            raise FilterInputValidationError(
+                                "metadata field 'bolus_cut_off_delay_time' is required for"
+                                + " 'series_type and 'modality' is 'asl', "
+                                + "'label_type' is 'pasl', and 'bolus_cut_off_flag' is True"
+                            )
 
         # Check that self.inputs[self.KEY_OUTPUT_DIRECTORY] is a valid path.
         if not os.path.exists(self.inputs[self.KEY_OUTPUT_DIRECTORY]):

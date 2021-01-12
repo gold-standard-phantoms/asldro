@@ -391,6 +391,7 @@ def test_mri_signal_filter_gradient_echo(mock_data):
         "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
         "mr_acq_type": "3D",
+        "background_suppression": False,
     }
 
 
@@ -428,6 +429,7 @@ def test_mri_signal_filter_spin_echo(mock_data):
         "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
         "mr_acq_type": "3D",
+        "background_suppression": False,
     }
 
 
@@ -472,6 +474,7 @@ def test_mri_signal_filter_inversion_recovery(mock_data):
         "inversion_time": mock_data["inversion_time"],
         "inversion_flip_angle": mock_data["inversion_flip_angle"],
         "mr_acq_type": "3D",
+        "background_suppression": False,
     }
 
 

@@ -65,16 +65,24 @@ class GkmFilter(BaseFilter):
       be the same class as the input 'perfusion_rate'
     :type 'delta_m': BaseImageContainer
 
+    **Metadata**
+
     The following parameters are added to :class:`GkmFilter.outputs["delta_m"].metadata`:
 
     * ``label_type``
-    * ``label_duration``
+    * ``label_duration`` (pcasl/casl only)
     * ``post_label_delay``
+    * ``bolus_cut_off_flag`` (pasl only)
+    * ``bolus_cut_off_delay_time`` (pasl only)
     * ``label_efficiency``
     * ``lambda_blood_brain``
     * ``t1_arterial_blood``
 
     ``post_label_delay`` is calculated as ``signal_time - label_duration``
+
+    ``bolus_cut_off_delay_time`` takes the value of the input ``label_duration``, this field is used
+    for pasl in line with the BIDS specification.
+
     """
 
     # Key constants
@@ -90,6 +98,8 @@ class GkmFilter(BaseFilter):
     KEY_T1_TISSUE = "t1_tissue"
     KEY_DELTA_M = "delta_m"
     KEY_POST_LABEL_DELAY = "post_label_delay"
+    KEY_BOLUS_CUT_OFF_FLAG = "bolus_cut_off_flag"
+    KEY_BOLUS_CUT_OFF_DELAY_TIME = "bolus_cut_off_delay_time"
 
     # Value constants
     CASL = "casl"
@@ -220,6 +230,8 @@ class GkmFilter(BaseFilter):
                 )
                 * q_pasl_arrived
             )
+            metadata[self.KEY_BOLUS_CUT_OFF_FLAG] = True
+            metadata[self.KEY_BOLUS_CUT_OFF_DELAY_TIME] = label_duration
 
         elif self.inputs[self.KEY_LABEL_TYPE].lower() in [self.CASL, self.PCASL]:
             # do GKM for CASL/pCASL
@@ -275,6 +287,7 @@ class GkmFilter(BaseFilter):
                 )
                 * q_ss_arrived
             )
+            metadata[self.KEY_LABEL_DURATION] = label_duration
 
         # combine the different arrival states into delta_m
         delta_m[condition_bolus_not_arrived] = 0.0
@@ -290,12 +303,11 @@ class GkmFilter(BaseFilter):
         self.outputs[self.KEY_DELTA_M].metadata.pop("quantity", None)
         self.outputs[self.KEY_DELTA_M].image = delta_m
 
-        # add fields to metadata
+        # add common fields to metadata
         metadata = {
             **metadata,
             **{
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
-                self.KEY_LABEL_DURATION: label_duration,
                 self.KEY_POST_LABEL_DELAY: (signal_time - label_duration),
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
                 self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
