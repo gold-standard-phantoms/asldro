@@ -65,16 +65,24 @@ class GkmFilter(BaseFilter):
       be the same class as the input 'perfusion_rate'
     :type 'delta_m': BaseImageContainer
 
+    **Metadata**
+
     The following parameters are added to :class:`GkmFilter.outputs["delta_m"].metadata`:
 
     * ``label_type``
-    * ``label_duration``
+    * ``label_duration`` (pcasl/casl only)
     * ``post_label_delay``
+    * ``bolus_cut_off_flag`` (pasl only)
+    * ``bolus_cut_off_delay_time`` (pasl only)
     * ``label_efficiency``
     * ``lambda_blood_brain``
     * ``t1_arterial_blood``
 
     ``post_label_delay`` is calculated as ``signal_time - label_duration``
+
+    ``bolus_cut_off_delay_time`` takes the value of the input ``label_duration``, this field is used
+    for pasl in line with the BIDS specification.
+
     """
 
     # Key constants

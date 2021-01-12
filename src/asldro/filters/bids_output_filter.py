@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 class BidsOutputFilter(BaseFilter):
     """ A filter that will output an input image container in Brain Imaging Data Structure
-    (BIDS) format, in accordance with version the 1.5.0 specification.
+    (BIDS) format, in accordance with the version 1.5.0 specification.
 
     BIDS comprises of a NIFTI image file and accompanying .json sidecar that contains additional
     parameters.  More information on BIDS can be found at https://bids.neuroimaging.io/
@@ -129,7 +129,10 @@ class BidsOutputFilter(BaseFilter):
     :type 'label_efficiency': float
     :param 'image_flavour': a string that is used as the third entry in the BIDS field ``ImageType``
         (corresponding with the dicom tag (0008,0008).  For ASL images this should be 'PERFUSION'.
-    "type 'image_flavour': str
+    :type 'image_flavour': str
+
+    Input image metadata will be mapped to corresponding BIDS fields.  See 
+    :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping. 
     """
 
     # Key Constants

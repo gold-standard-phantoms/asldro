@@ -66,6 +66,8 @@ class MriSignalFilter(BaseFilter):
       as the input ``t1``
     :type 'image': BaseImageContainer
 
+    **Signal Equations**
+
     The following parameters are added to :class:`MriSignalFilter.outputs["image"].metadata`:
 
     * ``acq_contrast``
@@ -84,7 +86,7 @@ class MriSignalFilter(BaseFilter):
 
     If ``image_flavour`` is ``"PERFUSION"`` (i.e. an ASL image) then the following will be added:
 
-    * ``background_suppression`` = ``False`` - indicating that the ASL scan is not background
+    * ``background_suppression = False`` - indicating that the ASL scan is not background
       suppressed.
 
     The following equations are used to compute the MRI signal:
@@ -100,7 +102,7 @@ class MriSignalFilter(BaseFilter):
         \cdot e^{-\frac{\text{TE}}{T^{*}_2}}
 
 
-    *Spin Echo*
+    *Spin Echo* (assuming 90° and 180° pulses)
 
     .. math::
        S(\text{TE},\text{TR}) = (M_0 \cdot (1-e^{-\frac{\text{TR}}{T_1}}) + M_{\text{enc}})
@@ -116,7 +118,10 @@ class MriSignalFilter(BaseFilter):
         {1-\cos\theta_{1}\cos\theta_{2}e^{-\frac{TR}{T_{1}}}}+ M_\text{enc})
         \cdot e^{-\frac{TE}{T_{2}}}\\
         &\theta_1 = \text{excitation pulse flip angle}\\
-        &\theta_2 = \text{inversion pulse flip angle}
+        &\theta_2 = \text{inversion pulse flip angle}\\
+        &\text{TI} = \text{inversion time}\\
+        &\text{TR} = \text{repetition time}\\
+        &\text{TE} = \text{echo time}\\
 
     """
 
