@@ -308,8 +308,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None):
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
             acquire_mri_image_filter.add_inputs(
-                struct_params,
-                io_map_optional=True,
+                struct_params, io_map_optional=True,
             )
 
             append_metadata_filter = AppendMetadataFilter()
