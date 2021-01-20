@@ -119,4 +119,4 @@ output/
 .vim/
 
 #jupyter notebook working directory
-.working/
+working/
