@@ -29,11 +29,11 @@ def test_run_full_pipeline_extended_params():
     asl_params["transl_y"] = [0.0] * timeseries_length
     asl_params["transl_z"] = [0.0] * timeseries_length
 
-    run_full_pipeline(input_params=input_params)
-
     # remove the ground truth and structural image series
-    input_params["image_series"].pop(-1)
-    input_params["image_series"].pop(-1)
+    input_params["image_series"] = [
+        x for x in input_params["image_series"] if x["series_type"] in ["asl"]
+    ]
+    run_full_pipeline(input_params=input_params)
 
 
 @pytest.mark.slow
@@ -43,8 +43,8 @@ def test_run_full_pipeline_snr_zero():
 
     input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
     # remove the ground truth and structural image series
-    input_params["image_series"].pop(-1)
-    input_params["image_series"].pop(-1)
-
+    input_params["image_series"] = [
+        x for x in input_params["image_series"] if x["series_type"] in ["asl"]
+    ]
     run_full_pipeline(input_params=input_params)
 
