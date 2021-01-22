@@ -1,6 +1,7 @@
 # Overview
 
 [![image](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb)
+[![image](https://shields.io/pypi/l/asldro.svg)](https://pypi.org/project/asldro/)
 
 ASL DRO is software that can generate digital reference objects for Arterial Spin Labelling (ASL) MRI.
 It creates synthetic raw ASL data according to set acquisition and data format parameters, based
