@@ -31,6 +31,10 @@ def test_run_full_pipeline_extended_params():
 
     run_full_pipeline(input_params=input_params)
 
+    # remove the ground truth and structural image series
+    input_params["image_series"].pop(-1)
+    input_params["image_series"].pop(-1)
+
 
 @pytest.mark.slow
 def test_run_full_pipeline_snr_zero():

@@ -168,59 +168,6 @@ def test_add_complex_noise_filter_with_mock_data():
     numpy.testing.assert_array_almost_equal(calculated_snr, snr, 0)
 
 
-@pytest.mark.slow
-def test_add_complex_noise_filter_with_test_data():
-    """ tests the complex noise filter with test data """
-    json_filter = JsonLoaderFilter()
-    json_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["json"]
-    )
-
-    nifti_filter = NiftiLoaderFilter()
-    nifti_filter.add_input(
-        "filename", GROUND_TRUTH_DATA["hrgt_icbm_2009a_nls_3t"]["nii"]
-    )
-
-    ground_truth_filter = GroundTruthLoaderFilter()
-    ground_truth_filter.add_parent_filter(nifti_filter)
-    ground_truth_filter.add_parent_filter(json_filter)
-
-    # Load in the test data
-    ground_truth_filter.run()
-
-    image_container: NiftiImageContainer = ground_truth_filter.outputs["m0"]
-    mask_container: NiftiImageContainer = ground_truth_filter.outputs["seg_label"]
-    reference_container = image_container
-    snr = 100.0
-    seed = 1234
-
-    np.random.seed(seed)
-    image_with_noise = add_complex_noise_function(
-        image_container.image, reference_container.image, snr
-    )
-    noise_filter_1 = AddComplexNoiseFilter()
-    noise_filter_1.add_input("image", image_container)
-    noise_filter_1.add_input("snr", snr)
-    noise_filter_1.add_input("reference_image", reference_container)
-
-    # reset RNG
-    np.random.seed(seed)
-    noise_filter_1.run()
-
-    # Compare the output of noise filter 1 with image_with_noise, should be identical
-    numpy.testing.assert_array_equal(
-        noise_filter_1.outputs["image"].image, image_with_noise
-    )
-
-    # measure the actual SNR
-    calculated_snr = simulate_dual_image_snr_measurement_function(
-        image_container, snr, mask_container.image
-    )
-    print(f"calculated snr = {calculated_snr}, desired snr = {snr}")
-    # This should be almost equal to the desired SNR
-    numpy.testing.assert_array_almost_equal(calculated_snr, snr, 0)
-
-
 def test_add_complex_noise_filter_snr_zero():
     """ Checks that the output image is equal to the input image when snr=0 """
     signal_level = 100.0
