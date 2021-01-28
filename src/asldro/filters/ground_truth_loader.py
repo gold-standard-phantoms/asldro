@@ -122,67 +122,75 @@ class GroundTruthLoaderFilter(BaseFilter):
             # Create a new NiftiContainer - easier as we can just augment
             # the header to remove the 5th dimension
 
-            header = copy.deepcopy(image_container.header)
-            header["dim"][0] = 4  #  Remove the 5th dimension
-            if header["dim"][4] == 1:
-                # If we only have 1 time-step, reduce to 3D
-                header["dim"][0] = 3
-            header["dim"][5] = 1  # tidy the 5th dimensions size
-
-            # Grab the relevant image data
-            image_data: np.ndarray = image_container.image[:, :, :, :, i]
-            if header["dim"][0] == 3:
-                # squeeze the 4th dimension if there is only one time-step
-                image_data = np.squeeze(image_data, axis=3)
-
-            # If we have a corresponding 'image_override' value, update the
-            # 'image_data' with that value
-            if (
-                self.KEY_IMAGE_OVERRIDE in self.inputs
-                and quantity in self.inputs[self.KEY_IMAGE_OVERRIDE]
+            # First check that the quantity is not also present in 'parameters'
+            # and not in 'image_override'. If so then this should just be a numeric value
+            # and not an image, so don't copy the image
+            if not (
+                quantity in self.inputs[self.KEY_PARAMETERS]
+                and self.KEY_IMAGE_OVERRIDE in self.inputs
+                and quantity not in self.inputs[self.KEY_IMAGE_OVERRIDE]
             ):
-                image_data.fill(self.inputs[self.KEY_IMAGE_OVERRIDE][quantity])
+                header = copy.deepcopy(image_container.header)
+                header["dim"][0] = 4  #  Remove the 5th dimension
+                if header["dim"][4] == 1:
+                    # If we only have 1 time-step, reduce to 3D
+                    header["dim"][0] = 3
+                header["dim"][5] = 1  # tidy the 5th dimensions size
 
-            # If we have a segmentation label, round and squash the
-            # data to uint16 and update the NIFTI header
-            metadata = {}
-            if quantity == "seg_label":
-                header["datatype"] = 512
-                image_data = np.around(image_data).astype(dtype=np.uint16)
-                metadata[self.KEY_SEGMENTATION] = self.inputs[self.KEY_SEGMENTATION]
+                # Grab the relevant image data
+                image_data: np.ndarray = image_container.image[:, :, :, :, i]
+                if header["dim"][0] == 3:
+                    # squeeze the 4th dimension if there is only one time-step
+                    image_data = np.squeeze(image_data, axis=3)
 
-            nifti_image_type = image_container.nifti_type
-            metadata[self.KEY_MAG_STRENGTH] = self.inputs[self.KEY_PARAMETERS][
-                self.KEY_MAG_STRENGTH
-            ]
-            metadata[self.KEY_QUANTITY] = quantity
-            metadata[self.KEY_UNITS] = self.inputs[self.KEY_UNITS][i]
+                # If we have a corresponding 'image_override' value, update the
+                # 'image_data' with that value
+                if (
+                    self.KEY_IMAGE_OVERRIDE in self.inputs
+                    and quantity in self.inputs[self.KEY_IMAGE_OVERRIDE]
+                ):
+                    image_data.fill(self.inputs[self.KEY_IMAGE_OVERRIDE][quantity])
 
-            # If we have a ground_truth_modulate input, and this quantity is to be modulated
-            if (
-                "ground_truth_modulate" in self.inputs
-                and quantity in self.inputs["ground_truth_modulate"]
-            ):
-                scale_offset = self.inputs["ground_truth_modulate"][quantity]
-                if "scale" in scale_offset:
-                    # Allow unsafe casting (allow data-type conversion)
-                    image_data = np.multiply(
-                        image_data, scale_offset["scale"], casting="unsafe"
-                    )
-                if "offset" in scale_offset:
-                    # Allow unsafe casting (allow data-type conversion)
-                    image_data = np.add(
-                        image_data, scale_offset["offset"], casting="unsafe"
-                    )
+                # If we have a segmentation label, round and squash the
+                # data to uint16 and update the NIFTI header
+                metadata = {}
+                if quantity == "seg_label":
+                    header["datatype"] = 512
+                    image_data = np.around(image_data).astype(dtype=np.uint16)
+                    metadata[self.KEY_SEGMENTATION] = self.inputs[self.KEY_SEGMENTATION]
 
-            new_image_container = NiftiImageContainer(
-                nifti_img=nifti_image_type(
-                    dataobj=image_data, affine=image_container.affine, header=header
-                ),
-                metadata=metadata,
-            )
+                nifti_image_type = image_container.nifti_type
+                metadata[self.KEY_MAG_STRENGTH] = self.inputs[self.KEY_PARAMETERS][
+                    self.KEY_MAG_STRENGTH
+                ]
+                metadata[self.KEY_QUANTITY] = quantity
+                metadata[self.KEY_UNITS] = self.inputs[self.KEY_UNITS][i]
 
-            self.outputs[quantity] = new_image_container
+                # If we have a ground_truth_modulate input, and this quantity is to be modulated
+                if (
+                    "ground_truth_modulate" in self.inputs
+                    and quantity in self.inputs["ground_truth_modulate"]
+                ):
+                    scale_offset = self.inputs["ground_truth_modulate"][quantity]
+                    if "scale" in scale_offset:
+                        # Allow unsafe casting (allow data-type conversion)
+                        image_data = np.multiply(
+                            image_data, scale_offset["scale"], casting="unsafe"
+                        )
+                    if "offset" in scale_offset:
+                        # Allow unsafe casting (allow data-type conversion)
+                        image_data = np.add(
+                            image_data, scale_offset["offset"], casting="unsafe"
+                        )
+
+                new_image_container = NiftiImageContainer(
+                    nifti_img=nifti_image_type(
+                        dataobj=image_data, affine=image_container.affine, header=header
+                    ),
+                    metadata=metadata,
+                )
+
+                self.outputs[quantity] = new_image_container
 
         # Get the parameter_override dictionary (empty dict if it doesn't exist)
         overrides = (
@@ -285,3 +293,14 @@ class GroundTruthLoaderFilter(BaseFilter):
                 )
             except jsonschema.ValidationError as exception:
                 raise FilterInputValidationError from exception
+
+        # if 'lambda_blood_brain' is not in either the quantities array, or a key in the parameters
+        # dictionary then raise an error
+        if "lambda_blood_brain" not in self.inputs[self.KEY_QUANTITIES] + [
+            *self.inputs[self.KEY_PARAMETERS]
+        ]:
+            raise FilterInputValidationError(
+                "'lambda_blood_brain' must be present in either the input 'quantities' list or"
+                " as a key in 'parameters'"
+            )
+
