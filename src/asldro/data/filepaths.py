@@ -3,16 +3,17 @@ import os
 
 # The data directory for the asldro module
 DATA_DIR = os.path.dirname(os.path.realpath(__file__))
+REL_DATA_DIR = os.path.dirname(os.path.relpath(__file__))
 
 
 GROUND_TRUTH_DATA = {
     "hrgt_icbm_2009a_nls_3t": {
-        "json": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_3t.json"),
-        "nii": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_3t.nii.gz"),
+        "json": os.path.join(REL_DATA_DIR, "hrgt_icbm_2009a_nls_3t.json"),
+        "nii": os.path.join(REL_DATA_DIR, "hrgt_icbm_2009a_nls_3t.nii.gz"),
     },
     "hrgt_icbm_2009a_nls_1.5t": {
-        "json": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.json"),
-        "nii": os.path.join(DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.nii.gz"),
+        "json": os.path.join(REL_DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.json"),
+        "nii": os.path.join(REL_DATA_DIR, "hrgt_icbm_2009a_nls_1.5t.nii.gz"),
     },
 }
 

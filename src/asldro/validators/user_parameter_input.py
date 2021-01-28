@@ -57,6 +57,7 @@ INVERSION_FLIP_ANGLE = "inversion_flip_angle"
 INVERSION_TIME = "inversion_time"
 OUTPUT_IMAGE_TYPE = "output_image_type"
 MODALITY = "modality"
+DEFAULT_GROUND_TRUTH = "hrgt_icbm_2009a_nls_3t"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -375,10 +376,10 @@ def get_example_input_params() -> dict:
     :raises asldro.validators.parameters.ValidationError: if the input
         validation does not pass
     """
-    return validate_input_params(
+    params = validate_input_params(
         {
             "global_configuration": {
-                "ground_truth": "hrgt_icbm_2009a_nls_3t",
+                "ground_truth": DEFAULT_GROUND_TRUTH,
                 "image_override": {},
                 "parameter_override": {},
             },
@@ -391,3 +392,8 @@ def get_example_input_params() -> dict:
             ],
         }
     )
+    # validate_input_params returns the ground truth as paths, we want the default params
+    # to use the string, so change it back
+    params["global_configuration"]["ground_truth"] = DEFAULT_GROUND_TRUTH
+
+    return params

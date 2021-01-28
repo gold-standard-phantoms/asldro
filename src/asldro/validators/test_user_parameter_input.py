@@ -11,6 +11,7 @@ from asldro.validators.user_parameter_input import (
     STRUCTURAL,
     validate_input_params,
     get_example_input_params,
+    DEFAULT_GROUND_TRUTH,
 )
 
 
@@ -389,6 +390,8 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
 
 
 def test_example_input_params_valid():
-    """Just test that the generated example input parameters pass
+    """Test that the generated example input parameters pass
     the validation (validated internally)"""
-    validate_input_params(get_example_input_params())
+    p = get_example_input_params()
+    validate_input_params(p)
+    assert p["global_configuration"]["ground_truth"] == DEFAULT_GROUND_TRUTH
