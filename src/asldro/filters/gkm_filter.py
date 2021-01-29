@@ -48,7 +48,7 @@ class GkmFilter(BaseFilter):
     :param 'label_efficiency': The degree of inversion of the labelling (0 to 1 inclusive)
     :type 'label_efficiency': float
     :param 'lambda_blood_brain': The blood-brain-partition-coefficient (0 to 1 inclusive)
-    :type 'lambda_blood_brain': float
+    :type 'lambda_blood_brain': float or BaseImageContainer
     :param 't1_arterial_blood': Longitudinal relaxation time of arterial blood,
         seconds (0 exclusive to 100 inclusive)
     :type 't1_arterial_blood': float
@@ -75,8 +75,9 @@ class GkmFilter(BaseFilter):
     * ``bolus_cut_off_flag`` (pasl only)
     * ``bolus_cut_off_delay_time`` (pasl only)
     * ``label_efficiency``
-    * ``lambda_blood_brain``
+    * ``lambda_blood_brain`` (only if a single value is supplied)
     * ``t1_arterial_blood``
+    * ``m0`` (only if a single value is supplied)
 
     ``post_label_delay`` is calculated as ``signal_time - label_duration``
 
@@ -119,40 +120,34 @@ class GkmFilter(BaseFilter):
         label_duration: float = self.inputs[self.KEY_LABEL_DURATION]
         signal_time: float = self.inputs[self.KEY_SIGNAL_TIME]
         label_efficiency: float = self.inputs[self.KEY_LABEL_EFFICIENCY]
-        lambda_blood_brain: float = self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN]
         t1_arterial_blood: float = self.inputs[self.KEY_T1_ARTERIAL_BLOOD]
 
         # blank dictionary for metadata to add
         metadata = {}
-        # if m0 is an image load that, if not then make a ndarray
-        # with the same value (makes the calculations more straightforward) and also
-        # place the m0 value in the metadata field "m0"
-        if isinstance(self.inputs[self.KEY_M0], BaseImageContainer):
-            m0_tissue: np.ndarray = self.inputs[self.KEY_M0].image
-            # Get a flattened view of nD numpy array
-            flatten_arr = np.ravel(m0_tissue)
-            # Check if all value in array are equal and update metadata if so
-            if np.all(m0_tissue == flatten_arr[0]):
-                metadata[self.KEY_M0] = flatten_arr[0]
-
-        else:
-            m0_tissue: np.ndarray = self.inputs[self.KEY_M0] * np.ones(
-                perfusion_rate.shape
-            )
-            metadata[self.KEY_M0] = self.inputs[self.KEY_M0]
+        m0_tissue = GkmFilter.check_and_make_image_from_value(
+            self.inputs[self.KEY_M0], perfusion_rate.shape, metadata, self.KEY_M0
+        )
+        lambda_blood_brain = GkmFilter.check_and_make_image_from_value(
+            self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN],
+            perfusion_rate.shape,
+            metadata,
+            self.KEY_LAMBDA_BLOOD_BRAIN,
+        )
 
         # calculate M0b, handling runtime divide-by-zeros
-        m0_arterial_blood = (
-            m0_tissue / lambda_blood_brain
-            if lambda_blood_brain != 0
-            else np.zeros_like(m0_tissue)
+        m0_arterial_blood = np.divide(
+            m0_tissue,
+            lambda_blood_brain,
+            out=np.zeros_like(lambda_blood_brain),
+            where=lambda_blood_brain != 0,
         )
 
         # calculate T1', handling runtime divide-by-zeros
-        flow_over_lambda = (
-            perfusion_rate / lambda_blood_brain
-            if lambda_blood_brain != 0
-            else np.zeros_like(perfusion_rate)
+        flow_over_lambda = np.divide(
+            perfusion_rate,
+            lambda_blood_brain,
+            out=np.zeros_like(lambda_blood_brain),
+            where=lambda_blood_brain != 0,
         )
 
         one_over_t1_tissue = np.divide(
@@ -310,7 +305,6 @@ class GkmFilter(BaseFilter):
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
                 self.KEY_POST_LABEL_DELAY: (signal_time - label_duration),
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
-                self.KEY_LAMBDA_BLOOD_BRAIN: lambda_blood_brain,
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,
                 "image_flavour": "PERFUSION",
             },
@@ -387,7 +381,7 @@ class GkmFilter(BaseFilter):
                 self.KEY_LAMBDA_BLOOD_BRAIN: Parameter(
                     validators=[
                         range_inclusive_validator(0, 1),
-                        isinstance_validator(float),
+                        isinstance_validator((BaseImageContainer, float)),
                     ]
                 ),
                 self.KEY_T1_ARTERIAL_BLOOD: Parameter(
@@ -422,3 +416,53 @@ class GkmFilter(BaseFilter):
                     ],
                 ]
             )
+
+    @staticmethod
+    def check_and_make_image_from_value(
+        arg: float or BaseImageContainer,
+        shape: tuple,
+        metadata: dict,
+        metadata_key: str,
+    ) -> np.ndarray:
+        """ Checks the type of the input parameter to see if it is a float or a BaseImageContainer.
+        If it is an image:
+        
+        * return the image ndarray
+        * check if it has the same value everywhere (i.e. an image override), if it does then
+          place the value into the `metadata` dict under the `metadata_key`
+        
+        If it is a float:
+        * make a ndarray with the same value
+        * place the value into the `metadata` dict under the `metadata_key`
+
+        This makes calculations more straightforward as a ndarray can always be expected.
+        
+        **Arguments**
+
+        :param arg: The input parameter to check
+        :type arg: float or BaseImageContainer
+        :param shape: The shape of the image to create
+        :type shape: tuple
+        :param metadata: metadata dict, which is updated by this function
+        :type metadata: dict
+        :param metadata_key: key to assign the value of arg (if a float or single value image) to
+        :type metadata_key: str
+
+        :return: image of the parameter
+        :rype: np.ndarray
+        
+        """
+
+        if isinstance(arg, BaseImageContainer):
+            out_array: np.ndarray = arg.image
+            # Get a flattened view of nD numpy array
+            flatten_arr = np.ravel(out_array)
+            # Check if all value in array are equal and update metadata if so
+            if np.all(out_array == flatten_arr[0]):
+                metadata[metadata_key] = flatten_arr[0]
+
+        else:
+            out_array: np.ndarray = arg * np.ones(shape)
+            metadata[metadata_key] = arg
+        return out_array
+

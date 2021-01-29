@@ -358,4 +358,3 @@ def test_ground_truth_loader_filter_lambda_blood_brain_in_image(mock_data: dict)
     gt_filter.run()
 
     assert gt_filter.outputs["lambda_blood_brain"] == 0.9
-
