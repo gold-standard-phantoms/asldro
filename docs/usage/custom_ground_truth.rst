@@ -1,3 +1,5 @@
+.. _custom-ground-truth:
+
 Making an input ground truth
 ==============================
 

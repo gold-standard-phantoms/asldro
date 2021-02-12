@@ -20,7 +20,7 @@ class GroundTruthLoaderFilter(BaseFilter):
 
     **Inputs**
 
-    Input Parameters are all keyword arguments for the :class:`GroundTruthLoaderFilter.add_inputs()`
+    Input Parameters are all keyword arguments for the :class:`GroundTruthLoaderFilter.add_input()`
     member function. They are also accessible via class constants,
     for example :class:`GroundTruthLoaderFilter.KEY_IMAGE`
 
