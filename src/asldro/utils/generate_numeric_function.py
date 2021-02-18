@@ -2,7 +2,6 @@
 
 from typing import Union
 from copy import deepcopy
-import pdb
 import numpy as np
 
 from asldro.utils.resampling import rot_z_mat, translate_mat
