@@ -6,6 +6,7 @@ import json
 import nibabel as nib
 
 from asldro.filters.create_volumes_from_seg_mask import CreateVolumesFromSegMask
+from asldro.filters.image_tools import FloatToIntImageFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
@@ -45,8 +46,14 @@ def generate_hrgt(
     nifti_filter = NiftiLoaderFilter()
     nifti_filter.add_input("filename", seg_mask_filename)
 
+    # convert to an integer image, if the image is a float
+    round_seg_mask_filter = FloatToIntImageFilter()
+    round_seg_mask_filter.add_parent_filter(nifti_filter)  # use default method: "round"
+
     create_volume_filter = CreateVolumesFromSegMask()
-    create_volume_filter.add_parent_filter(nifti_filter, io_map={"image": "seg_mask"})
+    create_volume_filter.add_parent_filter(
+        round_seg_mask_filter, io_map={"image": "seg_mask"}
+    )
     create_volume_filter.add_parent_filter(json_filter)
 
     create_volume_filter.run()

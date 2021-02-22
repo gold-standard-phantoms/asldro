@@ -160,9 +160,9 @@ class CreateVolumesFromSegMask(BaseFilter):
 
         seg_mask: BaseImageContainer = self.inputs[self.KEY_SEG_MASK]
         # The data type of the image data in 'seg_mask' should be a signed or unsigned integer
-        if seg_mask.image.dtype.kind not in ["u", "i"]:
+        if not issubclass(seg_mask.image.dtype.type, np.integer):
             raise FilterInputValidationError(
-                f"{self} filter requires the image data in the input 'seg_label'"
+                f"{self} filter requires the image data in the input 'seg_mask'"
                 "to be either signed or unsigned integer type"
                 f"type is {seg_mask.image.dtype}"
             )
@@ -170,11 +170,19 @@ class CreateVolumesFromSegMask(BaseFilter):
         # the number of data dimensions should be 4 or less
         if np.ndim(seg_mask.image) > 4:
             raise FilterInputValidationError(
-                f"{self} filter requires the image data in the input 'seg_label'"
+                f"{self} filter requires the image data in the input 'seg_mask'"
                 "to have 4 dimensions or less"
                 f"number of dimensions is {np.ndim(seg_mask.image)}"
             )
 
+        # the number of unique values in the image data of 'seg_mask' must match the
+        # number of values in 'label_values'
+        if len(np.unique(seg_mask.image)) != len(label_values):
+            raise FilterInputValidationError(
+                f"{self} filter requires the number of unique values in the image data"
+                "of the input 'seg_mask' to be the same as the number of values in"
+                "'label_values"
+            )
         # The values in 'label_values' must match the unique values in 'seg_mask'
         if (
             np.unique(seg_mask.image) != sorted(self.inputs[self.KEY_LABEL_VALUES])

@@ -23,6 +23,9 @@ def input_validation_dict_fixture():
     GroundTruthLoaderFilter"""
 
     seg_data_4D = np.stack([i * np.ones((2, 2, 3), dtype=np.uint16) for i in range(4)])
+    seg_data_4D_5vals = np.stack(
+        [i * np.ones((2, 2, 3), dtype=np.uint16) for i in range(5)]
+    )
     seg_data_5D = np.stack([i * np.ones((1, 4, 4, 4)) for i in range(4)])
     seg_mask_4D = NiftiImageContainer(nib.Nifti2Image(seg_data_4D, np.eye(4)))
     seg_mask_4D_float = NiftiImageContainer(
@@ -55,6 +58,7 @@ def input_validation_dict_fixture():
                 seg_mask_5D,
                 seg_mask_4D_float,
                 seg_data_4D,
+                seg_data_4D_5vals,
                 1.0,
                 "str",
             ],
