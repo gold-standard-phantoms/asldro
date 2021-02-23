@@ -54,6 +54,10 @@ def test_hrgt_params_schema(validation_data: dict):
     """Check that the example hrgt_params passes the json schema"""
     jsonschema.validate(validation_data["hrgt_params"], SCHEMAS["generate_hrgt_params"])
 
+    # check it passes when 'lambda_blood_brain' is missing from 'parameters'
+    d = deepcopy(validation_data["hrgt_params"])
+    d["parameters"].pop("lambda_blood_brain")
+
     # try something that should fail - swap type for one of the arrays
     d = deepcopy(validation_data["hrgt_params"])
     d["label_names"] = d["label_values"]

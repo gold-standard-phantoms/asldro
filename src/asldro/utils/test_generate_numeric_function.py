@@ -22,10 +22,10 @@ def test_generate_point_function():
     z = np.arange(-10.0, 10.0, 0.1)
     xx, yy, zz = np.meshgrid(x, y, z, sparse=True)
 
-    rng = default_rng()
+    rng = default_rng(0)
 
     for i in range(10):
-        loc = rng.uniform(-10, 10, (3,))
+        loc = rng.uniform(np.amin(x), np.amax(x), (3,))
         out = generate_point_function(xx, yy, zz, loc)
         idx = (np.abs(xx - loc[0])).argmin()
         idy = (np.abs(yy - loc[1])).argmin()
