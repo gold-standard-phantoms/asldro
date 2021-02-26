@@ -1,0 +1,31 @@
+{
+    "type": "object",
+    "required": [
+        "mask_files",
+        "region_values",
+        "region_priority"
+    ],
+    "properties": {
+        "mask_files": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "region_values": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            }
+        },
+        "region_priority": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            }
+        },
+        "threshold": {
+            "type": "number"
+        }
+    }
+}

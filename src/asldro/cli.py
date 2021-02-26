@@ -10,6 +10,8 @@ from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 from asldro.examples import run_full_pipeline
 from asldro.pipelines.generate_ground_truth import generate_hrgt
+from asldro.pipelines.combine_masks import combine_fuzzy_masks
+from asldro.validators import parameters
 from asldro.validators.user_parameter_input import get_example_input_params
 
 logging.basicConfig(
@@ -159,6 +161,14 @@ def create_hrgt(args):
     generate_hrgt(args.hrgt_params_path, args.seg_mask_path, args.output_dir)
 
 
+def combine_masks(args):
+    """Parses the 'combine-masks' subcommand. Must have a:
+    * 'combine_masks_params_path', which is the path to the combine masks parameters
+    * 'output_filename', the file name to output to
+    """
+    combine_fuzzy_masks(args.combine_masks_params_path, args.output_filename)
+
+
 def main():
     """Main function for the Command Line Interface. Provides multiple options
     which are best documented by running the command line tool with `--help`"""
@@ -263,6 +273,30 @@ def main():
         help="The directory to output to. Will create 'hrgt.nii.gz' and 'hrgt.json' files."
         "Must exist. Will overwrite any existing files with the same names.",
     )
+
+    # Combine masks
+    combine_masks_parser = subparsers.add_parser(
+        name="combine-masks",
+        description="""Combines multiple fuzzy masks into a single segmentation
+        mask""",
+    )
+    combine_masks_parser.add_argument(
+        "combine_masks_params_path",
+        type=FileType(extensions=["json"], should_exist=True),
+        help="The path to the parameter file describing how to combine the masks. Must"
+        "be a  .json.",
+    )
+
+    combine_masks_parser.add_argument(
+        "output_filename",
+        type=FileType(extensions=["nii", "nii.gz"]),
+        help="The output filename (optionally with path). "
+        "Must be a NIFTI or gzipped NIFTI"
+        " with extension .nii or .nii.gz. "
+        "Will overwrite an existing file.",
+    )
+
+    combine_masks_parser.set_defaults(func=combine_masks)
 
     create_hrgt_parser.set_defaults(func=create_hrgt)
 

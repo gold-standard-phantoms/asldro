@@ -1,6 +1,6 @@
 from copy import deepcopy
 import os
-from nibabel.nifti1 import Nifti1Image
+
 import pytest
 import json
 import jsonschema
@@ -77,7 +77,7 @@ def test_generate_hrgt(validation_data: dict):
 
         results = generate_hrgt(json_filename, nifti_filename, temp_dir)
 
-        saved_nifti: Nifti1Image = nib.load(os.path.join(temp_dir, "hrgt.nii.gz"))
+        saved_nifti: nib.Nifti1Image = nib.load(os.path.join(temp_dir, "hrgt.nii.gz"))
         with open(os.path.join(temp_dir, "hrgt.json"), "r") as json_file:
             saved_json = json.load(json_file)
 
@@ -102,7 +102,7 @@ def test_generate_hrgt_float_seg_mask(validation_data: dict):
 
         results = generate_hrgt(json_filename, nifti_filename, temp_dir)
 
-        saved_nifti: Nifti1Image = nib.load(os.path.join(temp_dir, "hrgt.nii.gz"))
+        saved_nifti: nib.Nifti1Image = nib.load(os.path.join(temp_dir, "hrgt.nii.gz"))
         with open(os.path.join(temp_dir, "hrgt.json"), "r") as json_file:
             saved_json = json.load(json_file)
 
