@@ -48,7 +48,10 @@ def generate_hrgt(
 
     # convert to an integer image, if the image is a float
     round_seg_mask_filter = FloatToIntImageFilter()
-    round_seg_mask_filter.add_parent_filter(nifti_filter)  # use default method: "round"
+    round_seg_mask_filter.add_parent_filter(nifti_filter)  # use default method
+    round_seg_mask_filter.add_input(
+        FloatToIntImageFilter.KEY_METHOD, FloatToIntImageFilter.CEIL
+    )
 
     create_volume_filter = CreateVolumesFromSegMask()
     create_volume_filter.add_parent_filter(

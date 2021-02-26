@@ -22,7 +22,7 @@ class CreateVolumesFromSegMask(BaseFilter):
 
     Input Parameters are all keyword arguments for the :class:`CreateVolumesFromSegMask.add_input()`
     member function. They are also accessible via class constants,
-    for example :class:`GroundTruthLoaderFilter.KEY_IMAGE`
+    for example :class:`CreateVolumesFromSegMask.KEY_IMAGE`
 
     :param 'seg_mask': segmentation mask image comprising integer values for each region. dtype of
       the image data must be an unsigned or signed integer type.

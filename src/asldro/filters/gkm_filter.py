@@ -290,9 +290,7 @@ class GkmFilter(BaseFilter):
         delta_m[condition_bolus_arrived] = delta_m_arrived[condition_bolus_arrived]
 
         # copy 'perfusion_rate' image container and set the image to delta_m
-        self.outputs[self.KEY_DELTA_M]: BaseImageContainer = self.inputs[
-            self.KEY_PERFUSION_RATE
-        ].clone()
+        self.outputs[self.KEY_DELTA_M] = self.inputs[self.KEY_PERFUSION_RATE].clone()
         # remove some metadata fields
         self.outputs[self.KEY_DELTA_M].metadata.pop("units", None)
         self.outputs[self.KEY_DELTA_M].metadata.pop("quantity", None)
