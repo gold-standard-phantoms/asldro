@@ -4,7 +4,9 @@
 import pytest
 
 import numpy as np
+from numpy.random import default_rng
 import numpy.testing
+
 import nibabel as nib
 
 from asldro.filters.basefilter import FilterInputValidationError
@@ -150,6 +152,37 @@ def test_combine_fuzzy_masks_filter_mock_data_list(validation_data: dict):
     numpy.testing.assert_array_equal(
         combine_masks_filter.outputs["seg_mask"].image, [1, 3, 2, 1]
     )
+
+
+def test_combine_fuzzy_masks_filter_priority_conflict():
+
+    test_data = np.array((1.0))
+
+    test_masks = [
+        NiftiImageContainer(nib.Nifti1Image(test_data, np.eye(4))) for i in range(20)
+    ]
+
+    rng = default_rng(12345)
+    priority = np.arange(1, 21, dtype=np.int16)
+    rng.shuffle(priority)
+    region_values = np.arange(1, 21)
+
+    for i in enumerate(priority):
+        loop_priority = np.roll(priority, i)
+        combine_masks_filter = CombineFuzzyMasksFilter()
+        combine_masks_filter.add_inputs(
+            {
+                "fuzzy_mask": test_masks,
+                "region_values": region_values.tolist(),
+                "region_priority": loop_priority.tolist(),
+            }
+        )
+        combine_masks_filter.run()
+
+        numpy.testing.assert_array_equal(
+            combine_masks_filter.outputs["seg_mask"].image,
+            region_values[loop_priority == 1],
+        )
 
 
 def test_combine_fuzzy_masks_filter_mock_data_image(validation_data: dict):
