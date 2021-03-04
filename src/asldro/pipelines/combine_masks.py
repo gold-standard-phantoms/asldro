@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 def combine_fuzzy_masks(
-    params_filename: str, output_filename: str
+    params_filename: str, output_filename: str = None
 ) -> BaseImageContainer:
     """Combines fuzzy masks into a single segmentation mask image.
 
     :param params_filename: Path to the combining masks parameter JSON file.
     :type params_filename: str
-    :param output_filename: Path to the output combined mask NIFTI image
+    :param output_filename: Path to the output combined mask NIFTI image, defaults to None
     :type output_filename: str
     :return: The combined mask, as an image container.
     :rtype: BaseImageContainer
@@ -48,10 +48,13 @@ def combine_fuzzy_masks(
     combine_masks_filter.run()
 
     # save the file
-    nib.save(
-        combine_masks_filter.outputs[CombineFuzzyMasksFilter.KEY_SEG_MASK].nifti_image,
-        output_filename,
-    )
+    if output_filename is not None:
+        nib.save(
+            combine_masks_filter.outputs[
+                CombineFuzzyMasksFilter.KEY_SEG_MASK
+            ].nifti_image,
+            output_filename,
+        )
 
     return combine_masks_filter.outputs[CombineFuzzyMasksFilter.KEY_SEG_MASK]
 

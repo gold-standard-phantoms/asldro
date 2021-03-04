@@ -48,3 +48,19 @@ def test_run_full_pipeline_snr_zero():
     ]
     run_full_pipeline(input_params=input_params)
 
+
+@pytest.mark.slow
+def test_run_asl_pipeline_qasper_hrgt():
+    """Runs the ASL pipeline using the qasper ground truth"""
+    input_params = get_example_input_params()
+
+    input_params["global_configuration"]["ground_truth"] = "qasper_3t"
+
+    input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
+    # remove the ground truth and structural image series
+    input_params["image_series"] = [
+        x for x in input_params["image_series"] if x["series_type"] in ["asl"]
+    ]
+
+    run_full_pipeline(input_params=input_params)
+

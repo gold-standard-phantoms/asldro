@@ -3,6 +3,7 @@
 import os
 
 from asldro.data.filepaths import GROUND_TRUTH_DATA
+from asldro.data.filepaths import QASPER_DATA
 
 
 def test_file_paths_exist():
@@ -10,3 +11,6 @@ def test_file_paths_exist():
     for value in GROUND_TRUTH_DATA.values():
         assert os.path.isfile(value["json"])
         assert os.path.isfile(value["nii"])
+
+    for value in QASPER_DATA.values():
+        assert os.path.isfile(value)

@@ -19,15 +19,11 @@ TEST_NIFTI_ONES = NiftiImageContainer(
     nifti_img=nib.Nifti2Image(
         np.ones(TEST_VOLUME_DIMENSIONS),
         affine=np.array(
-            (
-                (1, 0, 0, -16),
-                (0, 1, 0, -16),
-                (0, 0, 1, -16),
-                (0, 0, 0, 1),
-            )
+            ((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)
         ),
     )
 )
+TEST_NIFTI_ONES.header.set_xyzt_units("mm", "sec")
 
 
 # each entry, [0] = optional (True/False), [1] = pass, [2:] = fail

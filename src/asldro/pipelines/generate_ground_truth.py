@@ -70,12 +70,13 @@ def generate_hrgt(
     ground_truth_filter.add_input("image", create_volume_filter.outputs["image"])
     ground_truth_filter.run()  # check that no errors occur
     # save the files
-    json_filename = os.path.join(output_dir, "hrgt.json")
-    with open(json_filename, "w") as json_file:
-        json.dump(create_volume_filter.outputs["image_info"], json_file, indent=4)
+    if output_dir is not None:
+        json_filename = os.path.join(output_dir, "hrgt.json")
+        with open(json_filename, "w") as json_file:
+            json.dump(create_volume_filter.outputs["image_info"], json_file, indent=4)
 
-    nifti_filename = os.path.join(output_dir, "hrgt.nii.gz")
-    nib.save(create_volume_filter.outputs["image"].nifti_image, nifti_filename)
+        nifti_filename = os.path.join(output_dir, "hrgt.nii.gz")
+        nib.save(create_volume_filter.outputs["image"].nifti_image, nifti_filename)
 
     return create_volume_filter.outputs
 
