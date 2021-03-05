@@ -11,17 +11,21 @@ def map_dict(
     """
     Maps a dictionary onto a new dictionary by changing some/all of
     the keys.
+
     :param input_dict: The input dictionary
     :param io_map: The dictionary used to perform the mapping. All keys
-    and values must be strings. For example:
-    As an example:
-    {
-        "one": "two",
-        "three": "four"
-    }
-    will map inputs keys of "one" to "two" AND "three" to "four".
+      and values must be strings. For example:
+    
+        .. code-block:: python
+        
+            {
+                "one": "two",
+                "three": "four"
+            }
+
+      will map inputs keys of "one" to "two" AND "three" to "four".
     :param io_map_optional: If this is False, a KeyError will be raised
-    if the keys in the io_map are not found in the input_dict.
+      if the keys in the io_map are not found in the input_dict.
     :raises KeyError: if keys required in the mapping are not found in the input_dict
     :return: the remapped dictionary
     """

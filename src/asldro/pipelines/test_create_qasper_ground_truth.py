@@ -3,7 +3,6 @@
 import os
 from tempfile import TemporaryDirectory
 
-import nibabel as nib
 import pytest
 import numpy as np
 import numpy.testing
@@ -40,17 +39,20 @@ def test_create_qasper():
         input_params["global_configuration"]["ground_truth_modulate"] = {
             "perfusion_rate": {"scale": qasper_flow_rate},
         }
+        # set the SNR to 0 -> no noise added
         input_params["image_series"][0]["series_parameters"][DESIRED_SNR] = 0.0
         input_params["image_series"][0]["series_parameters"][ACQ_MATRIX] = [
             260,
             260,
             130,
         ]
+        # set TR to 1,000,000 s for the m0scan, this makes any TR effects negligible.
         input_params["image_series"][0]["series_parameters"][REPETITION_TIME] = [
             1.0e6,
             5.0,
             5.0,
         ]
+
         input_params["image_series"][0]["series_parameters"][LABEL_DURATION] = 0.5
         input_params["image_series"][0]["series_parameters"][SIGNAL_TIME] = 3.6
 
@@ -59,6 +61,7 @@ def test_create_qasper():
             x for x in input_params["image_series"] if x["series_type"] in ["asl"]
         ]
 
+        # run the ASLDRO pipeline
         output = run_full_pipeline(input_params=input_params)
 
     asl_source_container: NiftiImageContainer = output["asldro_output"][0]
@@ -105,24 +108,9 @@ def test_create_qasper():
     # calculate the global flow rate in ml/min
     calc_global_flow = global_calc_cbf * porous_mass / 100.0
 
+    # check that the calculated global flow rate in the porous material matches the value
+    # originally set
     numpy.testing.assert_array_almost_equal(calc_global_flow, qasper_flow_rate)
-
-    cbf_container: NiftiImageContainer = hrgt["t1"].clone()
-    cbf_container.image = cbf
-
-    # nib.save(
-    #     cbf_container.nifti_image,
-    #     os.path.join(
-    #         "D:\Aaron\Seafile\GSPCD_Science\8013-ASLDRO\Data\QASPER", "calc_cbf.nii.gz"
-    #     ),
-    # )
-
-    # nib.save(
-    #     hrgt["transit_time"].nifti_image,
-    #     os.path.join(
-    #         "D:\Aaron\Seafile\GSPCD_Science\8013-ASLDRO\Data\QASPER", "gt_tt.nii.gz"
-    #     ),
-    # )
 
 
 def calc_cbf_gkm_casl(
@@ -137,7 +125,7 @@ def calc_cbf_gkm_casl(
     pld,
     lab_eff,
 ) -> np.ndarray:
-    r"""Calculates CBF using the full general kinetic model
+    r"""Calculates CBF using the full general kinetic model for a single PLD.
 
     :param delta_m: Difference in magnetisation between control and label
     :type delta_m: np.ndarray
@@ -164,7 +152,7 @@ def calc_cbf_gkm_casl(
     :return: The calculated CBF
     :rtype: np.ndarray
     """
-
+    # pre-calculate anything where an array is involved in a division using np.divide
     one_over_t1 = np.divide(
         1, t1_tissue, out=np.zeros_like(t1_tissue), where=t1_tissue != 0
     )

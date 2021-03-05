@@ -75,8 +75,10 @@ class TransformResampleImageFilter(BaseFilter):
         0 & 0 & 1& \Delta z \\ 0& 0 & 0& 1 \end{pmatrix}=\text{translation matrix}\\
         &\mathbf{S} = \begin{pmatrix} s_x & 0 & 0 & 0 \\ 0 & s_y & 0 & 0 \\
         0 & 0 & s_z & 0 \\ & 0 & 0& 1 \end{pmatrix}=\text{scaling matrix}\\
-        & [s_x, s_y, s_z] = \frac{[L_t,M_t,N_t]}{[L_i,M_i,N_i]}\\
+        & [s_x, s_y, s_z] = \frac{[L_t,M_t,N_t]}{[v_x, v_y, v_z]\cdot[L_i,M_i,N_i]}\\
+        & \text{divisions and multiplications are element-wise (Hadamard)}\\
         & [L_i, M_i, N_i] = \text{shape of the input image}\\
+        & [v_x, v_y, v_z] = \text{voxel dimensions of the input image}\\
         & [x_0, y_0, z_0] = \text{input image origin coordinates (vector part of input
         image's affine)}\\
         &\mathbf{R} = \mathbf{R_z} \mathbf{R_y} \mathbf{R_x} =

@@ -7,13 +7,15 @@ from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 def validate_filter_inputs(filter_to_test: BaseFilter, validation_data: dict):
     """Tests a filter with a validation data dictionary.  Checks that FilterInputValidationErrors
     are raised when data is missing or incorrect.
+
     :param filter_to_test: the class of the filter to test
     :type filter_to_test: BaseFilter
     :param validation_data: A dictionary, where each key is an input parameter
-    for the filter, and the value is a list/tuple where:
-        [0]: is_optional
-        [1]: a value that should pass
-        [2:end]: values that should fail
+      for the filter, and the value is a list/tuple where:
+        
+        :[0]: is_optional
+        :[1]: a value that should pass
+        :[2:end]: values that should fail
 
     :type validation_data: dict
     """

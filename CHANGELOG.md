@@ -12,10 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter that combines fuzzy masks.
 - CLI for creating ground truths.
 - CLI for combining masks into a segmentation mask.
+- Pipeline for creating a QASPER ground truth
+- QASPER ground truth
 
 ### Fixed
 - Default parameter output has hrgt string instead of paths.
 - Long, unecessary tests removed.
+- Resampling corrected to use the input voxel size as part of the
+  scaling calculation.
 
 ### Changed
 - BIDS output now matches 1.5.0 specification

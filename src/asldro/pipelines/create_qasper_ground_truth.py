@@ -3,18 +3,15 @@
 import logging
 import os
 import json
-import pdb
 import argparse
 from tempfile import TemporaryDirectory
 import nibabel as nib
-from nibabel.nifti1 import Nifti1Image
 import numpy as np
 import nilearn as nil
-import scipy as sp
 
 from asldro.pipelines.generate_ground_truth import generate_hrgt
 from asldro.pipelines.combine_masks import combine_fuzzy_masks
-from asldro.data.filepaths import QASPER_DATA, REL_DATA_DIR
+from asldro.data.filepaths import QASPER_DATA
 from asldro.utils.generate_numeric_function import (
     generate_circular_function_array,
     generate_gaussian_function,
@@ -25,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 def generate_qasper(output_dir: str = None) -> dict:
-    """Generates a valid QASPER ground truth for ASLDRO.
+    """Generates a valid QASPER ground truth for ASLDRO. This function generates
+    the QASPER ground truth that is included with ASLDRO. For more information see
+    :ref:`qasper-3t-hrgt`
 
     :param output_dir: path to the output directory to create the hrgt.nii.gz and
       hrgt.json files, defaults to None
@@ -34,7 +33,10 @@ def generate_qasper(output_dir: str = None) -> dict:
       'image_info', a dictionary describing its contents.
     :rtype: dict
     """
-    # combine the fuzzy masks to create a segmentation mask
+    # The masks in QASPER_DATA are fuzzy, i.e. their voxel values are between 0 and 1
+    # and represent the fraction of the voxel occupied by that particular region.
+    # These need to be combined to create a segmentation mask with integer values
+    # for each region.
     inlet_label_value = 1
     porous_label_value = 2
     outlet_label_value = 3
@@ -104,69 +106,65 @@ def generate_qasper(output_dir: str = None) -> dict:
 
         qasper_hrgt = generate_hrgt(hrgt_json_filename, seg_mask_filename)
 
-    if True:
-        ## Calculate spatially varying transit time maps
+    ## Calculate spatially varying transit time maps
+    arteriole_end_tt = 0.25  # transit time at the end of the arteriole
+    porous_max_tt = 10.0  # max transit time in the porous
+    outlet_max_tt = 20  # max transit time at the outlet
 
-        arteriole_end_tt = 0.25
-        porous_max_tt = 10.0
-        outlet_max_tt = 20
+    # Use the seg_mask's image affine to create meshgrids in world space.
+    i = np.arange(seg_mask.shape[0])
+    j = np.arange(seg_mask.shape[1])
+    k = np.arange(seg_mask.shape[2])
+    ii, jj, kk = np.meshgrid(i, j, k, sparse=False)
 
-        # Use the seg_mask's image affine to create meshgrids in world space.
-        i = np.arange(seg_mask.shape[0])
-        j = np.arange(seg_mask.shape[1])
-        k = np.arange(seg_mask.shape[2])
-        ii, jj, kk = np.meshgrid(i, j, k, sparse=False)
+    xx, yy, zz = nil.image.coord_transform(ii, jj, kk, seg_mask.affine)
 
-        xx, yy, zz = nil.image.coord_transform(ii, jj, kk, seg_mask.affine)
+    # the origin in world space of the QASPER model is at the start of the first porous layer,
+    # in the middle of the disc. Therefore the middle of the the first 'arteriole' tube
+    # is at (x, y, z) = (0, 45.5, 4.75)mm, the circular array origin is at (0, 0, 4.75)
 
-        # the origin in world space of the QASPER model is at the start of the first porous layer,
-        # in the middle of the disc. Therefore the middle of the the first 'arteriole' tube
-        # is at (x, y, z) = (0, 45.5, 4.75)mm, the circular array origin is at (0, 0, 4.75)
+    array_origin = [0.0, 0.0, 4.75]
+    func_params = {"loc": [0.0, 45.5, 4.75], "theta": 0, "fwhm": [20, 20, 25]}
 
-        array_origin = [0.0, 0.0, 4.75]
-        func_params = {"loc": [0.0, 45.5, 4.75], "theta": 0, "fwhm": [20, 20, 25]}
+    gaussian_array_map = generate_circular_function_array(
+        func=generate_gaussian_function,
+        xx=xx,
+        yy=yy,
+        zz=zz,
+        array_origin=array_origin,
+        array_size=60,
+        array_angular_increment=360 / 60,
+        func_params=func_params,
+    )
 
-        gaussian_array_map = generate_circular_function_array(
-            func=generate_gaussian_function,
-            xx=xx,
-            yy=yy,
-            zz=zz,
-            array_origin=array_origin,
-            array_size=60,
-            array_angular_increment=360 / 60,
-            func_params=func_params,
-        )
+    # scale and subtract so that the value at the end of the arteriole is 1.0, and this increases
+    # to a value of 10
+    transit_time_porous = (
+        porous_max_tt * np.ones_like(gaussian_array_map)
+        - (porous_max_tt - arteriole_end_tt) * gaussian_array_map
+    )
+    transit_time_map = np.zeros_like(transit_time_porous)
+    porous_mask = seg_mask.image == porous_label_value
+    transit_time_map[porous_mask] = transit_time_porous[porous_mask]
 
-        # scale and subtract so that the value at the end of the arteriole is 1.0, and this increases
-        # to a value of 10
-        transit_time_porous = (
-            porous_max_tt * np.ones_like(gaussian_array_map)
-            - (porous_max_tt - arteriole_end_tt) * gaussian_array_map
-        )
-        transit_time_map = np.zeros_like(transit_time_porous)
-        porous_mask = seg_mask.image == porous_label_value
-        transit_time_map[porous_mask] = transit_time_porous[porous_mask]
+    # for the inlet, linearly scale the transit time along the z axis from a value of 0 at z=-20mm
+    # to 1.0 at z=9.5mm
+    transit_time_inlet = arteriole_end_tt * (zz + 20) / 29.5
+    inlet_mask = seg_mask.image == inlet_label_value
+    transit_time_map[inlet_mask] = transit_time_inlet[inlet_mask]
 
-        # for the inlet, linearly scale the transit time along the z axis from a value of 0 at z=-20mm
-        # to 1.0 at z=9.5mm
-        transit_time_inlet = arteriole_end_tt * (zz + 20) / 29.5
-        inlet_mask = seg_mask.image == inlet_label_value
-        transit_time_map[inlet_mask] = transit_time_inlet[inlet_mask]
+    # for the outlet, linearly scale the transit time along the z axis from a value of
+    # porous_max_tt at z=0 to outlet_max_tt at 44.5
+    outlet_mask = seg_mask.image == outlet_label_value
+    transit_time_outlet = ((outlet_max_tt - porous_max_tt) / 44.5) * zz + porous_max_tt
+    transit_time_map[outlet_mask] = transit_time_outlet[outlet_mask]
 
-        # for the outlet, linearly scale the transit time along the z axis from a value of
-        # porous_max_tt at z=0 to outlet_max_tt at 44.5
-        outlet_mask = seg_mask.image == outlet_label_value
-        transit_time_outlet = (
-            (outlet_max_tt - porous_max_tt) / 44.5
-        ) * zz + porous_max_tt
-        transit_time_map[outlet_mask] = transit_time_outlet[outlet_mask]
+    if transit_time_map.ndim < 4:
+        transit_time_map = np.expand_dims(np.atleast_3d(transit_time_map), axis=3)
 
-        if transit_time_map.ndim < 4:
-            transit_time_map = np.expand_dims(np.atleast_3d(transit_time_map), axis=3)
-
-        qasper_hrgt["image"].image[
-            :, :, :, :, list(hrgt_params["quantities"]).index("transit_time")
-        ] = transit_time_map
+    qasper_hrgt["image"].image[
+        :, :, :, :, list(hrgt_params["quantities"]).index("transit_time")
+    ] = transit_time_map
 
     # save
     if output_dir is not None:
