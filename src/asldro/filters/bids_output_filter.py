@@ -274,7 +274,7 @@ class BidsOutputFilter(BaseFilter):
                     # if aslcontext contains one or more "m0scan" volumes set to "Included" to indicate
                     # "WithinASL"
                     json_sidecar[self.M0_TYPE] = "Included"
-                elif isinstance(image.metadata.get("m0"), float):
+                elif isinstance(image.metadata.get("m0"), (float, int)):
                     # numerical value of m0 supplied so use this.
                     json_sidecar[self.M0_TYPE] = "Estimate"
                     json_sidecar[self.M0_ESTIMATE] = image.metadata["m0"]
