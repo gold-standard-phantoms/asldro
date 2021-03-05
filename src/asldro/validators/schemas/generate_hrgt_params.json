@@ -1,0 +1,58 @@
+{
+    "type": "object",
+    "required": [
+        "label_values",
+        "label_names",
+        "quantities",
+        "units",
+        "parameters"
+    ],
+    "properties": {
+        "label_values": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            }
+        },
+        "label_names": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "quantities": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "type": "number"
+                }
+            }
+        },
+        "units": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "parameters": {
+            "type": "object",
+            "required": [
+                "t1_arterial_blood",
+                "magnetic_field_strength"
+            ],
+            "properties": {
+                "lambda_blood_brain": {
+                    "type": "number"
+                },
+                "t1_arterial_blood": {
+                    "type": "number"
+                },
+                "magnetic_field_strength": {
+                    "type": "number"
+                }
+            },
+            "additionalProperties": true
+        }
+    }
+}

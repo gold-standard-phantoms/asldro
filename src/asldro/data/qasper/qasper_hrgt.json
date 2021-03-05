@@ -1,0 +1,32 @@
+{
+    "quantities": [
+        "perfusion_rate",
+        "transit_time",
+        "t1",
+        "t2",
+        "t2_star",
+        "m0",
+        "lambda_blood_brain",
+        "seg_label"
+    ],
+    "units": [
+        "ml/100g/min",
+        "s",
+        "s",
+        "s",
+        "s",
+        "",
+        "g/ml",
+        ""
+    ],
+    "segmentation": {
+        "background": 0,
+        "inlet": 1,
+        "porous": 2,
+        "outlet": 3
+    },
+    "parameters": {
+        "t1_arterial_blood": 1.8,
+        "magnetic_field_strength": 3.0
+    }
+}

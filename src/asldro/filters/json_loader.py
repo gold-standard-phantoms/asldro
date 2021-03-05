@@ -74,4 +74,4 @@ class JsonLoaderFilter(BaseFilter):
                 try:
                     jsonschema.validate(json.load(file), self.inputs["schema"])
                 except jsonschema.ValidationError as error:
-                    raise FilterInputValidationError from error
+                    raise FilterInputValidationError(error) from error

@@ -37,7 +37,30 @@ To output the HRGT, type::
     asldro output hrgt HRGT OUTPUT_DIR
 
 where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
-    
+
+There are also two ancillary command line features that assist with the creation of 
+HRGT's. To create a valid HRGT::
+
+    asldro create-hrgt /path/to/hrgt_params.json /path/to/seg_mask.nii.gz /path/to/output_dir
+
+This takes a segmentation mask image, where each voxel is has an integer value that defines
+a region/tissue type, and a parameter file that describes values for each quantity to assign
+to each region, then concatenates volumes for each quantity into a 5D NIFTI, which is saved
+along with a JSON file describing the HRGT to the output directory, and are valid as an input
+HRGT for ASLDRO.
+
+To create a segmentation mask from individual 'fuzzy' masks for each region type::
+
+    asldro combine-masks /path/to/combine_masks_params.json /path/to/output_image.nii.gz
+
+This combines multiple fuzzy masks, where the voxel values define the fraction of that
+voxel that is occupied by the particular region/tissue, into a single segmentation mask image,
+that is valid for the create-hrgt command. The combine_masks_params.json defines the values
+to assign for each region, and an order of priority and thresholds.
+
+For more information about how to use these features see :doc:`custom_ground_truth`.
+
+
 
 Pipeline details
 ----------------

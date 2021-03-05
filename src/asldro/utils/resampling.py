@@ -74,7 +74,14 @@ def transform_resample_affine(
     :rtype: Tuple[np.array, np.array]
     """
     scale = np.array(image.shape) / np.array(target_shape)
-    output_voxel_size = scale  # Perhaps `output_voxel_size` should be a parameter?
+
+    if isinstance(image, BaseImageContainer):
+        source_voxel_size = image.voxel_size_mm
+    else:
+        source_voxel_size = image.header.get_zooms()
+    output_voxel_size = (
+        scale * source_voxel_size
+    )  # Perhaps `output_voxel_size` should be a parameter?
     source_image_to_world = image.affine
 
     # The affine matrices used in rotation and translation

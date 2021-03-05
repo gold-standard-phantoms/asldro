@@ -9,9 +9,10 @@ from typing import List
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 from asldro.examples import run_full_pipeline
-from asldro.validators.user_parameter_input import (
-    get_example_input_params,
-)
+from asldro.pipelines.generate_ground_truth import generate_hrgt
+from asldro.pipelines.combine_masks import combine_fuzzy_masks
+from asldro.validators import parameters
+from asldro.validators.user_parameter_input import get_example_input_params
 
 logging.basicConfig(
     stream=sys.stdout, format="%(asctime)s %(message)s", level=logging.INFO
@@ -151,6 +152,23 @@ def output_hrgt(args):
         )
 
 
+def create_hrgt(args):
+    """Parses the 'create-hrgt' subcommand. Must have a:
+    * 'seg_mask_path' which is the path of the segmentation mask image
+    * 'hrgt_params_path', which is the path of the hrgt generation parameters
+    * 'output_dir', which is the directory to output to.
+    """
+    generate_hrgt(args.hrgt_params_path, args.seg_mask_path, args.output_dir)
+
+
+def combine_masks(args):
+    """Parses the 'combine-masks' subcommand. Must have a:
+    * 'combine_masks_params_path', which is the path to the combine masks parameters
+    * 'output_filename', the file name to output to
+    """
+    combine_fuzzy_masks(args.combine_masks_params_path, args.output_filename)
+
+
 def main():
     """Main function for the Command Line Interface. Provides multiple options
     which are best documented by running the command line tool with `--help`"""
@@ -228,6 +246,59 @@ def main():
         help="The directory to output to. "
         "Must exist. Will overwrite any existing HRGT files",
     )
+
+    # Create HRGT
+    create_hrgt_parser = subparsers.add_parser(
+        name="create-hrgt",
+        description="""Generates a HRGT based on input segmentation
+        masks and values to be assigned for each quantity and region type""",
+    )
+    create_hrgt_parser.add_argument(
+        "seg_mask_path",
+        type=FileType(extensions=[".nii", ".nii.gz"], should_exist=True),
+        help="The path to the segmentation mask image. Must be a NIFTI or gzipped NIFTI"
+        " with extension .nii or .nii.gz. The image data can either be integer, or floating"
+        "point. For floating point data voxel values will be rounded to the nearest integer when"
+        "defining which region type is in a voxel.",
+    )
+    create_hrgt_parser.add_argument(
+        "hrgt_params_path",
+        type=FileType(extensions=["json"], should_exist=True),
+        help="The path to the parameter file containing values to assign to each region. Must"
+        "be a .json.",
+    )
+    create_hrgt_parser.add_argument(
+        "output_dir",
+        type=DirType(should_exist=True),
+        help="The directory to output to. Will create 'hrgt.nii.gz' and 'hrgt.json' files."
+        "Must exist. Will overwrite any existing files with the same names.",
+    )
+
+    # Combine masks
+    combine_masks_parser = subparsers.add_parser(
+        name="combine-masks",
+        description="""Combines multiple fuzzy masks into a single segmentation
+        mask""",
+    )
+    combine_masks_parser.add_argument(
+        "combine_masks_params_path",
+        type=FileType(extensions=["json"], should_exist=True),
+        help="The path to the parameter file describing how to combine the masks. Must"
+        "be a  .json.",
+    )
+
+    combine_masks_parser.add_argument(
+        "output_filename",
+        type=FileType(extensions=["nii", "nii.gz"]),
+        help="The output filename (optionally with path). "
+        "Must be a NIFTI or gzipped NIFTI"
+        " with extension .nii or .nii.gz. "
+        "Will overwrite an existing file.",
+    )
+
+    combine_masks_parser.set_defaults(func=combine_masks)
+
+    create_hrgt_parser.set_defaults(func=create_hrgt)
 
     output_hrgt_parser.set_defaults(func=output_hrgt)
 

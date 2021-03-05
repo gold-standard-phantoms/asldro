@@ -21,8 +21,7 @@ def input_validation_dict_fixture():
     input validation of the GroundTruthLoaderFilter"""
     test_volume_dimensions = (3, 3, 3, 1, 7)
     test_nifti_ones = nib.Nifti2Image(
-        np.ones(test_volume_dimensions),
-        affine=np.eye(4),
+        np.ones(test_volume_dimensions), affine=np.eye(4),
     )
 
     test_nifti_con_ones = NiftiImageContainer(nifti_img=test_nifti_ones)
@@ -265,11 +264,7 @@ def test_ground_truth_loader_filter_with_mock_data(mock_data: dict):
         "magnetic_field_strength": 3.0,
         "quantity": "seg_label",
         "units": "",
-        "segmentation": {
-            "csf": 3,
-            "grey_matter": 1,
-            "white_matter": 2,
-        },
+        "segmentation": {"csf": 3, "grey_matter": 1, "white_matter": 2,},
     }
 
 
@@ -305,12 +300,10 @@ def test_ground_truth_loader_filter_with_image_overrides(mock_data: dict):
     gt_filter.add_inputs(mock_data)
     gt_filter.run()
     numpy.testing.assert_array_equal(
-        gt_filter.outputs["m0"].image,
-        np.full(shape=(3, 3, 3), fill_value=5),
+        gt_filter.outputs["m0"].image, np.full(shape=(3, 3, 3), fill_value=5),
     )
     numpy.testing.assert_array_equal(
-        gt_filter.outputs["t1"].image,
-        np.full(shape=(3, 3, 3), fill_value=1.0),
+        gt_filter.outputs["t1"].image, np.full(shape=(3, 3, 3), fill_value=1.0),
     )
 
 
@@ -330,3 +323,38 @@ def test_ground_truth_loader_filter_with_parameter_overrides(mock_data: dict):
         "a_new_parameter": 1,
     }.items():
         assert item in gt_filter.outputs.items()
+
+
+def test_ground_truth_loader_filter_lambda_blood_brain_in_image(mock_data: dict):
+    """Test the special case where lambda_blood_brain is supplied as an image volume"""
+    mock_data[GroundTruthLoaderFilter.KEY_QUANTITIES].append("lambda_blood_brain")
+    mock_data[GroundTruthLoaderFilter.KEY_UNITS].append("g/ml")
+    mock_data[GroundTruthLoaderFilter.KEY_PARAMETERS].pop("lambda_blood_brain")
+
+    # Create a image with 8 entries along dimension 4
+    images = [np.ones(shape=(3, 3, 3, 1), dtype=np.float32) * i for i in range(8)]
+    stacked_image = np.stack(arrays=images, axis=4)
+    img = nib.Nifti2Image(dataobj=stacked_image, affine=np.eye(4))
+    mock_data[GroundTruthLoaderFilter.KEY_IMAGE] = NiftiImageContainer(nifti_img=img)
+
+    gt_filter = GroundTruthLoaderFilter()
+    gt_filter.add_inputs(mock_data)
+    gt_filter.run()
+
+    assert gt_filter.outputs["lambda_blood_brain"].metadata == {
+        "magnetic_field_strength": 3.0,
+        "quantity": "lambda_blood_brain",
+        "units": "g/ml",
+    }
+
+    numpy.testing.assert_array_equal(
+        gt_filter.outputs["lambda_blood_brain"].image,
+        np.ones(shape=(3, 3, 3), dtype=np.float32) * 7,
+    )
+
+    mock_data[GroundTruthLoaderFilter.KEY_PARAMETERS]["lambda_blood_brain"] = 0.9
+    gt_filter = GroundTruthLoaderFilter()
+    gt_filter.add_inputs(mock_data)
+    gt_filter.run()
+
+    assert gt_filter.outputs["lambda_blood_brain"] == 0.9

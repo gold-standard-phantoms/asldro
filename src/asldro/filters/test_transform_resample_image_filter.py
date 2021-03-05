@@ -22,6 +22,7 @@ TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = NiftiImageContainer(
     nifti_img=nib.Nifti2Image(np.zeros(TEST_VOLUME_DIMENSIONS), affine=np.eye(4))
 )
+TEST_NIFTI_ONES.header.set_xyzt_units("mm", "sec")
 
 INPUT_VALIDATION_DICTIONARY = {
     "image": (TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
@@ -130,6 +131,7 @@ def test_transform_resample_image_filter_mock_data():
     )
 
     nifti_image = nib.Nifti2Image(image, affine=source_affine)
+    nifti_image.header.set_xyzt_units("mm", "sec")
 
     rotation = (0.0, 0.0, 45.0)
     rotation_origin = tuple(

@@ -33,6 +33,19 @@ TEST_DATA_DICT_PASL_M0_IM = {
     "t1_arterial_blood": (1.6, -0.1, 101.0),
 }
 
+TEST_DATA_DICT_PASL_LBB_IM = {
+    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
+    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
+    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
+    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
+    "label_type": ("pasl", "PSL", "str"),
+    "label_duration": (1.8, -0.1, 101.0),
+    "signal_time": (3.6, -0.1, 101.0),
+    "label_efficiency": (0.85, -0.1, 1.01),
+    "lambda_blood_brain": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
+    "t1_arterial_blood": (1.6, -0.1, 101.0),
+}
+
 TEST_DATA_DICT_PASL_M0_FLOAT = {
     "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
     "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
@@ -310,7 +323,14 @@ def gkm_casl_function(input_data: dict) -> np.ndarray:
 
 
 @pytest.mark.parametrize(
-    "validation_data", [TEST_DATA_DICT_PASL_M0_IM, TEST_DATA_DICT_PASL_M0_FLOAT]
+    "validation_data",
+    [
+        TEST_DATA_DICT_PASL_M0_IM,
+        TEST_DATA_DICT_PASL_M0_FLOAT,
+        TEST_DATA_DICT_PASL_LBB_IM,
+        TEST_DATA_DICT_CASL_M0_FLOAT,
+        TEST_DATA_DICT_CASL_M0_IM,
+    ],
 )
 def test_gkm_filter_validate_inputs(validation_data: dict):
     """Check a FilterInputValidationError is raised when the
@@ -547,3 +567,39 @@ def test_gkm_filter_m0_float(casl_input):
         "image_flavour": "PERFUSION",
         "m0": 100.0,
     }
+
+
+def test_check_and_make_image_from_value():
+    """Test the check_and_make_image_from_value static method"""
+
+    arg = 1.0
+    metadata = {}
+    key_name = "key_1"
+    shape = (3, 3, 3)
+
+    out = GkmFilter.check_and_make_image_from_value(arg, shape, metadata, key_name)
+
+    assert metadata == {"key_1": 1.0}
+    numpy.testing.assert_array_equal(out, np.ones((3, 3, 3)))
+
+    arg = NumpyImageContainer(np.ones((3, 3, 3)) * 4.56)
+    key_name = "key_2"
+    out = GkmFilter.check_and_make_image_from_value(arg, shape, metadata, key_name)
+
+    assert metadata == {
+        "key_1": 1.0,
+        "key_2": 4.56,
+    }
+    numpy.testing.assert_array_equal(out, 4.56 * np.ones((3, 3, 3)))
+
+    np.random.seed(12345)
+    arg.image = np.random.normal(0, 1, shape)
+    key_name = "key_3"
+    out = GkmFilter.check_and_make_image_from_value(arg, shape, metadata, key_name)
+    assert metadata == {
+        "key_1": 1.0,
+        "key_2": 4.56,
+    }
+    np.random.seed(12345)
+    numpy.testing.assert_array_equal(out, np.random.normal(0, 1, shape))
+

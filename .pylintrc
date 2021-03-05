@@ -272,7 +272,19 @@ good-names=i,
            m0,
            f,
            tau,
-           alpha
+           alpha,
+           x,
+           y,
+           z,
+           xx,
+           yy,
+           zz,
+           theta,
+           fwhm,
+           a,
+           b,
+           c,
+           d
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted

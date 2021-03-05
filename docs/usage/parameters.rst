@@ -41,6 +41,7 @@ Below is an example input parameter file, giving its overall structure.
 
 Global Configuration
 ---------------------
+
 The "global_configuration" object is describes key-value pairs that configure how the instance of 
 ASLDRO will run:
 
@@ -58,6 +59,9 @@ ASLDRO will run:
 :parameter_override: (object) Contains key/value pairs which will override any of the ground truth
   parameters. For example, you might want to change ``lambda_blood_brain`` to 0.85, in which case
   you would set ``parameter_override`` to ``{"lambda_blood_brain": 0.85}``.
+
+.. _ground-truth-modulate:
+
 :ground_truth_modulate: (object) Contains key/value pairs which will modulate any of the ground
   truth images with a given scale and/or offset (i.e. :math:`y = sx + c` where :math:`s` is the
   scaling factor, :math:`c` is the :math:`x` is the input voxel value, and :math:`y` is the
@@ -81,8 +85,7 @@ A more complete example is given below:
                 "t1": {"offset": 0.5},
                 "t2": {"scale": 1.1}
             }
-        },
-    ...,
+        }
     }
 
 Image Series

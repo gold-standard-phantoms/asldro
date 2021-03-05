@@ -18,7 +18,8 @@ import asldro.data.affine_test_data as atd
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = nib.Nifti2Image(np.zeros(TEST_VOLUME_DIMENSIONS), affine=np.eye(4))
-TEST_NIFTI_CONTAINER_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES)
+TEST_NIFTI_ONES.header.set_xyzt_units("mm", "sec")
+TEST_NIFTI_CONTAINER_ONES = NiftiImageContainer(nifti_img=TEST_NIFTI_ONES,)
 TEST_NUMPY_CONTAINER_ONES = NumpyImageContainer(
     np.zeros(TEST_VOLUME_DIMENSIONS), affine=np.eye(4)
 )
@@ -32,18 +33,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (32, 32, 32),  # target_shape
-        (
-            10.0,
-            10.0,
-            10.0,
-            1.0,
-        ),  # expected_target
-        (
-            10.0,
-            10.0,
-            10.0,
-            1.0,
-        ),  # expected_resampled
+        (10.0, 10.0, 10.0, 1.0,),  # expected_target
+        (10.0, 10.0, 10.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -51,18 +42,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (
-            20.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_target
-        (
-            20.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_resampled
+        (20.0, 20.0, 20.0, 1.0,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_ONES,  # image
@@ -70,18 +51,8 @@ MOCK_DATA = (
         (0.0, 0.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (
-            -70.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_target
-        (
-            20.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_resampled
+        (-70.0, 20.0, 20.0, 1.0,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NIFTI_CONTAINER_ONES,  # image
@@ -89,18 +60,8 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 0.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (
-            -0.000000000,
-            20.000000000,
-            28.284271247,
-            1.000000000,
-        ),  # expected_target
-        (
-            20.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_resampled
+        (-0.000000000, 20.000000000, 28.284271247, 1.000000000,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
     (
         TEST_NUMPY_CONTAINER_ONES,  # image
@@ -108,18 +69,8 @@ MOCK_DATA = (
         (0.0, 45.0, 0.0),  # rotation
         (0.0, 0.0, 5.0),  # rotation_origin
         (16, 16, 16),  # target_shape
-        (
-            -17.677669530,
-            20.000000000,
-            8.535533906,
-            1.000000000,
-        ),  # expected_target
-        (
-            20.0,
-            20.0,
-            20.0,
-            1.0,
-        ),  # expected_resampled
+        (-17.677669530, 20.000000000, 8.535533906, 1.000000000,),  # expected_target
+        (20.0, 20.0, 20.0, 1.0,),  # expected_resampled
     ),
 )
 
@@ -252,21 +203,18 @@ def create_test_image() -> Tuple[NiftiImageContainer, Tuple[float, float, float]
     image[
         tuple(
             np.rint(
-                nil.image.coord_transform(
-                    0,
-                    0,
-                    0,
-                    np.linalg.inv(source_affine),
-                )
+                nil.image.coord_transform(0, 0, 0, np.linalg.inv(source_affine),)
             ).astype(np.int32)
         )
     ] = 6.0
-    return (nib.Nifti2Image(image, affine=source_affine), rotation_origin)
+
+    nifti_to_return = nib.Nifti2Image(image, affine=source_affine)
+    nifti_to_return.header.set_xyzt_units("mm", "sec")
+    return (nifti_to_return, rotation_origin)
 
 
 @pytest.mark.parametrize(
-    "theta, expected",
-    atd.ROT_X_TEST_DATA,
+    "theta, expected", atd.ROT_X_TEST_DATA,
 )
 def test_rot_x_mat(theta: float, expected: np.ndarray):
     """ Tests rot_x_mat with some angles, comparing against expected values """
@@ -274,8 +222,7 @@ def test_rot_x_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "theta, expected",
-    atd.ROT_Y_TEST_DATA,
+    "theta, expected", atd.ROT_Y_TEST_DATA,
 )
 def test_rot_y_mat(theta: float, expected: np.ndarray):
     """ Tests rot_y_mat with some angles, comparing against expected values """
@@ -283,8 +230,7 @@ def test_rot_y_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "theta, expected",
-    atd.ROT_Z_TEST_DATA,
+    "theta, expected", atd.ROT_Z_TEST_DATA,
 )
 def test_rot_z_mat(theta: float, expected: np.ndarray):
     """ Tests rot_z_mat with some angles, comparing against expected values """
@@ -292,8 +238,7 @@ def test_rot_z_mat(theta: float, expected: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "vector, expected",
-    atd.TRANSLATE_TEST_DATA,
+    "vector, expected", atd.TRANSLATE_TEST_DATA,
 )
 def test_translate_mat(vector: Tuple[float, float, float], expected: np.ndarray):
     """ Tests translate_mat with some translation vectors, comparing against expected values """
@@ -301,8 +246,7 @@ def test_translate_mat(vector: Tuple[float, float, float], expected: np.ndarray)
 
 
 @pytest.mark.parametrize(
-    "scale, expected",
-    atd.SCALE_TEST_DATA,
+    "scale, expected", atd.SCALE_TEST_DATA,
 )
 def test_scale_mat(scale: Tuple[float, float, float], expected: np.ndarray):
     """ Tests scale_mat with some scale factors, comparing against expected values """
