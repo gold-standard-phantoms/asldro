@@ -1,8 +1,6 @@
 """ Transform Resample image Filter Tests """
 # pylint: disable=duplicate-code
 
-from copy import deepcopy
-
 import logging
 import pytest
 import numpy as np
@@ -11,10 +9,10 @@ import numpy.testing
 import nibabel as nib
 import nilearn as nil
 
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
 from asldro.utils.resampling import transform_resample_image
+from asldro.utils.filter_validation import validate_filter_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +23,9 @@ TEST_NIFTI_ONES = NiftiImageContainer(
 TEST_NIFTI_ONES.header.set_xyzt_units("mm", "sec")
 
 INPUT_VALIDATION_DICTIONARY = {
-    "image": (TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
+    "image": (False, TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
     "target_shape": (
+        True,
         TEST_VOLUME_DIMENSIONS,
         (16.0, 16.0, 16.0),
         (1, 2, 3, 4),
@@ -35,29 +34,24 @@ INPUT_VALIDATION_DICTIONARY = {
         [32, 32, 32],
     ),
     "rotation": (
+        True,
         (0.0, 0.0, 0.0),
         1.0,
         (181.0, -181.0, 234.2),
         (0.0, 0.0, 0.0, 0.0),
         "str",
     ),
-    "rotation_origin": ((1.0, 2.0, 3.0), 1.0, (int(1), int(2), int(3)), "str"),
+    "rotation_origin": (True, (1.0, 2.0, 3.0), 1.0, (int(1), int(2), int(3)), "str"),
     "translation": (
+        True,
         (1.0, 2.0, 3.0),
         1.0,
         (int(1), int(2), int(3)),
         (0.0, 0.0, 0.0, 0.0),
         "str",
     ),
+    "interpolation": (True, "str", 1),
 }
-
-
-def add_multiple_inputs_to_filter(input_filter: BaseFilter, input_data: dict):
-    """ Adds the data held within the input_data dictionary to the filter's inputs """
-    for key in input_data:
-        input_filter.add_input(key, input_data[key])
-
-    return input_filter
 
 
 @pytest.mark.parametrize("validation_data", [INPUT_VALIDATION_DICTIONARY])
@@ -65,40 +59,7 @@ def test_transform_resample_image_filter_validate_inputs(validation_data: dict):
     """Check a FilterInputValidationError is raised when the
     inputs to the TransformResampleImageFilter are incorrect or missing
     """
-    # Check with all data that should pass
-    xr_obj_filter = TransformResampleImageFilter()
-    test_data = deepcopy(validation_data)
-
-    for data_key in test_data:
-        xr_obj_filter.add_input(data_key, test_data[data_key][0])
-
-    xr_obj_filter.run()
-
-    for inputs_key in validation_data:
-        xr_obj_filter = TransformResampleImageFilter()
-        test_data = deepcopy(validation_data)
-
-        # remove key
-        test_data.pop(inputs_key)
-        for data_key in test_data:
-            xr_obj_filter.add_input(data_key, test_data[data_key][0])
-
-        # "image" is not optional so should raise an error
-        # all the others are so should run with no issues
-        if inputs_key == "image":
-            with pytest.raises(FilterInputValidationError):
-                xr_obj_filter.run()
-        else:
-            xr_obj_filter.run()
-
-        # Try data that should fail
-        for test_value in validation_data[inputs_key][1:]:
-            xr_obj_filter = TransformResampleImageFilter()
-            for data_key in test_data:
-                xr_obj_filter.add_input(data_key, test_data[data_key][0])
-            xr_obj_filter.add_input(inputs_key, test_value)
-            with pytest.raises(FilterInputValidationError):
-                xr_obj_filter.run()
+    validate_filter_inputs(TransformResampleImageFilter, validation_data)
 
 
 def test_transform_resample_image_filter_mock_data():

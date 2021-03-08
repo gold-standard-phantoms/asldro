@@ -73,6 +73,13 @@ class AcquireMriImageFilter(FilterBlock):
     :type 'rotation_origin': Tuple[float, float, float], optional
     :param target_shape: :math:`[L_t,M_t,N_t]` target shape for the acquired image
     :type target_shape: Tuple[int, int, int], optional
+    :param 'interpolation': Defines the interpolation method for the resampling:
+      
+        :'continuous': order 3 spline interpolation (default method for ResampleFilter)
+        :'linear': order 1 linear interpolation
+        :'nearest': nearest neighbour interpolation
+    
+    :type 'interpolation': str, optional
     :param 'snr': the desired signal-to-noise ratio (>= 0). A value of zero means that no noise
         is added to the input image.
     :type 'snr': float
@@ -80,6 +87,7 @@ class AcquireMriImageFilter(FilterBlock):
         the random noise to add to `'image'`. The shape of this must match the shape of `'image'`.
         If this is not supplied then `'image'` will be used for calculating the noise amplitude.
     :type 'reference_image': BaseImageContainer, optional
+    
 
     **Outputs**
 
@@ -107,6 +115,7 @@ class AcquireMriImageFilter(FilterBlock):
     KEY_ROTATION_ORIGIN = TransformResampleImageFilter.KEY_ROTATION_ORIGIN
     KEY_ROTATION = TransformResampleImageFilter.KEY_ROTATION
     KEY_TRANSLATION = TransformResampleImageFilter.KEY_TRANSLATION
+    KEY_INTERPOLATION = TransformResampleImageFilter.KEY_INTERPOLATION
 
     KEY_REF_IMAGE = AddComplexNoiseFilter.KEY_REF_IMAGE
     KEY_SNR = AddComplexNoiseFilter.KEY_SNR
@@ -128,71 +137,45 @@ class AcquireMriImageFilter(FilterBlock):
         # MriSignalFilter
         # add required inputs - these should always be present
         mri_signal_filter = MriSignalFilter()
-        mri_signal_filter.add_input(MriSignalFilter.KEY_T1, self.inputs[self.KEY_T1])
-        mri_signal_filter.add_input(MriSignalFilter.KEY_T2, self.inputs[self.KEY_T2])
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_T2_STAR, self.inputs[self.KEY_T2_STAR]
-        )
-        mri_signal_filter.add_input(MriSignalFilter.KEY_M0, self.inputs[self.KEY_M0])
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ACQ_CONTRAST, self.inputs[self.KEY_ACQ_CONTRAST]
-        )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_ECHO_TIME, self.inputs[self.KEY_ECHO_TIME]
-        )
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_REPETITION_TIME, self.inputs[self.KEY_REPETITION_TIME]
-        )
 
-        mri_signal_filter.add_input(
-            MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE,
-            self.inputs[self.KEY_EXCITATION_FLIP_ANGLE],
+        # all other parameters are optional
+        mri_signal_filter.add_inputs(
+            {
+                key: self.inputs.get(key)
+                for key in [
+                    MriSignalFilter.KEY_T1,
+                    MriSignalFilter.KEY_T2,
+                    MriSignalFilter.KEY_T2_STAR,
+                    MriSignalFilter.KEY_M0,
+                    MriSignalFilter.KEY_ECHO_TIME,
+                    MriSignalFilter.KEY_REPETITION_TIME,
+                    MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE,
+                    MriSignalFilter.KEY_ACQ_CONTRAST,
+                    MriSignalFilter.KEY_MAG_ENC,
+                    MriSignalFilter.KEY_INVERSION_FLIP_ANGLE,
+                    MriSignalFilter.KEY_INVERSION_TIME,
+                    MriSignalFilter.KEY_IMAGE_FLAVOUR,
+                ]
+            }
         )
-        # add optional inputs if present
-        if self.inputs.get(self.KEY_MAG_ENC) is not None:
-            mri_signal_filter.add_input(
-                MriSignalFilter.KEY_MAG_ENC, self.inputs[self.KEY_MAG_ENC]
-            )
-
-        if self.inputs.get(self.KEY_INVERSION_FLIP_ANGLE) is not None:
-            mri_signal_filter.add_input(
-                MriSignalFilter.KEY_INVERSION_FLIP_ANGLE,
-                self.inputs[self.KEY_INVERSION_FLIP_ANGLE],
-            )
-        if self.inputs.get(self.KEY_INVERSION_TIME) is not None:
-            mri_signal_filter.add_input(
-                MriSignalFilter.KEY_INVERSION_TIME, self.inputs[self.KEY_INVERSION_TIME]
-            )
-        if self.inputs.get(self.KEY_IMAGE_FLAVOUR) is not None:
-            mri_signal_filter.add_input(
-                MriSignalFilter.KEY_IMAGE_FLAVOUR, self.inputs[self.KEY_IMAGE_FLAVOUR]
-            )
 
         # TransformResampleImageFilter
         transform_resample_image_filter = TransformResampleImageFilter()
         # Add mri_signal_filter as parent
         transform_resample_image_filter.add_parent_filter(mri_signal_filter)
         # all other parameters are optional
-        if self.inputs.get(self.KEY_ROTATION) is not None:
-            transform_resample_image_filter.add_input(
-                TransformResampleImageFilter.KEY_ROTATION,
-                self.inputs[self.KEY_ROTATION],
-            )
-        if self.inputs.get(self.KEY_ROTATION_ORIGIN) is not None:
-            transform_resample_image_filter.add_input(
-                TransformResampleImageFilter.KEY_ROTATION_ORIGIN,
-                self.inputs[self.KEY_ROTATION_ORIGIN],
-            )
-        if self.inputs.get(self.KEY_TARGET_SHAPE) is not None:
-            transform_resample_image_filter.add_input(
-                TransformResampleImageFilter.KEY_TARGET_SHAPE,
-                self.inputs[self.KEY_TARGET_SHAPE],
-            )
-        if self.inputs.get(self.KEY_TRANSLATION) is not None:
-            transform_resample_image_filter.add_input(
-                TransformResampleImageFilter.KEY_TRANSLATION,
-                self.inputs[self.KEY_TRANSLATION],
-            )
+        transform_resample_image_filter.add_inputs(
+            {
+                key: self.inputs.get(key)
+                for key in [
+                    TransformResampleImageFilter.KEY_ROTATION,
+                    TransformResampleImageFilter.KEY_ROTATION_ORIGIN,
+                    TransformResampleImageFilter.KEY_TARGET_SHAPE,
+                    TransformResampleImageFilter.KEY_TRANSLATION,
+                    TransformResampleImageFilter.KEY_INTERPOLATION,
+                ]
+            }
+        )
 
         # AddComplexNoiseFilter
         add_complex_noise_filter = AddComplexNoiseFilter()
@@ -203,8 +186,7 @@ class AcquireMriImageFilter(FilterBlock):
         # add optional input ref_image
         if self.inputs.get(self.KEY_REF_IMAGE) is not None:
             add_complex_noise_filter.add_input(
-                AddComplexNoiseFilter.KEY_REF_IMAGE,
-                self.inputs[self.KEY_REF_IMAGE],
+                AddComplexNoiseFilter.KEY_REF_IMAGE, self.inputs[self.KEY_REF_IMAGE],
             )
 
         # return add_complex_noise_filter
@@ -237,98 +219,60 @@ class AcquireMriImageFilter(FilterBlock):
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_M0: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
+                    validators=[isinstance_validator(BaseImageContainer),]
                 ),
                 self.KEY_T1: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
+                    validators=[isinstance_validator(BaseImageContainer),]
                 ),
                 self.KEY_T2: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
+                    validators=[isinstance_validator(BaseImageContainer),]
                 ),
                 self.KEY_T2_STAR: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ],
+                    validators=[isinstance_validator(BaseImageContainer),],
                 ),
                 self.KEY_MAG_ENC: Parameter(
                     validators=[isinstance_validator(BaseImageContainer)], optional=True
                 ),
                 self.KEY_ACQ_CONTRAST: Parameter(
-                    validators=[
-                        isinstance_validator(str),
-                    ]
+                    validators=[isinstance_validator(str),]
                 ),
                 self.KEY_ECHO_TIME: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ]
+                    validators=[isinstance_validator(float),]
                 ),
                 self.KEY_REPETITION_TIME: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ]
+                    validators=[isinstance_validator(float),]
                 ),
                 self.KEY_EXCITATION_FLIP_ANGLE: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ],
+                    validators=[isinstance_validator(float),],
                 ),
                 self.KEY_INVERSION_FLIP_ANGLE: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(float),], optional=True,
                 ),
                 self.KEY_INVERSION_TIME: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(float),], optional=True,
                 ),
                 self.KEY_IMAGE_FLAVOUR: Parameter(
-                    validators=[
-                        isinstance_validator(str),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(str),], optional=True,
                 ),
                 self.KEY_TARGET_SHAPE: Parameter(
-                    validators=[
-                        isinstance_validator(tuple),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(tuple),], optional=True,
                 ),
                 self.KEY_ROTATION: Parameter(
-                    validators=[
-                        isinstance_validator(tuple),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(tuple),], optional=True,
                 ),
                 self.KEY_ROTATION_ORIGIN: Parameter(
-                    validators=[
-                        isinstance_validator(tuple),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(tuple),], optional=True,
+                ),
+                self.KEY_INTERPOLATION: Parameter(
+                    validators=isinstance_validator(str), optional=True,
                 ),
                 self.KEY_TRANSLATION: Parameter(
-                    validators=[
-                        isinstance_validator(tuple),
-                    ],
-                    optional=True,
+                    validators=[isinstance_validator(tuple),], optional=True,
                 ),
                 self.KEY_REF_IMAGE: Parameter(
                     validators=[isinstance_validator(BaseImageContainer)], optional=True
                 ),
-                self.KEY_SNR: Parameter(
-                    validators=[
-                        isinstance_validator(float),
-                    ]
-                ),
+                self.KEY_SNR: Parameter(validators=[isinstance_validator(float),]),
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)

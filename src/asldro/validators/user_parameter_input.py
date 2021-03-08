@@ -120,8 +120,10 @@ IMAGE_TYPE_VALIDATOR = {
                 default_value=[64, 64, 12],
             ),
             INTERPOLATION: Parameter(
-                validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
-                default_value=NEAREST,
+                validators=for_each_validator(
+                    from_list_validator(SUPPORTED_INTERPOLATION_TYPES)
+                ),
+                default_value=[CONTINUOUS, NEAREST],
             ),
         }
     ),

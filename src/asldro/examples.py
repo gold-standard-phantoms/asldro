@@ -223,6 +223,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                     AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
                         asl_params["acq_matrix"]
                     ),
+                    AcquireMriImageFilter.KEY_INTERPOLATION: asl_params[
+                        "interpolation"
+                    ],
                 }
                 # add these inputs to the filter
                 acquire_mri_image_filter.add_inputs(acq_loop_params)
@@ -312,6 +315,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                         struct_params["acq_matrix"]
                     ),
                     AcquireMriImageFilter.KEY_SNR: struct_params["desired_snr"],
+                    AcquireMriImageFilter.KEY_INTERPOLATION: struct_params[
+                        "interpolation"
+                    ],
                 },
             }
 
@@ -369,12 +375,20 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 for key in ground_truth_keys
                 if isinstance(ground_truth_filter.outputs[key], BaseImageContainer)
             ]
+            interpolation_list = ground_truth_params.pop("interpolation")
             for quantity in ground_truth_image_keys:
                 resample_filter = TransformResampleImageFilter()
                 # map the ground_truth_filter to the resample filter
                 resample_filter.add_parent_filter(
                     ground_truth_filter, io_map={quantity: "image"}
                 )
+                # there are two interpolation parameters in an array, the first is for all
+                # quantities except for "seg_label", the second is for "seg_label". This is
+                # because "seg_label" is a mask nearest neighbour interpolation is usually
+                # more appropriate.
+                interp_idx = 0
+                if quantity == "seg_label":
+                    interp_idx = 1
 
                 ground_truth_params = {
                     **ground_truth_params,
@@ -392,6 +406,9 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                         AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
                             ground_truth_params["acq_matrix"]
                         ),
+                        AcquireMriImageFilter.KEY_INTERPOLATION: interpolation_list[
+                            interp_idx
+                        ],
                     },
                 }
                 resample_filter.add_inputs(ground_truth_params)

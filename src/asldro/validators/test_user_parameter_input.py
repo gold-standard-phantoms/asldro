@@ -119,7 +119,7 @@ def test_ground_truth_user_input_defaults_created():
         "transl_y": 0.0,
         "transl_z": 0.0,
         "acq_matrix": [64, 64, 12],
-        "interpolation": "nearest",
+        "interpolation": ["continuous", "nearest"],
     }
 
     # Validation should include inputs
@@ -297,7 +297,7 @@ def fixture_expected_parsed_input():
                     "transl_x": 0.0,
                     "transl_y": 0.0,
                     "transl_z": 0.0,
-                    "interpolation": "nearest",
+                    "interpolation": ["continuous", "nearest"],
                 },
             },
         ],
