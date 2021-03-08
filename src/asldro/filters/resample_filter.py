@@ -8,6 +8,7 @@ from asldro.containers.image import BaseImageContainer
 from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
+    from_list_validator,
     isinstance_validator,
     for_each_validator,
 )
@@ -29,8 +30,16 @@ class ResampleFilter(BaseFilter):
     :type 'affine': np.ndarray(4)
     :param 'shape': Image is resampled according to this new shape.
     :type 'shape': Tuple[int, int, int]
+    :param 'interpolation': Defines the interpolation method:
+      
+        :'continuous': order 3 spline interpolation (default)
+        :'linear': order 1 linear interpolation
+        :'nearest': nearest neighbour interpolation
+    
+    :type 'interpolation': str, optional
 
     **Outputs**
+
     Once run, the filter will populate the dictionary :class:`ResampleFilter.outputs` with
     the following entries:
 
@@ -44,6 +53,11 @@ class ResampleFilter(BaseFilter):
     KEY_IMAGE = "image"
     KEY_AFFINE = "affine"
     KEY_SHAPE = "shape"
+    KEY_INTERPOLATION = "interpolation"
+    CONTINUOUS = "continuous"
+    LINEAR = "linear"
+    NEAREST = "nearest"
+    INTERPOLATION_LIST = [CONTINUOUS, LINEAR, NEAREST]
 
     def __init__(self):
         super().__init__(name="Resample image")
@@ -55,6 +69,7 @@ class ResampleFilter(BaseFilter):
             resampled_image.nifti_image,
             target_affine=self.inputs[self.KEY_AFFINE],
             target_shape=self.inputs[self.KEY_SHAPE],
+            interpolation=self.inputs[self.KEY_INTERPOLATION],
         )
         self.outputs[self.KEY_IMAGE] = resampled_image
         self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = list(
@@ -67,6 +82,8 @@ class ResampleFilter(BaseFilter):
         `'image'` must be derived from a BaseImageContainer
         `'affine'` must be a numpy.ndarray of shape (4,4)
         `'shape'` must be a Tuple of integers of length 3
+        `'interpolation'` must be a string and either 'continuous',
+        'linear' or 'nearest'
 
         """
         input_validator = ParameterValidator(
@@ -83,9 +100,18 @@ class ResampleFilter(BaseFilter):
                         for_each_validator(isinstance_validator(int)),
                     ]
                 ),
+                self.KEY_INTERPOLATION: Parameter(
+                    validators=from_list_validator(
+                        self.INTERPOLATION_LIST, case_insensitive=True
+                    ),
+                    optional=True,
+                    default_value=self.CONTINUOUS,
+                ),
             }
         )
-        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
+        new_params = input_validator.validate(
+            self.inputs, error_type=FilterInputValidationError
+        )
 
         # Further validation that can't be handled bby the parameter validator
         # check that ResampleFilter.KEY_AFFINE is of size 4x4
@@ -95,3 +121,6 @@ class ResampleFilter(BaseFilter):
         # Check that the tuple ResampleFilter.KEY_SHAPE has length 3
         if len(self.inputs[self.KEY_SHAPE]) != 3:
             raise FilterInputValidationError
+
+        # merge the updated parameters from the output with the input parameters
+        self.inputs = {**self._i, **new_params}
