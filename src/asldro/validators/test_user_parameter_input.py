@@ -41,6 +41,7 @@ def test_user_input_valid():
         "excitation_flip_angle": 35.6,
         "inversion_flip_angle": 164.0,
         "inversion_time": 1.0,
+        "interpolation": "linear",
     }
     assert d == IMAGE_TYPE_VALIDATOR[ASL].validate(
         d
@@ -70,6 +71,7 @@ def test_asl_user_input_defaults_created():
         "excitation_flip_angle": 90.0,
         "inversion_flip_angle": 180.0,
         "inversion_time": 1.0,
+        "interpolation": "continuous",
     }
 
     # Validation should include inputs
@@ -98,6 +100,7 @@ def test_structural_user_input_defaults_created():
         "random_seed": 0,
         "output_image_type": "magnitude",
         "modality": "anat",
+        "interpolation": "continuous",
     }
 
     # Validation should include inputs
@@ -116,6 +119,7 @@ def test_ground_truth_user_input_defaults_created():
         "transl_y": 0.0,
         "transl_z": 0.0,
         "acq_matrix": [64, 64, 12],
+        "interpolation": "nearest",
     }
 
     # Validation should include inputs
@@ -255,6 +259,7 @@ def fixture_expected_parsed_input():
                     "excitation_flip_angle": 90.0,
                     "inversion_flip_angle": 180.0,
                     "inversion_time": 1.0,
+                    "interpolation": "continuous",
                 },
             },
             {
@@ -278,6 +283,7 @@ def fixture_expected_parsed_input():
                     "random_seed": 0,
                     "output_image_type": "magnitude",
                     "modality": "anat",
+                    "interpolation": "continuous",
                 },
             },
             {
@@ -291,6 +297,7 @@ def fixture_expected_parsed_input():
                     "transl_x": 0.0,
                     "transl_y": 0.0,
                     "transl_z": 0.0,
+                    "interpolation": "nearest",
                 },
             },
         ],
@@ -385,6 +392,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "excitation_flip_angle": 90.0,
             "inversion_flip_angle": 180.0,
             "inversion_time": 1.0,
+            "interpolation": "continuous",
         },
     }
 

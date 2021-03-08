@@ -362,5 +362,3 @@ def test_resample_filter_interpolation():
     numpy.testing.assert_array_equal(
         resample_filter.outputs["image"].image, resampled_nifti.dataobj
     )
-
-
