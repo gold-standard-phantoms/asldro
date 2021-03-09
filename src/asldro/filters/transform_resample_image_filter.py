@@ -13,6 +13,7 @@ from asldro.validators.parameters import (
     for_each_validator,
     range_inclusive_validator,
     greater_than_validator,
+    from_list_validator,
 )
 from asldro.utils.resampling import transform_resample_affine
 
@@ -44,6 +45,13 @@ class TransformResampleImageFilter(BaseFilter):
     :type 'rotation_origin': Tuple[float, float, float], optional
     :param target_shape: :math:`[L_t,M_t,N_t]` target shape for the resampled image
     :type target_shape: Tuple[int, int, int]
+    :param 'interpolation': Defines the interpolation method for the resampling:
+      
+        :'continuous': order 3 spline interpolation (default method for ResampleFilter)
+        :'linear': order 1 linear interpolation
+        :'nearest': nearest neighbour interpolation
+    
+    :type 'interpolation': str, optional
 
     **Outputs**
 
@@ -104,6 +112,7 @@ class TransformResampleImageFilter(BaseFilter):
     KEY_ROTATION_ORIGIN = "rotation_origin"
     KEY_ROTATION = "rotation"
     KEY_TRANSLATION = "translation"
+    KEY_INTERPOLATION = ResampleFilter.KEY_INTERPOLATION
     KEY_IMAGE = "image"
     VOXEL_SIZE = "voxel_size"
 
@@ -158,6 +167,8 @@ class TransformResampleImageFilter(BaseFilter):
         `'rotation_origin'` (optional) must be a Tuple of floats of length 3,
         default = (0.0, 0.0, 0.0)
         `'translation'` (optional) must be a Tuple of floats of length 3, default = (0.0, 0.0, 0.0)
+        `'interpolation'` must be a string and either 'continuous',
+        'linear' or 'nearest'
         """
 
         input_validator = ParameterValidator(
@@ -198,6 +209,9 @@ class TransformResampleImageFilter(BaseFilter):
                     ],
                     optional=True,
                     default_value=(9999, 9999, 9999),
+                ),
+                self.KEY_INTERPOLATION: Parameter(
+                    validators=isinstance_validator(str), optional=True,
                 ),
             }
         )

@@ -58,6 +58,7 @@ INVERSION_TIME = "inversion_time"
 OUTPUT_IMAGE_TYPE = "output_image_type"
 MODALITY = "modality"
 DEFAULT_GROUND_TRUTH = "hrgt_icbm_2009a_nls_3t"
+INTERPOLATION = "interpolation"
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -81,6 +82,12 @@ M0SCAN = "m0scan"
 CONTROL = "control"
 LABEL = "label"
 SUPPORTED_ASL_CONTEXTS = [M0SCAN, CONTROL, LABEL]
+
+# Suported Interpolation types
+LINEAR = "linear"
+CONTINUOUS = "continuous"
+NEAREST = "nearest"
+SUPPORTED_INTERPOLATION_TYPES = [LINEAR, CONTINUOUS, NEAREST]
 
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
@@ -111,6 +118,12 @@ IMAGE_TYPE_VALIDATOR = {
                     for_each_validator(greater_than_validator(0)),
                 ],
                 default_value=[64, 64, 12],
+            ),
+            INTERPOLATION: Parameter(
+                validators=for_each_validator(
+                    from_list_validator(SUPPORTED_INTERPOLATION_TYPES)
+                ),
+                default_value=[CONTINUOUS, NEAREST],
             ),
         }
     ),
@@ -176,6 +189,10 @@ IMAGE_TYPE_VALIDATOR = {
             MODALITY: Parameter(
                 validators=from_list_validator(["T1w", "T2w", "FLAIR", "anat"]),
                 default_value="anat",
+            ),
+            INTERPOLATION: Parameter(
+                validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
+                default_value=CONTINUOUS,
             ),
         }
     ),
@@ -275,6 +292,10 @@ IMAGE_TYPE_VALIDATOR = {
             ),
             INVERSION_TIME: Parameter(
                 validators=greater_than_equal_to_validator(0.0), default_value=1.0
+            ),
+            INTERPOLATION: Parameter(
+                validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
+                default_value=CONTINUOUS,
             ),
         },
         post_validators=[

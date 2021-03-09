@@ -11,6 +11,7 @@ import nibabel as nib
 from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer
+from asldro.utils.filter_validation import validate_filter_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ INPUT_DICT = {
     "rotation": (True, (5.0, 34.1, 82.56), 0.1, "str", TEST_NIFTI_ONES),
     "rotation_origin": (True, (5.0, 0.0, 0.0), 0.1, "str", TEST_NIFTI_ONES),
     "translation": (True, (1.0, 3.0, 5.56), 0.1, "str", TEST_NIFTI_ONES),
+    "interpolation": (True, "str", 1),
     "reference_image": (True, TEST_NIFTI_ONES, "str", np.ones(TEST_VOLUME_DIMENSIONS)),
 }
 
@@ -53,42 +55,7 @@ def test_acquire_mri_image_filter_validate_inputs_required():
     """Check a FilterInputValidationError is raised when the inputs
     to the AcquireMriImageFilter are incorrect or missing"""
 
-    acquire_mri_image_filter = AcquireMriImageFilter()
-
-    test_data = deepcopy(INPUT_DICT)
-
-    for data_key in test_data:
-        acquire_mri_image_filter.add_input(data_key, test_data[data_key][1])
-
-    # should pass
-    acquire_mri_image_filter.run()
-
-    for inputs_key in INPUT_DICT:
-        test_data = deepcopy(INPUT_DICT)
-        acquire_mri_image_filter = AcquireMriImageFilter()
-        is_optional: bool = test_data[inputs_key][0]
-
-        # remove key
-        test_data.pop(inputs_key)
-        for data_key in test_data:
-            acquire_mri_image_filter.add_input(data_key, test_data[data_key][1])
-
-        # optional inputs should run without issue
-        if is_optional:
-            acquire_mri_image_filter.run()
-        else:
-            with pytest.raises(FilterInputValidationError):
-                acquire_mri_image_filter.run()
-
-        # Try data that should fail
-        for test_value in INPUT_DICT[inputs_key][2:]:
-            acquire_mri_image_filter = AcquireMriImageFilter()
-            for data_key in test_data:
-                acquire_mri_image_filter.add_input(data_key, test_data[data_key][1])
-            acquire_mri_image_filter.add_input(inputs_key, test_value)
-
-            with pytest.raises(FilterInputValidationError):
-                acquire_mri_image_filter.run()
+    validate_filter_inputs(AcquireMriImageFilter, INPUT_DICT)
 
 
 def test_acquire_mri_image_filter_mocked_filter_run():

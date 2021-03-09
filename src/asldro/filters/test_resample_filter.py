@@ -1,16 +1,15 @@
 """ Resample Filter Tests """
 # pylint: disable=duplicate-code
 
-from copy import deepcopy
 import pytest
 import numpy as np
 import numpy.testing
 import nibabel as nib
 import nilearn as nil
-from asldro.filters.basefilter import FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer, NumpyImageContainer
 from asldro.filters.resample_filter import ResampleFilter
 from asldro.filters.affine_matrix_filter import AffineMatrixFilter
+from asldro.utils.filter_validation import validate_filter_inputs
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = NiftiImageContainer(
@@ -19,9 +18,10 @@ TEST_NIFTI_ONES = NiftiImageContainer(
 
 # input validation dictionary, [0] in each tuple passes, after that should fail validation
 INPUT_VALIDATION_DICTIONARY = {
-    "image": (TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
-    "affine": (np.eye(4), np.eye(3), np.eye(1, 4), 1.0, "str"),
+    "image": (False, TEST_NIFTI_ONES, np.ones(TEST_VOLUME_DIMENSIONS), "str", 1.0),
+    "affine": (False, np.eye(4), np.eye(3), np.eye(1, 4), 1.0, "str"),
     "shape": (
+        False,
         TEST_VOLUME_DIMENSIONS,
         (1, 3, 4, 5),
         (32.0, 32.0, 32.0),
@@ -29,6 +29,7 @@ INPUT_VALIDATION_DICTIONARY = {
         1,
         [1, 2, 3],
     ),
+    "interpolation": (True, "linear", ["linear"], "lnear", "str", 1, TEST_NIFTI_ONES),
 }
 
 
@@ -37,46 +38,8 @@ def test_resample_filter_validate_inputs(validation_data: dict):
     """Check a FilterInputValidationError is raised when the
     inputs to the ResampleFilter are incorrect or missing
     """
-    # Check with all data that should pass
-    resample_filter = ResampleFilter()
-    test_data = deepcopy(validation_data)
-    for data_key in test_data:
-        resample_filter.add_input(data_key, test_data[data_key][0])
-    # should run with no issues
-    resample_filter.run()
 
-    for inputs_key in validation_data:
-        resample_filter = ResampleFilter()
-        test_data = deepcopy(validation_data)
-        # remove the corresponding key from test_data
-        test_data.pop(inputs_key)
-
-        for data_key in test_data:
-            resample_filter.add_input(data_key, test_data[data_key][0])
-
-        # Key not defined
-
-        with pytest.raises(FilterInputValidationError):
-            resample_filter.run()
-
-        # Key has wrong data type
-        resample_filter.add_input(inputs_key, None)
-        with pytest.raises(FilterInputValidationError):
-            resample_filter.run()
-
-        # Data not in the valid range
-        for test_value in validation_data[inputs_key][1:]:
-            # re-initialise filter
-            resample_filter = ResampleFilter()
-
-            # add valid inputs
-            for data_key in test_data:
-                resample_filter.add_input(data_key, test_data[data_key][0])
-
-            # add invalid input and check a FilterInputValidationError is raised
-            resample_filter.add_input(inputs_key, test_value)
-            with pytest.raises(FilterInputValidationError):
-                resample_filter.run()
+    validate_filter_inputs(ResampleFilter, validation_data)
 
 
 def test_resample_filter_mock_data():
@@ -291,7 +254,7 @@ def test_resample_filter_single_point_transformations(
 
 
 def test_resample_filter_metadata():
-    """ Tests the metadata output of the resample filter """
+    """Tests the metadata output of the resample filter """
     test_image = TEST_NIFTI_ONES.clone()
     # add some meta data
     test_image.metadata = {
@@ -315,3 +278,87 @@ def test_resample_filter_metadata():
         ),
     }
     assert resample_filter.outputs["image"].metadata == valid_dict
+
+
+def test_resample_filter_interpolation():
+    """Tests the resampling filter with different interpolation settings"""
+
+    test_data = np.zeros((3, 3, 3))
+    test_data[1, 1, 1] = 1.0
+    test_data[2, 1, 1] = 2.0
+    test_nifti = nib.Nifti1Image(test_data, np.eye(4))
+    test_image = NiftiImageContainer(test_nifti)
+    target_shape = (5, 5, 5)
+    target_affine = 0.5 * np.eye(4)
+
+    # test nearest neighbour interpolation
+    resample_filter = ResampleFilter()
+    resample_filter.add_input("affine", target_affine)
+    resample_filter.add_input("image", test_image)
+    resample_filter.add_input("shape", target_shape)
+    resample_filter.add_input("interpolation", "nearest")
+    resample_filter.run()
+
+    resampled_nifti = nil.image.resample_img(
+        test_nifti, target_affine, target_shape, interpolation="nearest"
+    )
+
+    # nearest neighbour interpolation, so only values present should be 0 and 1
+    numpy.testing.assert_array_equal(
+        np.unique(resample_filter.outputs["image"].image), (0, 1, 2)
+    )
+    numpy.testing.assert_array_equal(
+        resample_filter.outputs["image"].image, resampled_nifti.dataobj
+    )
+
+    # test linear interpolation
+    resample_filter = ResampleFilter()
+    resample_filter.add_input("affine", target_affine)
+    resample_filter.add_input("image", test_image)
+    resample_filter.add_input("shape", target_shape)
+    resample_filter.add_input("interpolation", "linear")
+    resample_filter.run()
+
+    resampled_nifti = nil.image.resample_img(
+        test_nifti, target_affine, target_shape, interpolation="linear"
+    )
+
+    # linear interpolation, small set of unique values
+    numpy.testing.assert_array_equal(
+        resample_filter.outputs["image"].image, resampled_nifti.dataobj
+    )
+    numpy.testing.assert_array_equal(
+        np.unique(resample_filter.outputs["image"].image),
+        (0.0, 0.125, 0.250, 0.375, 0.5, 0.75, 1.0, 1.5, 2.0),
+    )
+
+    # test continuous interpolation
+    resample_filter = ResampleFilter()
+    resample_filter.add_input("affine", target_affine)
+    resample_filter.add_input("image", test_image)
+    resample_filter.add_input("shape", target_shape)
+    resample_filter.add_input("interpolation", "continuous")
+    resample_filter.run()
+
+    resampled_nifti = nil.image.resample_img(
+        test_nifti, target_affine, target_shape, interpolation="continuous"
+    )
+
+    # continuous interpolation - there are 47 unique values
+    numpy.testing.assert_array_equal(
+        resample_filter.outputs["image"].image, resampled_nifti.dataobj
+    )
+    numpy.testing.assert_array_equal(
+        np.unique(resample_filter.outputs["image"].image).shape, 47
+    )
+
+    # test default (continuous) interpolation
+    resample_filter = ResampleFilter()
+    resample_filter.add_input("affine", target_affine)
+    resample_filter.add_input("image", test_image)
+    resample_filter.add_input("shape", target_shape)
+    resample_filter.run()
+
+    numpy.testing.assert_array_equal(
+        resample_filter.outputs["image"].image, resampled_nifti.dataobj
+    )
