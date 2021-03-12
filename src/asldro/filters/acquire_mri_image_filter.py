@@ -11,6 +11,7 @@ from asldro.validators.parameters import (
     ParameterValidator,
     Parameter,
     isinstance_validator,
+    from_list_validator,
 )
 
 
@@ -264,7 +265,13 @@ class AcquireMriImageFilter(FilterBlock):
                     validators=[isinstance_validator(tuple),], optional=True,
                 ),
                 self.KEY_INTERPOLATION: Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=[
+                        isinstance_validator(str),
+                        from_list_validator(
+                            TransformResampleImageFilter.INTERPOLATION_LIST
+                        ),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_TRANSLATION: Parameter(
                     validators=[isinstance_validator(tuple),], optional=True,

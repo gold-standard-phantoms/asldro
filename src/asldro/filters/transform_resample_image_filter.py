@@ -115,6 +115,7 @@ class TransformResampleImageFilter(BaseFilter):
     KEY_INTERPOLATION = ResampleFilter.KEY_INTERPOLATION
     KEY_IMAGE = "image"
     VOXEL_SIZE = "voxel_size"
+    INTERPOLATION_LIST = ResampleFilter.INTERPOLATION_LIST
 
     def __init__(self):
         super().__init__(name="Transform and Resample Image")
@@ -129,6 +130,7 @@ class TransformResampleImageFilter(BaseFilter):
         rotation = self.inputs[self.KEY_ROTATION]
         rotation_origin = self.inputs[self.KEY_ROTATION_ORIGIN]
         target_shape = self.inputs[self.KEY_TARGET_SHAPE]
+        interpolation = self.inputs.get(self.KEY_INTERPOLATION)
 
         (
             target_affine_with_motion,
@@ -141,6 +143,7 @@ class TransformResampleImageFilter(BaseFilter):
         resample_filter.add_input(ResampleFilter.KEY_IMAGE, input_image)
         resample_filter.add_input(ResampleFilter.KEY_AFFINE, target_affine_with_motion)
         resample_filter.add_input(ResampleFilter.KEY_SHAPE, target_shape)
+        resample_filter.add_input(ResampleFilter.KEY_INTERPOLATION, interpolation)
         resample_filter.run()
 
         self.outputs[self.KEY_IMAGE] = resample_filter.outputs[ResampleFilter.KEY_IMAGE]
@@ -211,7 +214,11 @@ class TransformResampleImageFilter(BaseFilter):
                     default_value=(9999, 9999, 9999),
                 ),
                 self.KEY_INTERPOLATION: Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=[
+                        isinstance_validator(str),
+                        from_list_validator(ResampleFilter.INTERPOLATION_LIST),
+                    ],
+                    optional=True,
                 ),
             }
         )

@@ -50,7 +50,7 @@ INPUT_VALIDATION_DICTIONARY = {
         (0.0, 0.0, 0.0, 0.0),
         "str",
     ),
-    "interpolation": (True, "str", 1),
+    "interpolation": (True, "nearest", 1),
 }
 
 
@@ -149,3 +149,23 @@ def test_transform_resample_image_filter_mock_data():
         new_nifti_container.metadata["voxel_size"],
         nib.affines.voxel_sizes(new_nifti_container.affine),
     )
+
+    ## Check interpolation is working correctly
+    xr_obj_filter = TransformResampleImageFilter()
+    xr_obj_filter.add_input(
+        TransformResampleImageFilter.KEY_IMAGE, nifti_image_container
+    )
+    xr_obj_filter.add_input(TransformResampleImageFilter.KEY_ROTATION, rotation)
+    xr_obj_filter.add_input(
+        TransformResampleImageFilter.KEY_ROTATION_ORIGIN, rotation_origin
+    )
+    xr_obj_filter.add_input(TransformResampleImageFilter.KEY_TRANSLATION, translation)
+    xr_obj_filter.add_input(TransformResampleImageFilter.KEY_TARGET_SHAPE, target_shape)
+    xr_obj_filter.add_input(TransformResampleImageFilter.KEY_INTERPOLATION, "nearest")
+
+    xr_obj_filter.run()
+
+    numpy.testing.assert_array_equal(
+        np.unique(xr_obj_filter.outputs["image"].image), (0, 1, 2, 3)
+    )
+
