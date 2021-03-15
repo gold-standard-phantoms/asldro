@@ -20,7 +20,9 @@ def test_data_fixture():
     t1_data = test_seg_mask * (4.2 / 15)  # scale T1 between 0.28 and 4.2 s
 
     return {
-        "mag_z": NiftiImageContainer(nib.Nifti1Image(mag_z_data, np.eye(4))),
+        "mag_z": NiftiImageContainer(
+            nib.Nifti1Image(mag_z_data, np.eye(4)), metadata={"key_1": 1, "key_2": 2}
+        ),
         "t1": NiftiImageContainer(nib.Nifti1Image(t1_data, np.eye(4))),
         "sat_pulse_time": 4.0,
         "inv_pulse_times": [0.5, 2.7],
@@ -262,4 +264,59 @@ def test_background_suppression_filter_optimise_inv_pulse_times():
 
     # the value of mz should be less than 0.05 for all cases
     assert np.all(np.abs(mz) < 0.05)
+
+
+def test_background_suppression_filter_mock_data(test_data: dict):
+    """Test the BackgroundSuppressionFilter with some mock data"""
+    # run with defaults for the case where the pulse times are provided
+    bsup_filter = BackgroundSuppressionFilter()
+    bsup_filter.add_inputs(
+        {
+            key: test_data.get(key)
+            for key in ["mag_z", "t1", "sat_pulse_time", "inv_pulse_times"]
+        }
+    )
+    bsup_filter.run()
+    mz = calc_mz_function(
+        test_data["mag_z"].image,
+        test_data["t1"].image,
+        test_data["inv_pulse_times"],
+        test_data["sat_pulse_time"],
+        -1,
+    )
+    # compare
+    numpy.testing.assert_array_almost_equal(
+        bsup_filter.outputs[BackgroundSuppressionFilter.KEY_MAG_Z].image, mz
+    )
+
+    # check metadata
+    assert bsup_filter.outputs[BackgroundSuppressionFilter.KEY_MAG_Z].metadata == {
+        "background_suppression": True,
+        "background_suppression_inv_pulse_timing": test_data["inv_pulse_times"],
+        "background_suppression_sat_pulse_timing": test_data["sat_pulse_time"],
+        "background_suppression_num_pulses": len(test_data["inv_pulse_times"]),
+        "key_1": 1,
+        "key_2": 2,
+    }
+
+    # run where pulse times need to be optimised
+    bsup_filter = BackgroundSuppressionFilter()
+    bsup_filter.add_inputs(
+        {
+            key: test_data.get(key)
+            for key in ["mag_z", "t1", "sat_pulse_time", "inv_pulse_times"]
+        }
+    )
+    bsup_filter.run()
+    mz = calc_mz_function(
+        test_data["mag_z"].image,
+        test_data["t1"].image,
+        test_data["inv_pulse_times"],
+        test_data["sat_pulse_time"],
+        -1,
+    )
+    # compare
+    numpy.testing.assert_array_almost_equal(
+        bsup_filter.outputs[BackgroundSuppressionFilter.KEY_MAG_Z].image, mz
+    )
 

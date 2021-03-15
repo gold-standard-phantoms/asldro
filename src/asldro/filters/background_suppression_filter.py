@@ -19,6 +19,93 @@ from asldro.validators.parameters import (
 
 
 class BackgroundSuppressionFilter(BaseFilter):
+    """A filter that simulates a background suppression
+    pulse sequence on longitudinal magnetisation. It can either
+    use explicitly supplied pulse timings, or calculate optimised
+    pulse timings for specified T1s.
+
+
+    **Inputs**
+
+    Input Parameters are all keyword arguments for the
+    :class:`BackgroundSuppressionFilter.add_inputs()` member function.
+    They are also accessible via class constants,
+    for example :class:`CombineTimeSeriesFilter.KEY_T1`.
+
+    :param 'mag_z': Image of the initial longitudinal magnetisation.
+      Image data must not be a complex data type.
+    :type 'mag_z': BaseImageContainer
+    :param 't1': Image of the longitudinal relaxation time. Image
+      data must be greater than 0 and non-compex. Also its shape should
+      match the shape of ``'mag_z'``.
+    :type 't1': BaseImageContainer
+    :param 'sat_pulse_time': The time, in seconds between the saturation
+      pulse and the imaging excitation pulse. Must be greater than 0.
+    :type 'sat_pulse_time': float
+    :param 'inv_pulse_times': The inversion times for each inversion pulse,
+      defined as the spacing between the inversion pulse and the imaging
+      excitation pulse. Must be greater than 0. If omitted then optimal
+      inversion times will be calculated for ``'num_inv'`` number
+      of pulses, and the T1 times given by ``'t1_opt'``.
+    :type 'inv_pulse_times': list[float], optional
+    :param 't1_opt': T1 times, in seconds to optimise the pulse inversion
+      times for. Each must be greater than 0, and this parameter must be
+      present if ``'inv_pulse_times'`` is omitted.
+    :type 't1_opt': list[float]
+    :param 'mag_time': The time, in seconds after the saturation pulse to
+      sample the longitudinal magnetisation. The output magnetisation will
+      only reflect the pulses that will have run by this time. Must be 
+      greater than 0. If omitted, defaults to the same value
+      as ``'sat_pulse_time'``.
+    :type 'mag_time': float
+    :param 'num_inv_pulses': The number of inversion pulses to calculate 
+      optimised timings for. Must be greater than 0, and this parameter
+      must be present if ``'inv_pulse_times'`` is omitted.
+    :type 'num_inv_pulses: int
+    :param 'pulse_efficiency': Defines the efficiency of the inversion
+      pulses. Can take the values:
+      
+        :'realistic': Pulse efficiencies are calculated according to a
+          model based on the T1. See 
+          :class:`BackgroundSuppressionFilter.calculate_pulse_efficiency`
+          for details on implementation.
+        :'ideal': Inversion pulses are 100% efficient.
+        :-1 to 0: The efficiency is defined explicitly, with -1 being full
+          inversion and 0 no inversion.
+
+    :type 'pulse_efficiency': str or float
+
+    **Outputs**
+
+    Once run, the filter will populate the dictionary 
+    :class:`BackgroundSuppressionFilter.outputs` with
+    the following entries:
+
+    :param 'mag_z': The longitudinal magnetisation at t=mag_time.
+    :type 'mag_z': BaseImageContainer
+    :param 'inv_pulse_times': The inversion pulse timings.
+    :type 'inv_pulse_times': list[float]
+
+    **Metadata**
+    
+    The following metadata entries will be appended to the metadata
+    property of the output ``'mag_z'``:
+
+        :background_suppression: ``True``
+        :background_suppression_inv_pulse_timing: ``'inv_pulse_times'``
+        :background_suppression_sat_pulse_timing: ``'sat_pulse_time'``
+        :background_suppression_num_pulses: The number of inversion pulses.
+
+    
+    **Background Suppression Model**
+
+    Details on the model implemented can be found in
+    :class:`BackgroundSuppressionFilter.calculate_mz`
+
+    Details on how the pulse timings are optimised can be found in
+    :class:`BackgroundSuppressionFilter.optimise_inv_pulse_times`
+
+    """
 
     KEY_MAG_Z = "mag_z"
     KEY_T1 = "t1"
@@ -29,6 +116,11 @@ class BackgroundSuppressionFilter(BaseFilter):
     KEY_NUM_INV_PULSES = "num_inv_pulses"
     KEY_PULSE_EFFICIENCY = "pulse_efficiency"
 
+    M_BACKGROUND_SUPPRESSION = "background_suppression"
+    M_BSUP_INV_PULSE_TIMING = "background_suppression_inv_pulse_timing"
+    M_BSUP_SAT_PULSE_TIMING = "background_suppression_sat_pulse_timing"
+    M_BSUP_NUM_PULSES = "background_suppression_num_pulses"
+
     EFF_IDEAL = "ideal"
     EFF_REALISTIC = "realistic"
 
@@ -36,20 +128,25 @@ class BackgroundSuppressionFilter(BaseFilter):
         super().__init__(name="Background Suppression Filter")
 
     def _run(self):
-        """[summary]
+        """Runs the filter
         """
-        mag_z = self.inputs[self.KEY_MAG_Z]
-        t1 = self.inputs[self.KEY_T1]
+        mag_z: BaseImageContainer = self.inputs[self.KEY_MAG_Z]
+        t1: BaseImageContainer = self.inputs[self.KEY_T1]
         sat_pulse_time = self.inputs[self.KEY_SAT_PULSE_TIME]
+
+        if self.outputs.get(self.KEY_MAG_TIME) is None:
+            mag_time = sat_pulse_time
+        else:
+            mag_time = self.outputs.get(self.KEY_MAG_TIME)
 
         # determine the pulse efficiency mode
         if self.inputs[self.KEY_PULSE_EFFICIENCY] == self.EFF_IDEAL:
-            pulse_eff = -1.0
+            inv_eff = -1.0
         elif self.inputs[self.KEY_PULSE_EFFICIENCY] == self.EFF_REALISTIC:
             # pulse efficiency calculation with static method
-            pulse_eff = self.calculate_pulse_efficiency(t1.image)
+            inv_eff = self.calculate_pulse_efficiency(t1.image)
         elif isinstance(self.inputs[self.KEY_PULSE_EFFICIENCY], float):
-            pulse_eff = self.inputs[self.KEY_PULSE_EFFICIENCY]
+            inv_eff = self.inputs[self.KEY_PULSE_EFFICIENCY]
 
         # determine whether the inversion pulse times have been provided
         # or if optimised times need to be calculated
@@ -65,7 +162,7 @@ class BackgroundSuppressionFilter(BaseFilter):
                 pulse_eff_opt = self.calculate_pulse_efficiency(t1_opt)
             else:
                 # otherwise just use pulse_eff
-                pulse_eff_opt = pulse_eff
+                pulse_eff_opt = inv_eff
 
             result = self.optimise_inv_pulse_times(
                 sat_pulse_time, t1_opt, pulse_eff_opt, num_inv_pulses
@@ -76,8 +173,28 @@ class BackgroundSuppressionFilter(BaseFilter):
 
         # calculate the longitudinal magnetisation at mag_time based on
         # the inversion pulse times
-
         self.outputs[self.KEY_MAG_Z] = mag_z.clone()
+        self.outputs[self.KEY_MAG_Z].image = self.calculate_mz(
+            self.outputs[self.KEY_MAG_Z].image,
+            t1.image,
+            inv_pulse_times,
+            sat_pulse_time,
+            mag_time,
+            inv_eff,
+        )
+        metadata = {
+            self.M_BACKGROUND_SUPPRESSION: True,
+            self.M_BSUP_INV_PULSE_TIMING: inv_pulse_times,
+            self.M_BSUP_SAT_PULSE_TIMING: mag_time,
+            self.M_BSUP_NUM_PULSES: np.asarray(inv_pulse_times).size,
+        }
+        # merge the metadata
+        self.outputs[self.KEY_MAG_Z].metadata = {
+            **self.outputs[self.KEY_MAG_Z].metadata,
+            **metadata,
+        }
+
+        self.outputs[self.KEY_INV_PULSE_TIMES] = inv_pulse_times
 
     def _validate_inputs(self):
         """Checks that the inputs meet their validation criteria
@@ -326,7 +443,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         num_pulses: int,
         method: str = "Nelder-Mead",
     ) -> OptimizeResult:
-        """Calculates optimisd inversion pulse times
+        """Calculates optimised inversion pulse times
         for a background suppression pulse sequence.
 
         :param sat_time: The time, in seconds between the saturation pulse and 
