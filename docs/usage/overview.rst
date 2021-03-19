@@ -1,6 +1,8 @@
 Overview
 --------
 
+.. image:: images/asldro_logo.png
+
 .. image:: https://notebooks.gesis.org/binder/badge_logo.svg
  :target: https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb
 .. image:: https://shields.io/pypi/l/asldro.svg
