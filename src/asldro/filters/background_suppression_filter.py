@@ -45,7 +45,7 @@ class BackgroundSuppressionFilter(BaseFilter):
     :param 'inv_pulse_times': The inversion times for each inversion pulse,
       defined as the spacing between the inversion pulse and the imaging
       excitation pulse. Must be greater than 0. If omitted then optimal
-      inversion times will be calculated for ``'num_inv'`` number
+      inversion times will be calculated for ``'num_inv_pulses'`` number
       of pulses, and the T1 times given by ``'t1_opt'``.
     :type 'inv_pulse_times': list[float], optional
     :param 't1_opt': T1 times, in seconds to optimise the pulse inversion
@@ -81,15 +81,15 @@ class BackgroundSuppressionFilter(BaseFilter):
     :class:`BackgroundSuppressionFilter.outputs` with
     the following entries:
 
-    :param 'mag_z': The longitudinal magnetisation at t=mag_time.
+    :param 'mag_z': The longitudinal magnetisation at t=``mag_time``.
     :type 'mag_z': BaseImageContainer
     :param 'inv_pulse_times': The inversion pulse timings.
     :type 'inv_pulse_times': list[float]
 
     **Metadata**
     
-    The following metadata entries will be appended to the metadata
-    property of the output ``'mag_z'``:
+    The output ``'mag_z'`` inherits metadata from the input ``'mag_z'``, and then has the
+    following entries appended:
 
         :background_suppression: ``True``
         :background_suppression_inv_pulse_timing: ``'inv_pulse_times'``
@@ -337,16 +337,9 @@ class BackgroundSuppressionFilter(BaseFilter):
         inv_eff: np.ndarray,
         sat_eff: np.ndarray = 1.0,
     ) -> np.ndarray:
-        """Calculates the longitudinal magnetisation after
+        r"""Calculates the longitudinal magnetisation after
         a sequence of background suppression pulses. Calculates
         according to the equation in:
-
-            Maleki, N., Dai, W. & Alsop, D.C. Optimization of
-            background suppression for arterial spin labeling
-            perfusion imaging. Magn Reson Mater Phy 25,
-            127–133 (2012). https://doi.org/10.1007/s10334-011-0286-3
-
-        This is derived from the equations in the appendix of
 
             Mani, S., Pauly, J., Conolly, S., Meyer, C. and
             Nishimura, D. (1997), Background suppression with
@@ -354,28 +347,50 @@ class BackgroundSuppressionFilter(BaseFilter):
             to projective angiography. Magn. Reson. Med., 37:
             898-905. https://doi.org/10.1002/mrm.1910370615
 
-        :param initial_mz: The initial longitudinal magnetisation
+        :param initial_mz: The initial longitudinal magnetisation, :math:`M_z(t=0)`
         :type initial_mz: np.ndarray
-        :param t1: The longitudinal relaxation time
+        :param t1: The longitudinal relaxation time, :math:`T_1`
         :type t1: np.ndarray
         :param inv_pulse_times: Inversion pulse times, with respect
-          to the imaging excitation pulse.
+          to the imaging excitation pulse, :math:`\{ \tau_i, \tau_{i+1}... \tau_{M-1}, \tau_M \}`
         :type inv_pulse_times: list[float]
         :param mag_time: The time at which to calculate the 
-          longitudinal magnetisation
-        :param sat_pulse_time: The time between the saturation pulse
-          and the imaging excitation pulse.
-        :type sat_pulse_time:
+          longitudinal magnetisation, :math:`t`
         :type mag_time: float
-        :param inv_eff: The efficiency of the inversion pulses,
-          -1 is complete inversion. 
+        :param sat_pulse_time: The time between the saturation pulse
+          and the imaging excitation pulse, :math:`Q`.
+        :type sat_pulse_time: float
+        :param inv_eff: The efficiency of the inversion pulses, :math:`\chi`
+          .-1 is complete inversion. 
         :type inv_eff: np.ndarray
-        :param sat_eff: The efficiency of the saturation pulses, 1 is
+        :param sat_eff: The efficiency of the saturation pulses, :math:`\psi`. 1 is
           full saturation.
         :type sat_eff: np.ndarray
         :return: The longitudinal magnetisation after the background
           suppression sequence
         :rtype: np.ndarray
+
+        **Equation**
+        
+        The longitudinal magnetisation at time :math:`t` after the start of a
+        backgroun suppression sequence has started is calculated using the equation
+        below. Only pulses that have run at time :math:`t` contribute to the
+        calculated magnetisation.
+
+        .. math::
+
+            \begin{align}
+                &M_z(t)= M_z(t=0)\cdot (1 + ((1-\psi)-1)\chi^n e^{-\frac{t}{T_1} }+ \sum 
+                \limits_{m=1}^n(\chi^m - \chi^{m-1}) e^{-\frac{\tau_m}{T_1}})\\
+                &\text{where}\\
+                &M_z(t)=\text{longitudinal magnetisation at time t}\\
+                &Q=\text{the delay between the saturation pulse and imaging excitation pulse}\\
+                &\psi=\text{saturation pulse efficiency}, 0 \leq \psi \leq 1\\
+                &\chi=\text{inversion pulse efficiency}, -1 \leq \chi \leq 0\\
+                &\tau_m = \text{inversion time of the }m^\text{th}\text{ pulse}\\
+                &T_1=\text{longitudinal relaxation time}\\
+            \end{align}
+
         """
         # check that initial_mz, t1 and pulse_eff are broadcastable
         np.broadcast(initial_mz, t1, inv_eff, sat_eff)
@@ -418,6 +433,23 @@ class BackgroundSuppressionFilter(BaseFilter):
         :type t1: np.ndarray
         :return: The pulse efficiencies, :math:`\chi`
         :rtype: np.ndarray
+
+        **Equation**
+
+        .. math::
+
+            \newcommand{\sn}[2]{#1 {\times} 10 ^ {#2}}
+            \chi=
+            \begin{cases}
+            -0.998 & 250 \leq T_1 <450\\
+            - \left ( \begin{align} \sn{-2.245}{-15}T_1^4 \\
+            + \sn{2.378}{-11}T_1^3 \\
+            - \sn{8.987}{-8}T_1^2\\
+            + \sn{1.442}{-4}T_1\\
+            + \sn{9.1555}{-1} \end{align}\right ) & 450 \leq T_1 < 2000\\
+            -0.998 & 2000 \leq T_1 < 4200
+            \end{cases}
+
         """
         # convert t1 to a ndarray for consistency
         t1 = np.asarray(t1)
@@ -443,19 +475,19 @@ class BackgroundSuppressionFilter(BaseFilter):
         num_pulses: int,
         method: str = "Nelder-Mead",
     ) -> OptimizeResult:
-        """Calculates optimised inversion pulse times
+        r"""Calculates optimised inversion pulse times
         for a background suppression pulse sequence.
 
         :param sat_time: The time, in seconds between the saturation pulse and 
-          the imaging excitation pulse.
+          the imaging excitation pulse, :math:`Q`.
         :type sat_time: float
-        :param t1: The longitudinal relaxation times to optimise the pulses for
+        :param t1: The longitudinal relaxation times to optimise the pulses for, :math:`T_1`.
         :type t1: np.ndarray
-        :param pulse_eff: The inversion pulse efficiency, corresponding to each
+        :param pulse_eff: The inversion pulse efficiency, :math:`\chi`. corresponding to each
           ``t1`` entry.
         :type pulse_eff: np.ndarray
-        :param num_pulses: The number of inversion pulses to optimise times for,
-          must be greater than 0.
+        :param num_pulses: The number of inversion pulses to optimise times for, :math:`N`.
+          Must be greater than 0.
         :type num_pulses: int
         :param method: The optimisation method to use, see 
           :class:`scipy.optimize.minimize` for more details. Defaults to "Nelder-Mead".
@@ -463,6 +495,21 @@ class BackgroundSuppressionFilter(BaseFilter):
         :raises ValueError: If the number of pulses is less than 1.
         :return: The result from the optimisation
         :rtype: OptimizeResult
+
+        **Equation**
+
+        A set of optimimal inversion times, :math:`\{ \tau_i, \tau_{i+1}... \tau_{M-1}, \tau_M \}`
+        are calculated by minimising the sum-of-squares of the magnetisation of all the T1 species
+        in ``t1_opt``:
+
+        .. math::
+
+            \begin{align}
+                &\min \sum\limits_i^N M_z^2(t=Q, T_{1,i},\chi, \psi, \tau)\\
+                &\text{where}\\
+                &N = \text{The number of $T_1$ species to optimise for}\\
+            \end{align}
+
         """
         if not num_pulses > 0:
             raise ValueError("num_pulses must be greater than 0")

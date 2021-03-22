@@ -25,35 +25,39 @@ class GroundTruthLoaderFilter(BaseFilter):
     for example :class:`GroundTruthLoaderFilter.KEY_IMAGE`
 
     :param 'image': ground truth image, must be 5D and the 5th dimension have the same length as
-        the number of quantities.
+      the number of quantities.
     :type 'image': NiftiImageContainer
     :param 'quantities': list of quantity names
     :type 'quantities': list[str]
     :param 'units': list of units corresponding to the quantities, must be the same length as
-        quantities
+      quantities
     :type 'units': list[str]
     :param 'parameters': dictionary containing keys
-        "t1_arterial_blood", "lambda_blood_brain"
-        and "magnetic_field_strength".
+      ``'t1_arterial_blood'``, ``'lambda_blood_brain'``
+      and ``'magnetic_field_strength'``.
     :type 'parameters': dict
     :param 'segmentation': dictionary containing key-value pairs corresponding
-        to tissue type and label value in the "seg_label" volume.
+      to tissue type and label value in the ``'seg_label'`` volume.
     :param 'image_override': (optional) dictionary containing single-value override values
-    for any of the 'image' that are loaded. The keys must match the quantity name
-    defined in 'quantities'.
+      for any of the ``'image'`` that are loaded. The keys must match the quantity name
+      defined in ``'quantities'``.
     :type 'image_override': dict
     :param 'parameter_override': (optional) dictionary containing single-value override values
-    for any of the 'parameters' that are loaded. The keys must match the key defined in
-    'parameters'.
+      for any of the ``'parameters'`` that are loaded. The keys must match the key defined in
+      ``'parameters'``.
     :type 'parameter_override': dict
     :param 'ground_truth_modulate': dictionary with keys corresponding with quantity names.
-    The possible dictionary values (both optional) are:
-    {
-        "scale": N,
-        "offset": M
-    }
-    Any corresponding images will have the corresponding scale and offset applied before being
-    output. See :class:`ScaleOffsetFilter` for more details.
+      The possible dictionary values (both optional) are:
+    
+      .. code-block:: python
+
+        {
+            "scale": N,
+            "offset": M,
+        }
+
+      Any corresponding images will have the corresponding scale and offset applied before being
+      output. See :class:`ScaleOffsetFilter` for more details.
     :type 'ground_truth_modulate': dict
 
 
@@ -61,20 +65,28 @@ class GroundTruthLoaderFilter(BaseFilter):
 
     Once run, the filter will populate the dictionary
     :class:`GroundTruthLoaderFilter.outputs`
-    with output fields based on the input 'quantities'.
-    Each key in 'quantities' will result in a NiftiImageContainer
+    with output fields based on the input ``'quantities'``.
+
+
+    Each key in ``'quantities'`` will result in a NiftiImageContainer
     corresponding to a 3D/4D subset of the nifti input (split along the 5th
     dimension). The data types of images will be the
-    same as those input EXCEPT for a quantity labelled "seg_label"
+    same as those input EXCEPT for a quantity labelled ``'seg_label'``
     which will be converted to a uint16 data type.
+
+
     If 'override_image' is defined, the corresponding 'image' will be set to the overriding
     value before being output.
+
     If 'override_parameters' is defined, the corresponding parameter will be set to the
     overriding value before being output.
+
     If 'ground_truth_modulate' is defined, the corresponding 'image'(s) will be scaled and/or
     offset by the corresponding values.
-    The keys-value pairs in the input 'parameters' will also
+
+    The keys-value pairs in the input ``'parameters'`` will also
     be destructured and piped through to the output, for example:
+
     :param 't1': volume of T1 relaxation times
     :type 't1': NiftiImageContainer
     :param 'seg_label': segmentation label mask corresponding to different tissue types.
@@ -90,14 +102,13 @@ class GroundTruthLoaderFilter(BaseFilter):
     A field metadata will be created in each image container, with the
     following fields:
 
-    * ``magnetic_field_strength``: corresponds to the value in the
-      "parameters" object.
-    * ``quantity``: corresponds to the entry in the "quantities" array.
-    * ``units``: corresponds with the entry in the "units" array.
+    :``magnetic_field_strength``: corresponds to the value in the
+      `'parameters'` object.
+    :``quantity``: corresponds to the entry in the ``'quantities'`` array.
+    :``units``: corresponds with the entry in the ``'units'`` array.
 
-
-    The "segmentation" object from the JSON file will also be
-    piped through to the metadata entry of the "seg_label" image container.
+    The '``segmentation'`` object from the JSON file will also be
+    piped through to the metadata entry of the ``'seg_label'`` image container.
     """
 
     KEY_IMAGE = "image"
