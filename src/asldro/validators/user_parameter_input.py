@@ -16,6 +16,7 @@ from asldro.validators.parameters import (
     Validator,
     ValidationError,
     Parameter,
+    isinstance_validator,
     range_inclusive_validator,
     greater_than_equal_to_validator,
     greater_than_validator,
@@ -59,6 +60,15 @@ OUTPUT_IMAGE_TYPE = "output_image_type"
 MODALITY = "modality"
 DEFAULT_GROUND_TRUTH = "hrgt_icbm_2009a_nls_3t"
 INTERPOLATION = "interpolation"
+BACKGROUND_SUPPRESSION = "background_suppression"
+BS_SAT_PULSE_TIME = "sat_pulse_time"
+BS_INV_PULSE_TIMES = "inv_pulse_times"
+BS_PULSE_EFFICIENCY = "pulse_efficiency"
+BS_T1_OPT = "t1_opt"
+BS_SAT_PULSE_TIME_OPT = "sat_pulse_time_opt"
+BS_NUM_INV_PULSES = "num_inv_pulses"
+BS_APPLY_TO_ASL_CONTEXT = "apply_to_asl_context"
+
 
 # Creates a validator which checks a parameter is the same
 # length as the number of entries in asl_context
@@ -297,6 +307,15 @@ IMAGE_TYPE_VALIDATOR = {
                 validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
                 default_value=CONTINUOUS,
             ),
+            BACKGROUND_SUPPRESSION: Parameter(
+                validators=isinstance_validator((dict, bool)),
+                default_value={
+                    "sat_pulse_time": 4.0,
+                    "pulse_efficiency": "ideal",
+                    "num_inv_pulses": 4,
+                    "apply_to_asl_context": ["label", "control"],
+                },
+            ),
         },
         post_validators=[
             Validator(
@@ -317,6 +336,62 @@ IMAGE_TYPE_VALIDATOR = {
                 TRANSL_X,
             ]
         ],
+    ),
+}
+
+
+BS_VALIDATOR = {
+    "pulse_times_present": ParameterValidator(
+        parameters={
+            BS_SAT_PULSE_TIME: Parameter(
+                validators=[greater_than_validator(0)], default_value=4.0
+            ),
+            BS_INV_PULSE_TIMES: Parameter(
+                validators=[
+                    list_of_type_validator(float),
+                    for_each_validator(greater_than_validator(0)),
+                ],
+            ),
+            BS_PULSE_EFFICIENCY: Parameter(
+                validators=isinstance_validator((float, str)), default_value="ideal"
+            ),
+            BS_APPLY_TO_ASL_CONTEXT: Parameter(
+                validators=for_each_validator(
+                    from_list_validator(SUPPORTED_ASL_CONTEXTS)
+                ),
+                default_value=[LABEL, CONTROL],
+            ),
+        }
+    ),
+    "pulse_times_omitted": ParameterValidator(
+        parameters={
+            BS_SAT_PULSE_TIME: Parameter(
+                validators=[greater_than_validator(0)], default_value=4.0
+            ),
+            BS_PULSE_EFFICIENCY: Parameter(
+                validators=isinstance_validator((float, str)), default_value="ideal"
+            ),
+            BS_T1_OPT: Parameter(
+                validators=[
+                    for_each_validator(isinstance_validator(float)),
+                    for_each_validator(greater_than_validator(0)),
+                ],
+                optional=True,
+            ),
+            BS_SAT_PULSE_TIME_OPT: Parameter(
+                validators=greater_than_validator(0), optional=True
+            ),
+            BS_NUM_INV_PULSES: Parameter(
+                validators=[isinstance_validator(int), greater_than_validator(0)],
+                default_value=4,
+            ),
+            BS_APPLY_TO_ASL_CONTEXT: Parameter(
+                validators=for_each_validator(
+                    from_list_validator(SUPPORTED_ASL_CONTEXTS)
+                ),
+                default_value=[LABEL, CONTROL],
+            ),
+        }
     ),
 }
 
@@ -348,6 +423,38 @@ def validate_input_params(input_params: dict) -> dict:
         image_series["series_parameters"] = IMAGE_TYPE_VALIDATOR[
             image_series["series_type"]
         ].validate(image_series["series_parameters"])
+
+        # for image series ASL validate any background suppression specific parameters
+        if image_series["series_type"] == ASL:
+            # if "background_suppression" is True then defaults required, so make a blank dict
+            if image_series["series_parameters"].get(BACKGROUND_SUPPRESSION) == True:
+                image_series["series_parameters"][BACKGROUND_SUPPRESSION] = {}
+
+            # if there's no "background_suppression" key then don't do anything
+            if image_series["series_parameters"].get(BACKGROUND_SUPPRESSION) not in [
+                None,
+                False,
+            ]:
+                # otherwise check whether inversion pulse times are supplied or not
+                if (
+                    image_series["series_parameters"][BACKGROUND_SUPPRESSION].get(
+                        BS_INV_PULSE_TIMES
+                    )
+                    is not None
+                ):
+                    # pulses present, validate "pulse_times_present" parameters
+                    image_series["series_parameters"][
+                        BACKGROUND_SUPPRESSION
+                    ] = BS_VALIDATOR["pulse_times_present"].validate(
+                        image_series["series_parameters"][BACKGROUND_SUPPRESSION]
+                    )
+                else:
+                    # pulses omitted, validate "pulse_times_omitted" parameters
+                    image_series["series_parameters"][
+                        BACKGROUND_SUPPRESSION
+                    ] = BS_VALIDATOR["pulse_times_omitted"].validate(
+                        image_series["series_parameters"][BACKGROUND_SUPPRESSION]
+                    )
 
     # Determine whether the ground truth is a valid filename (and exists)
     # or is a pre-existing dataset in the asldro data

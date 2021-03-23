@@ -4,11 +4,12 @@ Welcome to ASL DRO's documentation
 .. include:: usage/overview.rst
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :caption: Contents:
 
    usage/installation
    usage/quickstart
+   :dropdown
    usage/parameters
    usage/ground_truth
    usage/custom_ground_truth

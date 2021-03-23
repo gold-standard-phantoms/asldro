@@ -42,6 +42,7 @@ def test_user_input_valid():
         "inversion_flip_angle": 164.0,
         "inversion_time": 1.0,
         "interpolation": "linear",
+        "background_suppression": False,
     }
     assert d == IMAGE_TYPE_VALIDATOR[ASL].validate(
         d
@@ -72,6 +73,12 @@ def test_asl_user_input_defaults_created():
         "inversion_flip_angle": 180.0,
         "inversion_time": 1.0,
         "interpolation": "continuous",
+        "background_suppression": {
+            "sat_pulse_time": 4.0,
+            "pulse_efficiency": "ideal",
+            "num_inv_pulses": 4,
+            "apply_to_asl_context": ["label", "control"],
+        },
     }
 
     # Validation should include inputs
@@ -260,6 +267,12 @@ def fixture_expected_parsed_input():
                     "inversion_flip_angle": 180.0,
                     "inversion_time": 1.0,
                     "interpolation": "continuous",
+                    "background_suppression": {
+                        "sat_pulse_time": 4.0,
+                        "pulse_efficiency": "ideal",
+                        "num_inv_pulses": 4,
+                        "apply_to_asl_context": ["label", "control"],
+                    },
                 },
             },
             {
@@ -393,6 +406,12 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "inversion_flip_angle": 180.0,
             "inversion_time": 1.0,
             "interpolation": "continuous",
+            "background_suppression": {
+                "sat_pulse_time": 4.0,
+                "pulse_efficiency": "ideal",
+                "num_inv_pulses": 4,
+                "apply_to_asl_context": ["label", "control"],
+            },
         },
     }
 
@@ -403,3 +422,44 @@ def test_example_input_params_valid():
     p = get_example_input_params()
     validate_input_params(p)
     assert p["global_configuration"]["ground_truth"] == DEFAULT_GROUND_TRUTH
+
+
+def test_user_parameter_input_background_suppression():
+    """Tests the background suppression parameters"""
+    p = get_example_input_params()
+    # check empty "background_suppression" inserts defaults
+    p["image_series"][0]["series_parameters"]["background_suppression"] = {}
+    d = validate_input_params(p)
+    assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
+        "sat_pulse_time": 4.0,
+        "pulse_efficiency": "ideal",
+        "num_inv_pulses": 4,
+        "apply_to_asl_context": ["label", "control"],
+    }
+
+    # check True "background_suppression" inserts defaults
+    p["image_series"][0]["series_parameters"]["background_suppression"] = True
+    d = validate_input_params(p)
+    assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
+        "sat_pulse_time": 4.0,
+        "pulse_efficiency": "ideal",
+        "num_inv_pulses": 4,
+        "apply_to_asl_context": ["label", "control"],
+    }
+
+    # check False "background_suppression" does nothing
+    p["image_series"][0]["series_parameters"]["background_suppression"] = False
+    d = validate_input_params(p)
+    assert d["image_series"][0]["series_parameters"]["background_suppression"] == False
+
+    # check inversion times supplied
+    p["image_series"][0]["series_parameters"]["background_suppression"] = {
+        "inv_pulse_times": [0.05, 1.0, 1.5]
+    }
+    d = validate_input_params(p)
+    assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
+        "sat_pulse_time": 4.0,
+        "pulse_efficiency": "ideal",
+        "inv_pulse_times": [0.05, 1.0, 1.5],
+        "apply_to_asl_context": ["label", "control"],
+    }
