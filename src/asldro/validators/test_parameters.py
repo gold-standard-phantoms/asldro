@@ -6,6 +6,7 @@ from asldro.validators.parameters import (
     Parameter,
     ParameterValidator,
     ValidationError,
+    or_validator,
     range_exclusive_validator,
     range_inclusive_validator,
     from_list_validator,
@@ -470,6 +471,49 @@ def test_has_attribute_value_validator():
     assert not validator("foobar")
     assert not validator(1)
     assert not validator([])
+
+
+def test_or_validator_creator():
+    """Test the or_validator creator"""
+
+    with pytest.raises(TypeError):
+        or_validator(validators="not a list")
+
+    with pytest.raises(TypeError):
+        or_validator(validators=[range_inclusive_validator(0, 1), "not a validator"])
+
+    or_validator(
+        validators=[
+            range_inclusive_validator(0, 1),
+            range_exclusive_validator(100, 200),
+        ]
+    )
+
+
+def test_or_validator():
+    """Test the or_validator"""
+    validator = or_validator(
+        [
+            range_inclusive_validator(0, 1),
+            range_exclusive_validator(100, 200),
+        ]
+    )
+    assert (
+        str(validator) == "Value(s) must be between 0 and 1 (inclusive) OR "
+        "Value(s) must be between 100 and 200 (exclusive)"
+    )
+    assert not validator(-0.001)
+    assert validator(0)
+    assert validator(0.5)
+    assert validator(1)
+    assert not validator(1.1)
+    assert not validator(50)
+    assert not validator(100)
+    assert validator(100.1)
+    assert validator(150)
+    assert validator(199.9)
+    assert not validator(200)
+
 
 
 def test_parameter_validator_valid():
