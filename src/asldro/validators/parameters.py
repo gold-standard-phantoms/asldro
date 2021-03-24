@@ -298,6 +298,26 @@ def has_attribute_value_validator(
     )
 
 
+def or_validator(validators: List[Validator]) -> Validator:
+    """Boolean OR between supplied validators.
+    If any of the supplied validators evaluate as True, this validator
+    evaluates as True.
+
+    :param validators: A list (or tuple) of validators
+    :type validators: Union[List[Validator], Tuple[Validator, ...]]
+    """
+    if not isinstance(validators, (list, tuple)):
+        raise TypeError("The argument to `or_validator` must be a list or tuple")
+    for validator in validators:
+        if not isinstance(validator, Validator):
+            raise TypeError("Each element of input must be of type Validator")
+
+    return Validator(
+        func=lambda value: any([validator(value) for validator in validators]),
+        criteria_message=" OR ".join([str(validator) for validator in validators]),
+    )
+
+
 class Parameter:
     # pylint: disable=too-few-public-methods
     """ A description of a parameter which is to be validated against """
