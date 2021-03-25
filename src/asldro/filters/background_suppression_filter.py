@@ -15,6 +15,7 @@ from asldro.validators.parameters import (
     Parameter,
     ParameterValidator,
     range_inclusive_validator,
+    or_validator,
 )
 
 
@@ -243,13 +244,22 @@ class BackgroundSuppressionFilter(BaseFilter):
                     optional=True,
                 ),
                 self.KEY_PULSE_EFFICIENCY: Parameter(
-                    validators=[isinstance_validator((str, float))],
+                    validators=[
+                        isinstance_validator((str, float)),
+                        or_validator(
+                            [
+                                from_list_validator(
+                                    [self.EFF_IDEAL, self.EFF_REALISTIC]
+                                ),
+                                range_inclusive_validator(-1, 0),
+                            ]
+                        ),
+                    ],
                     default_value=self.EFF_IDEAL,
                 ),
             }
         )
 
-        # check the images - shapes must match and the data cannot be complex
         new_params = input_validator.validate(
             self.inputs, error_type=FilterInputValidationError
         )
@@ -258,6 +268,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         self.inputs = {**self._i, **new_params}
         keys_of_images = [self.KEY_MAG_Z, self.KEY_T1]
 
+        # check the images - shapes must match and the data cannot be complex
         list_of_image_shapes = [self.inputs[key].shape for key in keys_of_images]
         if list_of_image_shapes.count(list_of_image_shapes[0]) != len(
             list_of_image_shapes
@@ -277,32 +288,6 @@ class BackgroundSuppressionFilter(BaseFilter):
                 raise FilterInputValidationError(
                     f"{key} has image type {COMPLEX_IMAGE_TYPE}, this is not supported"
                 )
-
-        # validate 'pulse_efficiency' depending on whether it is a float or str
-        if isinstance(self.inputs[self.KEY_PULSE_EFFICIENCY], str):
-            pulse_eff_validator = ParameterValidator(
-                parameters={
-                    self.KEY_PULSE_EFFICIENCY: Parameter(
-                        validators=[
-                            from_list_validator([self.EFF_REALISTIC, self.EFF_IDEAL])
-                        ]
-                    )
-                }
-            )
-            pulse_eff_validator.validate(
-                self.inputs, error_type=FilterInputValidationError
-            )
-        elif isinstance(self.inputs[self.KEY_PULSE_EFFICIENCY], float):
-            pulse_eff_validator = ParameterValidator(
-                parameters={
-                    self.KEY_PULSE_EFFICIENCY: Parameter(
-                        validators=[range_inclusive_validator(-1, 0)]
-                    )
-                }
-            )
-            pulse_eff_validator.validate(
-                self.inputs, error_type=FilterInputValidationError
-            )
 
         # validate parameters for the case where 'inv_pulse_times' is not present,
         # therefore the optimal pulse times need to be calculated

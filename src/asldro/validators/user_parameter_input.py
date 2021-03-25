@@ -26,6 +26,7 @@ from asldro.validators.parameters import (
     list_of_type_validator,
     of_length_validator,
     for_each_validator,
+    or_validator,
 )
 from asldro.validators.schemas.index import SCHEMAS
 from asldro.utils.general import splitext
@@ -357,7 +358,16 @@ BS_VALIDATOR = {
                 ],
             ),
             BS_PULSE_EFFICIENCY: Parameter(
-                validators=isinstance_validator((float, str)), default_value="ideal"
+                validators=[
+                    isinstance_validator((float, str)),
+                    or_validator(
+                        [
+                            from_list_validator(["realistic", "ideal"]),
+                            range_inclusive_validator(-1, 0),
+                        ]
+                    ),
+                ],
+                default_value="ideal",
             ),
             BS_APPLY_TO_ASL_CONTEXT: Parameter(
                 validators=for_each_validator(
