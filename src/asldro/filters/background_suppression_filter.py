@@ -49,8 +49,8 @@ class BackgroundSuppressionFilter(BaseFilter):
       of pulses, and the T1 times given by ``'t1_opt'``.
     :type 'inv_pulse_times': list[float], optional
     :param 't1_opt': T1 times, in seconds to optimise the pulse inversion
-      times for. Each must be greater than 0, and this parameter must be
-      present if ``'inv_pulse_times'`` is omitted.
+      times for. Each must be greater than 0, and if omitted then the 
+      unique values in the input ``t1`` will be used.
     :type 't1_opt': list[float]
     :param 'mag_time': The time, in seconds after the saturation pulse to
       sample the longitudinal magnetisation. The output magnetisation will
@@ -167,9 +167,11 @@ class BackgroundSuppressionFilter(BaseFilter):
             result = self.optimise_inv_pulse_times(
                 sat_pulse_time, t1_opt, pulse_eff_opt, num_inv_pulses
             )
-            inv_pulse_times = result.x
+            inv_pulse_times: np.ndarray = result.x
         else:
-            inv_pulse_times = self.inputs[self.KEY_INV_PULSE_TIMES]
+            inv_pulse_times: np.ndarray = np.asarray(
+                self.inputs[self.KEY_INV_PULSE_TIMES]
+            )
 
         # calculate the longitudinal magnetisation at mag_time based on
         # the inversion pulse times
@@ -184,7 +186,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         )
         metadata = {
             self.M_BACKGROUND_SUPPRESSION: True,
-            self.M_BSUP_INV_PULSE_TIMING: inv_pulse_times,
+            self.M_BSUP_INV_PULSE_TIMING: inv_pulse_times.tolist(),
             self.M_BSUP_SAT_PULSE_TIMING: mag_time,
             self.M_BSUP_NUM_PULSES: np.asarray(inv_pulse_times).size,
         }
@@ -203,8 +205,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         match
         'sat_pulse_time': float, >0
         'inv_pulse_times': list[float], each >0, optional,
-        't1_opt': list[float], each >0,  must be present if
-          'inv_pulse_times' is omitted
+        't1_opt': list[float], each >0,  optional
         'mag_time': float, >0, optional
         'num_inv_pulses': int, >0,  must be present if
             'inv_pulse_times' is omitted
@@ -255,7 +256,6 @@ class BackgroundSuppressionFilter(BaseFilter):
 
         # merge the updated parameters from the output with the input parameters
         self.inputs = {**self._i, **new_params}
-
         keys_of_images = [self.KEY_MAG_Z, self.KEY_T1]
 
         list_of_image_shapes = [self.inputs[key].shape for key in keys_of_images]
@@ -314,6 +314,9 @@ class BackgroundSuppressionFilter(BaseFilter):
                             for_each_validator(greater_than_validator(0)),
                             for_each_validator(isinstance_validator(float)),
                         ],
+                        default_value=np.trim_zeros(
+                            np.unique(self.inputs[self.KEY_T1].image).tolist()
+                        ),
                     ),
                     self.KEY_NUM_INV_PULSES: Parameter(
                         validators=[
@@ -323,9 +326,12 @@ class BackgroundSuppressionFilter(BaseFilter):
                     ),
                 },
             )
-            calc_inv_times_validator.validate(
+            p = calc_inv_times_validator.validate(
                 self.inputs, error_type=FilterInputValidationError
             )
+            # merge parameters
+            new_params = {**new_params, **p}
+            self.inputs = {**self._i, **new_params}
 
     @staticmethod
     def calculate_mz(

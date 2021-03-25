@@ -82,7 +82,7 @@ def input_validation_dict_fixture(test_data):
             "mag_time": [True, 4.1],
             "pulse_efficiency": [True, "realistic", "idle", -3.0, 0.99, -1],
             "t1_opt": [
-                False,
+                True,
                 [1.0, 1.4, 4.5],
                 [-1.0, 1.4, 4.5],
                 [1.0, 1.4, 4],
@@ -299,19 +299,52 @@ def test_background_suppression_filter_mock_data(test_data: dict):
         "key_2": 2,
     }
 
-    # run where pulse times need to be optimised
+    # run where pulse times need to be optimised, t1_opt not supplied
     bsup_filter = BackgroundSuppressionFilter()
     bsup_filter.add_inputs(
         {
             key: test_data.get(key)
-            for key in ["mag_z", "t1", "sat_pulse_time", "inv_pulse_times"]
+            for key in ["mag_z", "t1", "sat_pulse_time", "num_inv_pulses"]
         }
     )
     bsup_filter.run()
+    result = BackgroundSuppressionFilter.optimise_inv_pulse_times(
+        test_data["sat_pulse_time"],
+        np.trim_zeros(np.unique(test_data["t1"].image)),
+        -1.0,
+        test_data["num_inv_pulses"],
+    )
     mz = calc_mz_function(
         test_data["mag_z"].image,
         test_data["t1"].image,
-        test_data["inv_pulse_times"],
+        result.x,
+        test_data["sat_pulse_time"],
+        -1,
+    )
+    # compare
+    numpy.testing.assert_array_almost_equal(
+        bsup_filter.outputs[BackgroundSuppressionFilter.KEY_MAG_Z].image, mz
+    )
+
+    # run where pulse times need to be optimised, t1_opt supplied
+    bsup_filter = BackgroundSuppressionFilter()
+    bsup_filter.add_inputs(
+        {
+            key: test_data.get(key)
+            for key in ["mag_z", "t1", "sat_pulse_time", "num_inv_pulses", "t1_opt"]
+        }
+    )
+    bsup_filter.run()
+    result = BackgroundSuppressionFilter.optimise_inv_pulse_times(
+        test_data["sat_pulse_time"],
+        test_data["t1_opt"],
+        -1.0,
+        test_data["num_inv_pulses"],
+    )
+    mz = calc_mz_function(
+        test_data["mag_z"].image,
+        test_data["t1"].image,
+        result.x,
         test_data["sat_pulse_time"],
         -1,
     )

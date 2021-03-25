@@ -43,6 +43,7 @@ def test_user_input_valid():
         "inversion_time": 1.0,
         "interpolation": "linear",
         "background_suppression": False,
+        "output_image_type": "complex",
     }
     assert d == IMAGE_TYPE_VALIDATOR[ASL].validate(
         d
@@ -79,6 +80,7 @@ def test_asl_user_input_defaults_created():
             "num_inv_pulses": 4,
             "apply_to_asl_context": ["label", "control"],
         },
+        "output_image_type": "magnitude",
     }
 
     # Validation should include inputs
@@ -273,6 +275,7 @@ def fixture_expected_parsed_input():
                         "num_inv_pulses": 4,
                         "apply_to_asl_context": ["label", "control"],
                     },
+                    "output_image_type": "magnitude",
                 },
             },
             {
@@ -412,6 +415,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
                 "num_inv_pulses": 4,
                 "apply_to_asl_context": ["label", "control"],
             },
+            "output_image_type": "magnitude",
         },
     }
 

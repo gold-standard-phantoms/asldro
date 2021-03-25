@@ -16,6 +16,7 @@ from asldro.validators.user_parameter_input import (
     REPETITION_TIME,
     LABEL_DURATION,
     SIGNAL_TIME,
+    OUTPUT_IMAGE_TYPE,
 )
 from asldro.containers.image import NiftiImageContainer
 
@@ -55,6 +56,9 @@ def test_create_qasper():
 
         input_params["image_series"][0]["series_parameters"][LABEL_DURATION] = 0.5
         input_params["image_series"][0]["series_parameters"][SIGNAL_TIME] = 3.6
+        input_params["image_series"][0]["series_parameters"][
+            OUTPUT_IMAGE_TYPE
+        ] = "complex"
 
         # remove the ground truth and structural image series
         input_params["image_series"] = [

@@ -9,7 +9,7 @@ from asldro.containers.image import NiftiImageContainer
 
 
 @pytest.mark.slow
-def test_run_full_pipeline():
+def test_run_default_pipeline():
     """ Runs the full ASL DRO pipeline """
     droout = run_full_pipeline()
 
@@ -29,7 +29,7 @@ def test_run_full_pipeline():
 
 
 @pytest.mark.slow
-def test_run_full_pipeline_extended_params():
+def test_run_extended_pipeline():
     """Runs the full ASL DRO pipeline with modified input parameters"""
     input_params = get_example_input_params()
 
@@ -54,7 +54,7 @@ def test_run_full_pipeline_extended_params():
 
 
 @pytest.mark.slow
-def test_run_full_pipeline_snr_zero():
+def test_run_asl_pipeline_snr_zero():
     """Runs the full ASL DRO pipeline with the SNR=zero to check this works"""
     input_params = get_example_input_params()
 
@@ -63,7 +63,7 @@ def test_run_full_pipeline_snr_zero():
     input_params["image_series"] = [
         x for x in input_params["image_series"] if x["series_type"] in ["asl"]
     ]
-    run_full_pipeline(input_params=input_params)
+    dro_out = run_full_pipeline(input_params=input_params)
 
 
 @pytest.mark.slow

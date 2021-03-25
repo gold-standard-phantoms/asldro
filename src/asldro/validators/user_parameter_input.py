@@ -316,6 +316,10 @@ IMAGE_TYPE_VALIDATOR = {
                     "apply_to_asl_context": ["label", "control"],
                 },
             ),
+            OUTPUT_IMAGE_TYPE: Parameter(
+                validators=from_list_validator(["complex", "magnitude"]),
+                default_value="magnitude",
+            ),
         },
         post_validators=[
             Validator(

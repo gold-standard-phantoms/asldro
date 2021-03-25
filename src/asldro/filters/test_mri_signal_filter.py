@@ -22,7 +22,7 @@ TEST_DATA_DICT_GE = {
     "t1": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "t2": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "t2_star": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("ge", "gradient echo", "str", 435),
     "echo_time": (0.01, -0.01, "echo"),
     "repetition_time": (1.0, -1.0, 0.009, "repeat"),
@@ -32,7 +32,7 @@ TEST_DATA_DICT_GE = {
 TEST_DATA_DICT_SE = {
     "t1": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "t2": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("se", "spin echo", "str", 435),
     "echo_time": (0.01, -0.01, "echo"),
     "repetition_time": (1.0, -1.0, 0.009, "repeat"),
@@ -41,7 +41,7 @@ TEST_DATA_DICT_SE = {
 TEST_DATA_DICT_IR = {
     "t1": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
     "t2": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_COMPLEX),
+    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_COMPLEX),
     "acq_contrast": ("ir", "inversion recovery", "str", 435),
     "echo_time": (0.01, -0.01, "echo"),
     "repetition_time": (1.5, -1.0, 1.0, "repeat"),
@@ -391,7 +391,6 @@ def test_mri_signal_filter_gradient_echo(mock_data):
         "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
         "mr_acq_type": "3D",
-        "background_suppression": False,
     }
 
 
@@ -429,7 +428,6 @@ def test_mri_signal_filter_spin_echo(mock_data):
         "excitation_flip_angle": mock_data["excitation_flip_angle"],
         "image_flavour": "PERFUSION",
         "mr_acq_type": "3D",
-        "background_suppression": False,
     }
 
 
@@ -474,7 +472,6 @@ def test_mri_signal_filter_inversion_recovery(mock_data):
         "inversion_time": mock_data["inversion_time"],
         "inversion_flip_angle": mock_data["inversion_flip_angle"],
         "mr_acq_type": "3D",
-        "background_suppression": False,
     }
 
 
@@ -633,3 +630,42 @@ def test_mri_signal_filter_image_flavour(mock_data):
         "image_flavour": "ABCD",
         "mr_acq_type": "3D",
     }
+
+
+def test_mri_signal_filter_metadata_inheritence(mock_data):
+    """Checks that metdata is correctly inherited from either m0 or mag_enc"""
+    test_data = deepcopy(mock_data)
+    # m0 has metadata, mag_enc none, also check units and magnetisation are removed
+    # and that nothing from t1 gets pushed across
+    test_data["m0"].metadata = {
+        "key1": "val1",
+        "key2": 2,
+        "key3": 3,
+        "units": "a.u",
+        "quantity": "longitudinal magnetisation",
+    }
+    test_data["t1"].metadata = {"t1_key1": "t1_val1"}
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter.add_inputs(test_data)
+    mri_signal_filter.run()
+    mri_signal_filter.outputs["image"].metadata == {
+        "key1": "val1",
+        "key2": 2,
+        "key3": 3,
+    }
+    # m0 and mag_enc with overlapping keys
+    test_data["mag_enc"].metadata = {
+        "key2": "key2",
+        "key3": "three",
+        "key4": 4,
+    }
+    mri_signal_filter = MriSignalFilter()
+    mri_signal_filter.add_inputs(test_data)
+    mri_signal_filter.run()
+    mri_signal_filter.outputs["image"].metadata == {
+        "key1": "val1",
+        "key2": "key2",
+        "key3": "three",
+        "key4": 4,
+    }
+
