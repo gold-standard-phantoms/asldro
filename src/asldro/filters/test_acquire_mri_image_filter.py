@@ -46,7 +46,7 @@ INPUT_DICT = {
     "rotation": (True, (5.0, 34.1, 82.56), 0.1, "str", TEST_NIFTI_ONES),
     "rotation_origin": (True, (5.0, 0.0, 0.0), 0.1, "str", TEST_NIFTI_ONES),
     "translation": (True, (1.0, 3.0, 5.56), 0.1, "str", TEST_NIFTI_ONES),
-    "interpolation": (True, "str", 1),
+    "interpolation": (True, "nearest", "str", 1),
     "reference_image": (True, TEST_NIFTI_ONES, "str", np.ones(TEST_VOLUME_DIMENSIONS)),
 }
 

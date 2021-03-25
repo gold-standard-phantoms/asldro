@@ -1,14 +1,31 @@
 """ Example tests - only run when --runslow is passed to pytest """
 
 import pytest
+import numpy as np
+import numpy.testing
 from asldro.examples import run_full_pipeline
 from asldro.validators.user_parameter_input import get_example_input_params
+from asldro.containers.image import NiftiImageContainer
 
 
 @pytest.mark.slow
 def test_run_full_pipeline():
     """ Runs the full ASL DRO pipeline """
-    run_full_pipeline()
+    droout = run_full_pipeline()
+
+    # check the segmentation_mask resampled ground truth
+    seg_label_index = [
+        idx
+        for idx, im in enumerate(droout["asldro_output"])
+        if im.metadata.get("quantity") == "seg_label"
+    ]
+    gt_seg_label: NiftiImageContainer = droout["asldro_output"][seg_label_index[0]]
+
+    # interpolation is nearest for the default so no new values should be created, check the
+    # unique values against the original ground truth 
+    numpy.testing.assert_array_equal(
+        np.unique(gt_seg_label.image), np.unique(droout["hrgt"]["seg_label"].image)
+    )
 
 
 @pytest.mark.slow
