@@ -22,7 +22,7 @@ def test_run_default_pipeline():
     gt_seg_label: NiftiImageContainer = droout["asldro_output"][seg_label_index[0]]
 
     # interpolation is nearest for the default so no new values should be created, check the
-    # unique values against the original ground truth 
+    # unique values against the original ground truth
     numpy.testing.assert_array_equal(
         np.unique(gt_seg_label.image), np.unique(droout["hrgt"]["seg_label"].image)
     )

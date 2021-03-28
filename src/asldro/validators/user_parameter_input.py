@@ -100,6 +100,16 @@ CONTINUOUS = "continuous"
 NEAREST = "nearest"
 SUPPORTED_INTERPOLATION_TYPES = [LINEAR, CONTINUOUS, NEAREST]
 
+DEFAULT_ASL_MATRIX = [64, 64, 40]
+
+DEFAULT_BS_PARAMS = {
+    "sat_pulse_time": 4.0,
+    "sat_pulse_time_opt": 3.9,
+    "pulse_efficiency": "ideal",
+    "num_inv_pulses": 4,
+    "apply_to_asl_context": ["label", "control"],
+}
+
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
     GROUND_TRUTH: ParameterValidator(
@@ -128,7 +138,7 @@ IMAGE_TYPE_VALIDATOR = {
                     of_length_validator(3),
                     for_each_validator(greater_than_validator(0)),
                 ],
-                default_value=[64, 64, 12],
+                default_value=DEFAULT_ASL_MATRIX,
             ),
             INTERPOLATION: Parameter(
                 validators=for_each_validator(
@@ -188,7 +198,7 @@ IMAGE_TYPE_VALIDATOR = {
                 validators=greater_than_equal_to_validator(0.0), default_value=1.0
             ),
             DESIRED_SNR: Parameter(
-                validators=greater_than_equal_to_validator(0), default_value=50.0
+                validators=greater_than_equal_to_validator(0), default_value=100.0
             ),
             RANDOM_SEED: Parameter(
                 validators=greater_than_equal_to_validator(0), default_value=0
@@ -239,7 +249,7 @@ IMAGE_TYPE_VALIDATOR = {
                     of_length_validator(3),
                     for_each_validator(greater_than_validator(0)),
                 ],
-                default_value=[64, 64, 12],
+                default_value=DEFAULT_ASL_MATRIX,
             ),
             LABEL_TYPE: Parameter(
                 validators=from_list_validator(
@@ -290,7 +300,7 @@ IMAGE_TYPE_VALIDATOR = {
                 default_value="se",
             ),
             DESIRED_SNR: Parameter(
-                validators=greater_than_equal_to_validator(0), default_value=100.0
+                validators=greater_than_equal_to_validator(0), default_value=1000.0
             ),
             RANDOM_SEED: Parameter(
                 validators=greater_than_equal_to_validator(0), default_value=0
@@ -310,12 +320,7 @@ IMAGE_TYPE_VALIDATOR = {
             ),
             BACKGROUND_SUPPRESSION: Parameter(
                 validators=isinstance_validator((dict, bool)),
-                default_value={
-                    "sat_pulse_time": 4.0,
-                    "pulse_efficiency": "ideal",
-                    "num_inv_pulses": 4,
-                    "apply_to_asl_context": ["label", "control"],
-                },
+                default_value=DEFAULT_BS_PARAMS,
             ),
             OUTPUT_IMAGE_TYPE: Parameter(
                 validators=from_list_validator(["complex", "magnitude"]),
@@ -442,7 +447,9 @@ def validate_input_params(input_params: dict) -> dict:
         if image_series["series_type"] == ASL:
             # if "background_suppression" is True then defaults required, so make a blank dict
             if image_series["series_parameters"].get(BACKGROUND_SUPPRESSION) == True:
-                image_series["series_parameters"][BACKGROUND_SUPPRESSION] = {}
+                image_series["series_parameters"][
+                    BACKGROUND_SUPPRESSION
+                ] = DEFAULT_BS_PARAMS
 
             # if there's no "background_suppression" key then don't do anything
             if image_series["series_parameters"].get(BACKGROUND_SUPPRESSION) not in [

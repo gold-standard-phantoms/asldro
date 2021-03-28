@@ -1,5 +1,8 @@
 """ CombineTimeSeriesFilter tests """
+import os
 from typing import Mapping
+from tempfile import TemporaryDirectory
+from nibabel.nifti1 import Nifti1Image
 import pytest
 import numpy as np
 import numpy.testing
@@ -123,13 +126,44 @@ def test_combine_time_series_filter_non_image(
         a_filter.run()
 
 
-def test_combine_time_series_filter_with_single_complex(
-    image_containers: Mapping[str, NiftiImageContainer]
-):
-    """Run the CombineTimeSeriesFilter where one of the image inputs
-    is complex - check we get a FilterInputValidationError"""
-    image_containers["image_0000006"].image_type = COMPLEX_IMAGE_TYPE
+def test_combine_time_series_filter_with_complex_images():
+    num_image_containers = 10
+    image_containers = {
+        f"image_{''.join(['0' for _ in range(i)]) + str(i)}": NiftiImageContainer(
+            nifti_img=nib.Nifti1Image(
+                dataobj=np.ones((1, 1, 1)) * (i + 1j), affine=np.eye(4)
+            ),
+            metadata={"to_list": i, "to_singleton": 10, "even": i},
+        )
+        if i % 2 == 0
+        else NiftiImageContainer(
+            nifti_img=nib.Nifti1Image(
+                dataobj=np.ones((1, 1, 1)) * (i + 1j), affine=np.eye(4)
+            ),
+            metadata={"to_list": i, "to_singleton": 10, "odd": 1.5},
+        )
+        for i in range(num_image_containers)
+    }
     a_filter = CombineTimeSeriesFilter()
     a_filter.add_inputs(image_containers)
-    with pytest.raises(FilterInputValidationError):
-        a_filter.run()
+    a_filter.run()
+
+    numpy.testing.assert_array_equal(
+        a_filter.outputs["image"].image,
+        np.stack(
+            [np.ones((1, 1, 1)) * (i + 1j) for i in range(num_image_containers)], axis=3
+        ),
+    )
+    with TemporaryDirectory() as temp_dir:
+        filename = os.path.join(temp_dir, "image.nii.gz")
+        nib.save(a_filter.outputs["image"].nifti_image, filename)
+        loaded_image: Nifti1Image = nib.load(filename)
+
+        numpy.testing.assert_array_equal(
+            loaded_image.dataobj,
+            np.stack(
+                [np.ones((1, 1, 1)) * (i + 1j) for i in range(num_image_containers)],
+                axis=3,
+            ),
+        )
+

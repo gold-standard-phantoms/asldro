@@ -1,6 +1,7 @@
 """ MRI Signal Filter """
 
 import numpy as np
+import pdb
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -298,9 +299,7 @@ class MriSignalFilter(BaseFilter):
             )
             metadata[self.KEY_INVERSION_TIME] = inversion_time
 
-        self.outputs[self.KEY_IMAGE]: BaseImageContainer = self.inputs[
-            self.KEY_M0
-        ].clone()
+        self.outputs[self.KEY_IMAGE] = self.inputs[self.KEY_M0].clone()
         self.outputs[self.KEY_IMAGE].image = mri_signal
         # merge the metadata field with the constructed one (we don't want to merge)
         self.outputs[self.KEY_IMAGE].metadata = {
@@ -309,6 +308,7 @@ class MriSignalFilter(BaseFilter):
         }
         self.outputs[self.KEY_IMAGE].metadata.pop("units", None)
         self.outputs[self.KEY_IMAGE].metadata.pop("quantity", None)
+        # pdb.set_trace()
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation critera

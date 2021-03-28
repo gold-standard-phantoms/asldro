@@ -18,9 +18,11 @@ class CombineTimeSeriesFilter(BaseFilter):
     represent a single time point in a time series acquisition. As an output, these
     ImageContainers will be concatenated across the 4th (time) dimension and their
     metadata combined with the following rules:
-    - if all values of a given field are the same, for all time-series, use that
-    value in the output metadata; else,
-    - concatenate the values in a list.
+
+    * if all values of a given field are the same, for all time-series, use that
+      value in the output metadata; else,
+    * concatenate the values in a list.
+    
     Instance variables of the BaseImageContainer such as ``image_flavour``, will all
     be checked for consistency and copied across to the output image.
 
@@ -32,11 +34,16 @@ class CombineTimeSeriesFilter(BaseFilter):
     for example :class:`CombineTimeSeriesFilter.KEY_T1`.
 
     :param 'image_NNNNN': A time-series image. The order of these time series will be
-    determined by the NNNNN component, which shall be a positive integer. Any number of
-    digits can be used in combination in NNNNN. For example, as sequence, `image_0000`,
-    `image_1`, `image_002`, `image_03` is valid.
-    NOTE: the indices MUST start from 0 and increment by 1, and have no missing or duplicate
-    indices. This is to help prevent accidentally missing/adding an index value.
+      determined by the NNNNN component, which shall be a positive integer. Any number of
+      digits can be used in combination in NNNNN. For example, as sequence, `image_0000`,
+      `image_1`, `image_002`, `image_03` is valid.
+
+    .. NOTE:: the indices MUST start from 0 and increment by 1, and have no missing or duplicate
+        indices. This is to help prevent accidentally missing/adding an index value.
+
+    .. NOTE:: If the image data type is complex, it is likely that most NIFTI viewers will
+        problems displaying 4D complex data correctly.
+
     :type 'image_NNNNN': BaseImageContainer
 
     **Outputs**
@@ -175,11 +182,3 @@ class CombineTimeSeriesFilter(BaseFilter):
         # Check that all input images are 3d
         if len(container.image.shape) != 3:
             raise FilterInputValidationError("Input images must be 3D")
-
-        # Check that all the input images are not of image_type == "COMPLEX_IMAGE_TYPE"
-        for container, index in indexed_containers:
-            if container.image_type == COMPLEX_IMAGE_TYPE:
-                raise FilterInputValidationError(
-                    f"Input image with index {index} has image type {COMPLEX_IMAGE_TYPE}, "
-                    "this is not supported"
-                )

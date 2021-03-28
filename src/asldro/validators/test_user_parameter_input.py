@@ -66,8 +66,8 @@ def test_asl_user_input_defaults_created():
         "label_duration": 1.8,
         "signal_time": 3.6,
         "label_efficiency": 0.85,
-        "desired_snr": 100,
-        "acq_matrix": [64, 64, 12],
+        "desired_snr": 1000.0,
+        "acq_matrix": [64, 64, 40],
         "acq_contrast": "se",
         "random_seed": 0,
         "excitation_flip_angle": 90.0,
@@ -76,6 +76,7 @@ def test_asl_user_input_defaults_created():
         "interpolation": "continuous",
         "background_suppression": {
             "sat_pulse_time": 4.0,
+            "sat_pulse_time_opt": 3.9,
             "pulse_efficiency": "ideal",
             "num_inv_pulses": 4,
             "apply_to_asl_context": ["label", "control"],
@@ -105,7 +106,7 @@ def test_structural_user_input_defaults_created():
         "excitation_flip_angle": 90.0,
         "inversion_flip_angle": 180.0,
         "inversion_time": 1.0,
-        "desired_snr": 50.0,
+        "desired_snr": 100.0,
         "random_seed": 0,
         "output_image_type": "magnitude",
         "modality": "anat",
@@ -127,7 +128,7 @@ def test_ground_truth_user_input_defaults_created():
         "transl_x": 0.0,
         "transl_y": 0.0,
         "transl_z": 0.0,
-        "acq_matrix": [64, 64, 12],
+        "acq_matrix": [64, 64, 40],
         "interpolation": ["continuous", "nearest"],
     }
 
@@ -205,7 +206,7 @@ def input_params():
                 "series_parameters": {
                     "asl_context": "m0scan control label",
                     "label_type": "pcasl",
-                    "acq_matrix": [64, 64, 20],
+                    "acq_matrix": [64, 64, 40],
                 },
             },
             {
@@ -221,7 +222,7 @@ def input_params():
             {
                 "series_type": "ground_truth",
                 "series_description": "user description for ground truth",
-                "series_parameters": {"acq_matrix": [64, 64, 20]},
+                "series_parameters": {"acq_matrix": [64, 64, 40]},
             },
         ],
     }
@@ -250,7 +251,7 @@ def fixture_expected_parsed_input():
                 "series_parameters": {
                     "asl_context": "m0scan control label",
                     "label_type": "pcasl",
-                    "acq_matrix": [64, 64, 20],
+                    "acq_matrix": [64, 64, 40],
                     "echo_time": [0.01, 0.01, 0.01],
                     "repetition_time": [10.0, 5.0, 5.0],
                     "rot_z": [0.0, 0.0, 0.0],
@@ -262,7 +263,7 @@ def fixture_expected_parsed_input():
                     "label_duration": 1.8,
                     "signal_time": 3.6,
                     "label_efficiency": 0.85,
-                    "desired_snr": 100.0,
+                    "desired_snr": 1000.0,
                     "acq_contrast": "se",
                     "random_seed": 0,
                     "excitation_flip_angle": 90.0,
@@ -271,6 +272,7 @@ def fixture_expected_parsed_input():
                     "interpolation": "continuous",
                     "background_suppression": {
                         "sat_pulse_time": 4.0,
+                        "sat_pulse_time_opt": 3.9,
                         "pulse_efficiency": "ideal",
                         "num_inv_pulses": 4,
                         "apply_to_asl_context": ["label", "control"],
@@ -295,7 +297,7 @@ def fixture_expected_parsed_input():
                     "excitation_flip_angle": 90.0,
                     "inversion_flip_angle": 180.0,
                     "inversion_time": 1.0,
-                    "desired_snr": 50.0,
+                    "desired_snr": 100.0,
                     "random_seed": 0,
                     "output_image_type": "magnitude",
                     "modality": "anat",
@@ -306,7 +308,7 @@ def fixture_expected_parsed_input():
                 "series_type": "ground_truth",
                 "series_description": "user description for ground truth",
                 "series_parameters": {
-                    "acq_matrix": [64, 64, 20],
+                    "acq_matrix": [64, 64, 40],
                     "rot_z": 0.0,
                     "rot_y": 0.0,
                     "rot_x": 0.0,
@@ -390,7 +392,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
         "series_parameters": {
             "asl_context": "m0scan control label",
             "label_type": "pcasl",
-            "acq_matrix": [64, 64, 12],
+            "acq_matrix": [64, 64, 40],
             "echo_time": [0.01, 0.01, 0.01],
             "repetition_time": [10.0, 5.0, 5.0],
             "rot_z": [0.0, 0.0, 0.0],
@@ -402,7 +404,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "label_duration": 1.8,
             "signal_time": 3.6,
             "label_efficiency": 0.85,
-            "desired_snr": 100.0,
+            "desired_snr": 1000.0,
             "acq_contrast": "se",
             "random_seed": 0,
             "excitation_flip_angle": 90.0,
@@ -411,6 +413,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "interpolation": "continuous",
             "background_suppression": {
                 "sat_pulse_time": 4.0,
+                "sat_pulse_time_opt": 3.9,
                 "pulse_efficiency": "ideal",
                 "num_inv_pulses": 4,
                 "apply_to_asl_context": ["label", "control"],
@@ -431,11 +434,22 @@ def test_example_input_params_valid():
 def test_user_parameter_input_background_suppression():
     """Tests the background suppression parameters"""
     p = get_example_input_params()
-    # check empty "background_suppression" inserts defaults
+    # check empty "background_suppression"  dict inserts defaults according to the
+    # "pulse_times_omitted" validator
     p["image_series"][0]["series_parameters"]["background_suppression"] = {}
     d = validate_input_params(p)
     assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
         "sat_pulse_time": 4.0,
+        "pulse_efficiency": "ideal",
+        "num_inv_pulses": 4,
+        "apply_to_asl_context": ["label", "control"],
+    }
+    # check "background_suppression" == None inserts the default values
+    p["image_series"][0]["series_parameters"]["background_suppression"] = None
+    d = validate_input_params(p)
+    assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
+        "sat_pulse_time": 4.0,
+        "sat_pulse_time_opt": 3.9,
         "pulse_efficiency": "ideal",
         "num_inv_pulses": 4,
         "apply_to_asl_context": ["label", "control"],
@@ -446,6 +460,7 @@ def test_user_parameter_input_background_suppression():
     d = validate_input_params(p)
     assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
         "sat_pulse_time": 4.0,
+        "sat_pulse_time_opt": 3.9,
         "pulse_efficiency": "ideal",
         "num_inv_pulses": 4,
         "apply_to_asl_context": ["label", "control"],

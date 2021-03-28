@@ -36,7 +36,7 @@ INPUT_DICT = {
     "acq_contrast": (False, "ge", 1, TEST_NIFTI_ONES),
     "echo_time": (False, 0.1, "str", TEST_NIFTI_ONES),
     "repetition_time": (False, 0.1, "str", TEST_NIFTI_ONES),
-    "snr": (False, 100.0, "str", TEST_NIFTI_ONES),
+    "snr": (False, 100.0, -1, "str", TEST_NIFTI_ONES),
     "mag_enc": (True, TEST_NIFTI_ONES, "str", np.ones(TEST_VOLUME_DIMENSIONS)),
     "excitation_flip_angle": (False, 0.1, "str", TEST_NIFTI_ONES),
     "inversion_flip_angle": (True, 0.1, "str", TEST_NIFTI_ONES),

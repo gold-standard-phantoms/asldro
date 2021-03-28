@@ -5,51 +5,54 @@ from copy import deepcopy
 import pytest
 import numpy as np
 import numpy.testing
+import nibabel as nib
 
-from asldro.filters.basefilter import FilterInputValidationError
-from asldro.filters.json_loader import JsonLoaderFilter
-from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
+
 from asldro.filters.add_complex_noise_filter import AddComplexNoiseFilter
 from asldro.containers.image import (
     BaseImageContainer,
     NiftiImageContainer,
     NumpyImageContainer,
 )
-from asldro.filters.nifti_loader import NiftiLoaderFilter
-from asldro.data.filepaths import GROUND_TRUTH_DATA
+from asldro.containers.image import NiftiImageContainer
+
+from asldro.utils.filter_validation import validate_filter_inputs
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 
+@pytest.fixture(name="validation_data")
+def input_validation_data_fixture():
+    """Returns a dictionary containing test data for the filter input validation"""
+    test_image = NiftiImageContainer(nib.Nifti1Image(np.ones((4, 4, 4)), np.eye(4)))
+    test_image2 = NiftiImageContainer(nib.Nifti1Image(np.ones((3, 4, 4)), np.eye(4)))
+    return {
+        "input_validation_dict_snr_finite": {
+            "image": [False, test_image, "str", np.ones((4, 4, 4))],
+            "snr": [False, 100.0, -100, "str", test_image],
+            "reference_image": [
+                True,
+                test_image,
+                test_image2,
+                "str",
+                np.ones((4, 4, 4)),
+            ],
+        },
+        "input_validation_dict_snr_zero": {
+            "image": [False, test_image, "str", np.ones((4, 4, 4))],
+            "snr": [False, 0, "str", test_image],
+        },
+    }
 
-def test_add_complex_noise_filter_wrong_input_type_error():
+
+def test_add_complex_noise_filter_validate_inputs(validation_data):
     """Check a FilterInputValidationError is raised when the inputs
     to the add commplex noise filter are incorrect or missing"""
-    noise_filter = AddComplexNoiseFilter()
-    noise_filter.add_input("snr", 1)
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # image not defined
-    noise_filter.add_input("image", 1)
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # image wrong type
-
-    noise_filter = AddComplexNoiseFilter()
-    noise_filter.add_input(
-        "image", NumpyImageContainer(image=np.zeros(TEST_VOLUME_DIMENSIONS))
+    validate_filter_inputs(
+        AddComplexNoiseFilter, validation_data["input_validation_dict_snr_finite"]
     )
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # snr not defined
-    noise_filter.add_input("snr", "str")
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # snr wrong type
-
-    noise_filter = AddComplexNoiseFilter()
-    noise_filter.add_input(
-        "image", NumpyImageContainer(image=np.zeros(TEST_VOLUME_DIMENSIONS))
+    validate_filter_inputs(
+        AddComplexNoiseFilter, validation_data["input_validation_dict_snr_zero"]
     )
-    noise_filter.add_input("snr", 1)
-    noise_filter.add_input("reference_image", 1)
-    with pytest.raises(FilterInputValidationError):
-        noise_filter.run()  # reference_image wrong type
 
 
 def add_complex_noise_function(

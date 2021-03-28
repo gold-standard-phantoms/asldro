@@ -1,9 +1,7 @@
 """Background Suppression Filter"""
 
-from re import M, error
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
-import pdb
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -24,7 +22,6 @@ class BackgroundSuppressionFilter(BaseFilter):
     pulse sequence on longitudinal magnetisation. It can either
     use explicitly supplied pulse timings, or calculate optimised
     pulse timings for specified T1s.
-
 
     **Inputs**
 
@@ -388,7 +385,6 @@ class BackgroundSuppressionFilter(BaseFilter):
 
         # sort the inversion pulse times into ascending order
         # inv_pulse_times = np.sort(inv_pulse_times)
-        # pdb.set_trace()
         # determine the number of inversion pulses that will have played
         # out by t=mag_time
         inv_pulse_times = np.asarray(inv_pulse_times)
