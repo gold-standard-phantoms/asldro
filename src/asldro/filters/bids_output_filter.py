@@ -40,6 +40,8 @@ from asldro.validators.user_parameter_input import (
     SUPPORTED_IMAGE_TYPES,
     SUPPORTED_ASL_CONTEXTS,
 )
+from asldro.filters.background_suppression_filter import BackgroundSuppressionFilter
+
 from asldro.data.filepaths import ASL_BIDS_SCHEMA, M0SCAN_BIDS_SCHEMA
 
 from asldro import __version__ as asldro_version
@@ -165,7 +167,6 @@ class BidsOutputFilter(BaseFilter):
         MriSignalFilter.KEY_INVERSION_TIME: "InversionTime",
         MriSignalFilter.KEY_ACQ_TYPE: "MrAcquisitionType",
         MriSignalFilter.KEY_ACQ_CONTRAST: "ScanningSequence",
-        MriSignalFilter.KEY_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
         TransformResampleImageFilter.VOXEL_SIZE: "AcquisitionVoxelSize",
@@ -175,6 +176,10 @@ class BidsOutputFilter(BaseFilter):
         GroundTruthLoaderFilter.KEY_QUANTITY: "Quantity",
         GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: "BolusCutOffFlag",
         GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: "BolusCutOffDelayTime",
+        BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
+        BackgroundSuppressionFilter.M_BSUP_NUM_PULSES: "BackgroundSuppressionNumberPulses",
+        BackgroundSuppressionFilter.M_BSUP_SAT_PULSE_TIMING: "BackgroundSuppressionSatPulseTime",
+        BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: "BackgroundSuppressionInvPulseTime",
     }
 
     # maps ASLDRO MRI contrast to BIDS contrast names

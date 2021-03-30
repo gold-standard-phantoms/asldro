@@ -1,5 +1,5 @@
 """Background Suppression Filter"""
-
+import pdb
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
@@ -132,10 +132,10 @@ class BackgroundSuppressionFilter(BaseFilter):
         t1: BaseImageContainer = self.inputs[self.KEY_T1]
         sat_pulse_time = self.inputs[self.KEY_SAT_PULSE_TIME]
 
-        if self.outputs.get(self.KEY_MAG_TIME) is None:
+        if self.inputs.get(self.KEY_MAG_TIME) is None:
             mag_time = sat_pulse_time
         else:
-            mag_time = self.outputs.get(self.KEY_MAG_TIME)
+            mag_time = self.inputs.get(self.KEY_MAG_TIME)
 
         # determine the pulse efficiency mode
         if self.inputs[self.KEY_PULSE_EFFICIENCY] == self.EFF_IDEAL:
@@ -173,6 +173,7 @@ class BackgroundSuppressionFilter(BaseFilter):
 
         # calculate the longitudinal magnetisation at mag_time based on
         # the inversion pulse times
+        # pdb.set_trace()
         self.outputs[self.KEY_MAG_Z] = mag_z.clone()
         self.outputs[self.KEY_MAG_Z].image = self.calculate_mz(
             self.outputs[self.KEY_MAG_Z].image,

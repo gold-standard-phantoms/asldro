@@ -312,16 +312,15 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 )
                 append_metadata_filter = AppendMetadataFilter()
 
-                
                 if asl_params["output_image_type"] == "magnitude":
-                    #if 'output_image_type' is 'magnitude' use the phase_magnitude filter
+                    # if 'output_image_type' is 'magnitude' use the phase_magnitude filter
                     phase_magnitude_filter = PhaseMagnitudeFilter()
                     phase_magnitude_filter.add_parent_filter(acquire_mri_image_filter)
                     append_metadata_filter.add_parent_filter(
                         phase_magnitude_filter, io_map={"magnitude": "image"}
                     )
                 else:
-                    #otherwise just pass on the complex data
+                    # otherwise just pass on the complex data
                     append_metadata_filter.add_parent_filter(acquire_mri_image_filter)
 
                 append_metadata_filter.add_input(
