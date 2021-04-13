@@ -1,5 +1,5 @@
 """ BidsOutputFilter """
-
+import pdb
 import os
 import logging
 from typing import Union, List
@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import json
 from jsonschema import validate
 
+import numpy as np
 import nibabel as nib
 
 from asldro.containers.image import (
@@ -132,6 +133,12 @@ class BidsOutputFilter(BaseFilter):
     :param 'image_flavour': a string that is used as the third entry in the BIDS field ``ImageType``
         (corresponding with the dicom tag (0008,0008).  For ASL images this should be 'PERFUSION'.
     :type 'image_flavour': str
+    :param 'background_suppression': A boolean denoting whether background suppression has been
+      performed. Can be omitted, in which case it will be assumed there is no background suppression.
+    :type 'background_suppression': bool
+    :param 'background_suppression_inv_pulse_timing': A list of inversion pulse timings for the 
+      background suppression pulses. Required if ``'background_suppression'`` is True.
+    :type 'background_suppression_inv_pulse_timing': list[float]
 
     Input image metadata will be mapped to corresponding BIDS fields.  See 
     :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping. 
@@ -154,6 +161,8 @@ class BidsOutputFilter(BaseFilter):
     IMAGE_TYPE = "ImageType"
     M0_TYPE = "M0Type"
     M0_ESTIMATE = "M0Estimate"
+
+    SUPPORTED_STRUCT_MODALITY_LABELS = ["T1w", "T2w", "FLAIR", "anat"]
 
     # metadata parameters to BIDS fields mapping dictionary
     BIDS_MAPPING = {
@@ -259,6 +268,7 @@ class BidsOutputFilter(BaseFilter):
             modality_label = self.determine_asl_modality_label(
                 image.metadata[ASL_CONTEXT]
             )
+
             if modality_label == ASL:
                 # create _aslcontext_tsv
                 asl_context_tsv = "volume_type\n" + "\n".join(
@@ -294,6 +304,30 @@ class BidsOutputFilter(BaseFilter):
                     image.metadata["image_flavour"],
                     "NONE",
                 ]
+
+                # do some things for background suppression
+                if json_sidecar.get("BackgroundSuppression", False):
+                    # calculate the inversion pulse timings with respect to the start of
+                    # the labelling pulse (which occurs
+                    # LabelingDuration + PostLabelingDelay before the excitation pulse)
+                    label_and_pld_dur = (
+                        json_sidecar["LabelingDuration"]
+                        + json_sidecar["PostLabelingDelay"]
+                    )
+                    inv_pulse_times = label_and_pld_dur - np.asarray(
+                        image.metadata[
+                            BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING
+                        ]
+                    )
+
+                    json_sidecar[
+                        "BackgroundSuppressionPulseTime"
+                    ] = inv_pulse_times.tolist()
+                    json_sidecar["BackgroundSuppressionNumberPulses"] = np.sum(
+                        inv_pulse_times > 0
+                    ).item()
+                else:
+                    json_sidecar["BackgroundSuppression"] = False
 
                 # validate the sidecar against the ASL BIDS schema
                 # load in the ASL BIDS schema
@@ -422,7 +456,10 @@ class BidsOutputFilter(BaseFilter):
                     validators=from_list_validator(SUPPORTED_IMAGE_TYPES)
                 ),
                 MODALITY: Parameter(
-                    validators=isinstance_validator(str), optional=True
+                    validators=from_list_validator(
+                        self.SUPPORTED_STRUCT_MODALITY_LABELS
+                    ),
+                    optional=True,
                 ),
                 self.SERIES_NUMBER: Parameter(
                     validators=[
@@ -459,6 +496,13 @@ class BidsOutputFilter(BaseFilter):
                 ),
                 "image_flavour": Parameter(
                     validators=isinstance_validator(str), optional=True,
+                ),
+                BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: Parameter(
+                    validators=isinstance_validator(bool), optional=True
+                ),
+                BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: Parameter(
+                    validators=for_each_validator(greater_than_equal_to_validator(0)),
+                    optional=True,
                 ),
             }
         )
@@ -536,11 +580,54 @@ class BidsOutputFilter(BaseFilter):
                         "metadata field 'image_flavour' is required for 'series_type'"
                         + " and 'modality' is 'asl'"
                     )
+                # if "background_suppression" is True then additional parameters are required
+                if metadata.get(BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION):
+                    # check that 'background_suppression' actually is a bool and not an int
+                    # pdb.set_trace()
+                    if not isinstance(
+                        metadata.get(
+                            BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION
+                        ),
+                        bool,
+                    ):
+                        raise FilterInputValidationError(
+                            "'BackgroundSuppression should be a bool"
+                        )
+                    if (
+                        metadata.get(
+                            BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING
+                        )
+                        is None
+                    ):
+                        raise FilterInputValidationError(
+                            "metadata field 'background_suppression_inv_pulse_timing' is required "
+                            "if 'background_suppression' is True"
+                        )
+                elif (
+                    # TODO: this shoudl catch the case where it is 0 but doesn't
+                    (
+                        metadata.get(
+                            BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION
+                        )
+                        == 0
+                    )
+                    and not isinstance(
+                        metadata.get(
+                            BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION
+                        ),
+                        bool,
+                    )
+                ):
+                    raise FilterInputValidationError(
+                        "'BackgroundSuppression should be a bool"
+                    )
 
-                if metadata.get(GkmFilter.KEY_LABEL_TYPE) == (
-                    GkmFilter.CASL or GkmFilter.PCASL
+                if metadata.get(GkmFilter.KEY_LABEL_TYPE) in (
+                    GkmFilter.CASL,
+                    GkmFilter.PCASL,
                 ):
                     # validation specific to (p)casl
+
                     if metadata.get(GkmFilter.KEY_LABEL_DURATION) is None:
                         raise FilterInputValidationError(
                             "metadata field 'label_duration' is required for 'series_type'"

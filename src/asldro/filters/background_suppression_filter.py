@@ -362,7 +362,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         **Equation**
         
         The longitudinal magnetisation at time :math:`t` after the start of a
-        backgroun suppression sequence has started is calculated using the equation
+        background suppression sequence has started is calculated using the equation
         below. Only pulses that have run at time :math:`t` contribute to the
         calculated magnetisation.
 

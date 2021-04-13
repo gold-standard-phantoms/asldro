@@ -1,5 +1,5 @@
 """ Tests for BidsOutputFilter """
-
+import pdb
 from copy import deepcopy
 from unittest.mock import Mock, patch
 import os
@@ -15,6 +15,7 @@ import nibabel as nib
 from asldro.filters.bids_output_filter import BidsOutputFilter
 from asldro.filters.basefilter import FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer
+from asldro.utils.filter_validation import validate_filter_inputs
 
 from asldro import __version__ as asldro_version
 
@@ -50,6 +51,24 @@ METDATA_VALIDATION_DICT_CASL = {
     "post_label_delay": [False, 1.8, 1, (3.2, 4.5, 6.7)],
 }
 
+METDATA_VALIDATION_DICT_CASL_BS = {
+    "series_number": [False, 1, "001", 1.0],
+    "series_type": [False, "asl", "struct", 1],
+    "asl_context": [False, ["m0scan", "control", "label"], 1, "str"],
+    "label_duration": [False, 1.8, 1, "str"],
+    "label_type": [False, "pcasl", 1, TEST_NIFTI_ONES],
+    "image_flavour": [False, "PERFUSION", 1, TEST_NIFTI_ONES],
+    "post_label_delay": [False, 1.8, 1, (3.2, 4.5, 6.7)],
+    "background_suppression": [True, True, 1, 0, "str"],
+    "background_suppression_inv_pulse_timing": [
+        False,
+        [0.1, 0.2, 0.3],
+        [0.1, -0.2, 0.3],
+        1,
+        "str",
+    ],
+}
+
 METDATA_VALIDATION_DICT_PASL = {
     "series_number": [False, 1, "001", 1.0],
     "series_type": [False, "asl", "struct", 1],
@@ -74,44 +93,10 @@ def test_bids_output_filter_validate_inputs():
     """ Check a FilterInputValidationError is raised when the inputs to the
     BidsOutputFilter are incorrect or missing """
     with TemporaryDirectory() as temp_dir:
-        test_filter = BidsOutputFilter()
         test_data = deepcopy(INPUT_VALIDATION_DICT)
         test_data["output_directory"][1] = temp_dir
 
-        # check with inputs that should pass
-        for data_key in test_data:
-            test_filter.add_input(data_key, test_data[data_key][1])
-
-        test_filter.run()
-
-    for inputs_key in INPUT_VALIDATION_DICT:
-        with TemporaryDirectory() as temp_dir:
-            test_data = deepcopy(INPUT_VALIDATION_DICT)
-            test_data["output_directory"][1] = temp_dir
-            test_filter = BidsOutputFilter()
-            is_optional: bool = test_data[inputs_key][0]
-
-            # remove key
-            test_data.pop(inputs_key)
-            for data_key in test_data:
-                test_filter.add_input(data_key, test_data[data_key][1])
-
-            # optional inputs should run without issue
-            if is_optional:
-                test_filter.run()
-            else:
-                with pytest.raises(FilterInputValidationError):
-                    test_filter.run()
-
-            # Try data that should fail
-            for test_value in INPUT_VALIDATION_DICT[inputs_key][2:]:
-                test_filter = BidsOutputFilter()
-                for data_key in test_data:
-                    test_filter.add_input(data_key, test_data[data_key][1])
-                test_filter.add_input(inputs_key, test_value)
-
-                with pytest.raises(FilterInputValidationError):
-                    test_filter.run()
+        validate_filter_inputs(BidsOutputFilter, test_data)
 
 
 @pytest.mark.parametrize(
@@ -121,6 +106,7 @@ def test_bids_output_filter_validate_inputs():
         METDATA_VALIDATION_DICT_CASL,
         METDATA_VALIDATION_DICT_PASL,
         METDATA_VALIDATION_DICT_GROUND_TRUTH,
+        METDATA_VALIDATION_DICT_CASL_BS,
     ],
 )
 def test_bids_output_filter_validate_metadata(validation_metadata: dict):
@@ -146,6 +132,7 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
         test_filter.run()
 
     for metadata_key in validation_metadata:
+        test_data = deepcopy(validation_metadata)
         with TemporaryDirectory() as temp_dir:
             passing_inputs["output_directory"] = temp_dir
             passing_inputs["image"].metadata = {}
@@ -162,6 +149,7 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
             test_filter.add_inputs(passing_inputs)
             # optional inputs should run without issue
             if is_optional:
+                # pdb.set_trace()
                 test_filter.run()
             else:
                 with pytest.raises(FilterInputValidationError):
@@ -671,3 +659,72 @@ def test_bids_output_filter_directory_tests():
         os.makedirs(os.path.join(temp_dir, "anat"))
 
         bids_output_filter.run()
+
+
+def test_bids_output_filter_background_suppression(asl_input):
+    image = asl_input[0]
+    image.metadata.pop("background_suppression")
+    # without any background suppression entry, it will default to false
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["BackgroundSuppression"] == False
+
+    # if false, will be false
+    image.metadata["background_suppression"] = False
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["BackgroundSuppression"] == False
+
+    # try when true and pulse times are supplied
+    # all pulses occur after labelling begins
+    post_label_delay = 1.0
+    label_duration = 1.0
+    inv_pulse_times = [0.4, 1.1, 1.7]
+    image.metadata["background_suppression"] = True
+    image.metadata["background_suppression_inv_pulse_timing"] = inv_pulse_times
+    image.metadata["label_duration"] = label_duration
+    image.metadata["post_label_delay"] = post_label_delay
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["BackgroundSuppression"] == True
+        assert (
+            bids_output_filter.outputs["sidecar"]["BackgroundSuppressionNumberPulses"]
+            == 3
+        )
+        numpy.testing.assert_array_almost_equal(
+            bids_output_filter.outputs["sidecar"]["BackgroundSuppressionPulseTime"],
+            [1.6, 0.9, 0.3],
+        )
+
+    # one pulse occurs before labelling begins
+    post_label_delay = 1.0
+    label_duration = 1.0
+    inv_pulse_times = [0.4, 1.1, 1.7, 2.5]
+    image.metadata["background_suppression"] = True
+    image.metadata["background_suppression_inv_pulse_timing"] = inv_pulse_times
+    image.metadata["label_duration"] = label_duration
+    image.metadata["post_label_delay"] = post_label_delay
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.run()
+        assert bids_output_filter.outputs["sidecar"]["BackgroundSuppression"] == True
+        assert (
+            bids_output_filter.outputs["sidecar"]["BackgroundSuppressionNumberPulses"]
+            == 3
+        )
+        numpy.testing.assert_array_almost_equal(
+            bids_output_filter.outputs["sidecar"]["BackgroundSuppressionPulseTime"],
+            [1.6, 0.9, 0.3, -0.5],
+        )
+

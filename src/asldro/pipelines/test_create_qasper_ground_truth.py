@@ -10,6 +10,7 @@ from asldro.examples import run_full_pipeline
 
 from asldro.pipelines.create_qasper_ground_truth import generate_qasper
 from asldro.validators.user_parameter_input import (
+    BACKGROUND_SUPPRESSION,
     get_example_input_params,
     ACQ_MATRIX,
     DESIRED_SNR,
@@ -58,8 +59,10 @@ def test_create_qasper():
         input_params["image_series"][0]["series_parameters"][SIGNAL_TIME] = 3.6
         input_params["image_series"][0]["series_parameters"][
             OUTPUT_IMAGE_TYPE
-        ] = "complex"
-
+        ] = "magnitude"
+        input_params["image_series"][0]["series_parameters"][BACKGROUND_SUPPRESSION] = {
+            "sat_pulse_time_opt": 3.5,  # shorter than default to ensure the magnetisation is all positive
+        }
         # remove the ground truth and structural image series
         input_params["image_series"] = [
             x for x in input_params["image_series"] if x["series_type"] in ["asl"]
