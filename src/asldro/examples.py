@@ -2,7 +2,6 @@
 import pprint
 import logging
 import shutil
-import pdb
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -20,7 +19,6 @@ from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
 from asldro.filters.append_metadata_filter import AppendMetadataFilter
 from asldro.filters.bids_output_filter import BidsOutputFilter
-from asldro.data.filepaths import GROUND_TRUTH_DATA
 from asldro.utils.general import splitext, map_dict
 from asldro.validators.schemas.index import SCHEMAS
 
@@ -179,7 +177,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
 
             # determine if background suppression is to be performed
             do_bs = False
-            if asl_params[BACKGROUND_SUPPRESSION] != False:
+            if not asl_params[BACKGROUND_SUPPRESSION]:
                 do_bs = True
                 bs_params = map_dict(
                     asl_params[BACKGROUND_SUPPRESSION],

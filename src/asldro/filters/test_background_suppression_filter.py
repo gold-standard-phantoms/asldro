@@ -1,7 +1,6 @@
 """Tests for background_suppression_filter.py"""
 from copy import deepcopy
 import pytest
-import pdb
 import numpy as np
 import numpy.testing
 import nibabel as nib
@@ -107,12 +106,11 @@ def calc_mz_function(
     mz = 1 + ((1 - sat_eff) - 1) * (inv_eff ** num_pulses) * np.exp(
         -np.divide(mag_time, t1, out=np.zeros_like(t1), where=t1 != 0)
     )
-    # pdb.set_trace()
+
     for m, tm in enumerate(inv_pulse_times):
         mz += ((inv_eff ** (m + 1)) - (inv_eff ** m)) * np.exp(
             -np.divide(tm, t1, out=np.zeros_like(t1), where=t1 != 0)
         )
-        # pdb.set_trace()
 
     return mz * initial_mz
 
@@ -372,4 +370,3 @@ def test_background_suppression_filter_mock_data(test_data: dict):
     numpy.testing.assert_array_almost_equal(
         bsup_filter.outputs[BackgroundSuppressionFilter.KEY_MAG_Z].image, mz
     )
-

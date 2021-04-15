@@ -1,5 +1,4 @@
 """Background Suppression Filter"""
-import pdb
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
@@ -47,24 +46,24 @@ class BackgroundSuppressionFilter(BaseFilter):
       of pulses, and the T1 times given by ``'t1_opt'``.
     :type 'inv_pulse_times': list[float], optional
     :param 't1_opt': T1 times, in seconds to optimise the pulse inversion
-      times for. Each must be greater than 0, and if omitted then the 
+      times for. Each must be greater than 0, and if omitted then the
       unique values in the input ``t1`` will be used.
     :type 't1_opt': list[float]
     :param 'mag_time': The time, in seconds after the saturation pulse to
       sample the longitudinal magnetisation. The output magnetisation will
-      only reflect the pulses that will have run by this time. Must be 
+      only reflect the pulses that will have run by this time. Must be
       greater than 0. If omitted, defaults to the same value
       as ``'sat_pulse_time'``.
     :type 'mag_time': float
-    :param 'num_inv_pulses': The number of inversion pulses to calculate 
+    :param 'num_inv_pulses': The number of inversion pulses to calculate
       optimised timings for. Must be greater than 0, and this parameter
       must be present if ``'inv_pulse_times'`` is omitted.
     :type 'num_inv_pulses: int
     :param 'pulse_efficiency': Defines the efficiency of the inversion
       pulses. Can take the values:
-      
+
         :'realistic': Pulse efficiencies are calculated according to a
-          model based on the T1. See 
+          model based on the T1. See
           :class:`BackgroundSuppressionFilter.calculate_pulse_efficiency`
           for details on implementation.
         :'ideal': Inversion pulses are 100% efficient.
@@ -75,7 +74,7 @@ class BackgroundSuppressionFilter(BaseFilter):
 
     **Outputs**
 
-    Once run, the filter will populate the dictionary 
+    Once run, the filter will populate the dictionary
     :class:`BackgroundSuppressionFilter.outputs` with
     the following entries:
 
@@ -85,7 +84,7 @@ class BackgroundSuppressionFilter(BaseFilter):
     :type 'inv_pulse_times': list[float]
 
     **Metadata**
-    
+
     The output ``'mag_z'`` inherits metadata from the input ``'mag_z'``, and then has the
     following entries appended:
 
@@ -94,7 +93,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         :background_suppression_sat_pulse_timing: ``'sat_pulse_time'``
         :background_suppression_num_pulses: The number of inversion pulses.
 
-    
+
     **Background Suppression Model**
 
     Details on the model implemented can be found in
@@ -343,14 +342,14 @@ class BackgroundSuppressionFilter(BaseFilter):
         :param inv_pulse_times: Inversion pulse times, with respect
           to the imaging excitation pulse, :math:`\{ \tau_i, \tau_{i+1}... \tau_{M-1}, \tau_M \}`
         :type inv_pulse_times: list[float]
-        :param mag_time: The time at which to calculate the 
+        :param mag_time: The time at which to calculate the
           longitudinal magnetisation, :math:`t`
         :type mag_time: float
         :param sat_pulse_time: The time between the saturation pulse
           and the imaging excitation pulse, :math:`Q`.
         :type sat_pulse_time: float
         :param inv_eff: The efficiency of the inversion pulses, :math:`\chi`
-          .-1 is complete inversion. 
+          .-1 is complete inversion.
         :type inv_eff: np.ndarray
         :param sat_eff: The efficiency of the saturation pulses, :math:`\psi`. 1 is
           full saturation.
@@ -360,7 +359,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         :rtype: np.ndarray
 
         **Equation**
-        
+
         The longitudinal magnetisation at time :math:`t` after the start of a
         background suppression sequence has started is calculated using the equation
         below. Only pulses that have run at time :math:`t` contribute to the
@@ -369,7 +368,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         .. math::
 
             \begin{align}
-                &M_z(t)= M_z(t=0)\cdot (1 + ((1-\psi)-1)\chi^n e^{-\frac{t}{T_1} }+ \sum 
+                &M_z(t)= M_z(t=0)\cdot (1 + ((1-\psi)-1)\chi^n e^{-\frac{t}{T_1} }+ \sum
                 \limits_{m=1}^n(\chi^m - \chi^{m-1}) e^{-\frac{\tau_m}{T_1}})\\
                 &\text{where}\\
                 &M_z(t)=\text{longitudinal magnetisation at time t}\\
@@ -416,7 +415,7 @@ class BackgroundSuppressionFilter(BaseFilter):
             background suppression for arterial spin labeling
             perfusion imaging. Magn Reson Mater Phy 25,
             127–133 (2012). https://doi.org/10.1007/s10334-011-0286-3
-        
+
         :param t1: t1 times to calculate the pulse efficiencies for, seconds.
         :type t1: np.ndarray
         :return: The pulse efficiencies, :math:`\chi`
@@ -443,8 +442,8 @@ class BackgroundSuppressionFilter(BaseFilter):
         t1 = np.asarray(t1)
         pulse_eff = np.zeros_like(t1)
         t1 = t1 * 1000  # paper gives polynomial based on ms, so convert t1 to ms
-        mid_t1 = (450.0 <= t1) & (t1 <= 2000.0)
-        pulse_eff[(250.0 <= t1) & (t1 < 450.0)] = -0.998
+        mid_t1 = (t1 >= 450.0) & (t1 <= 2000.0)
+        pulse_eff[(t1 >= 250.0) & (t1 < 450.0)] = -0.998
         pulse_eff[mid_t1] = -(
             (-2.245e-15) * t1[mid_t1] ** 4
             + (2.378e-11) * t1[mid_t1] ** 3
@@ -452,7 +451,7 @@ class BackgroundSuppressionFilter(BaseFilter):
             + (1.442e-4) * t1[mid_t1]
             + (9.1555e-1)
         )
-        pulse_eff[(2000.0 < t1) & (t1 <= 4200.0)] = -0.998
+        pulse_eff[(t1 > 2000.0) & (t1 <= 4200.0)] = -0.998
         return pulse_eff
 
     @staticmethod
@@ -466,7 +465,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         r"""Calculates optimised inversion pulse times
         for a background suppression pulse sequence.
 
-        :param sat_time: The time, in seconds between the saturation pulse and 
+        :param sat_time: The time, in seconds between the saturation pulse and
           the imaging excitation pulse, :math:`Q`.
         :type sat_time: float
         :param t1: The longitudinal relaxation times to optimise the pulses for, :math:`T_1`.
@@ -477,7 +476,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         :param num_pulses: The number of inversion pulses to optimise times for, :math:`N`.
           Must be greater than 0.
         :type num_pulses: int
-        :param method: The optimisation method to use, see 
+        :param method: The optimisation method to use, see
           :class:`scipy.optimize.minimize` for more details. Defaults to "Nelder-Mead".
         :type method: str, optional
         :raises ValueError: If the number of pulses is less than 1.

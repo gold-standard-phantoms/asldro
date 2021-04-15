@@ -25,7 +25,9 @@ It is possible to create an example parameters file containing the model default
 which will create the ``/path/to/input_params.json`` file. The parameters may be adjusted as
 necessary and used with the 'generate' command. 
 
-For details on input parameters see :doc:`parameters`
+For details on input parameters see :doc:`parameters`.
+
+For details on the output DRO data see :doc:`dro_output`.
 
 It is also possible to output the high-resolution ground-truth (HRGT) files.
 To get a list of the available data, type::

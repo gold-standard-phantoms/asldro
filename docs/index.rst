@@ -9,8 +9,8 @@ Welcome to ASL DRO's documentation
 
    usage/installation
    usage/quickstart
-   :dropdown
    usage/parameters
+   usage/dro_output
    usage/ground_truth
    usage/custom_ground_truth
    usage/development  
