@@ -461,13 +461,13 @@ def test_bids_output_filter_mock_data_ground_truth():
             temp_dir,
             "sub-001",
             "ground_truth",
-            "sub-001_prefix_acq-110_ground_truth_t1.nii.gz",
+            "sub-001_prefix_acq-110_ground-truth-t1.nii.gz",
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
             temp_dir,
             "sub-001",
             "ground_truth",
-            "sub-001_prefix_acq-110_ground_truth_t1.json",
+            "sub-001_prefix_acq-110_ground-truth-t1.json",
         )
 
         # load in the files and check against what they should be
@@ -536,13 +536,13 @@ def test_bids_output_filter_mock_data_ground_truth_seg_label():
             temp_dir,
             "sub-001",
             "ground_truth",
-            "sub-001_prefix_acq-110_ground_truth_seg_label.nii.gz",
+            "sub-001_prefix_acq-110_ground-truth-seg-label.nii.gz",
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
             temp_dir,
             "sub-001",
             "ground_truth",
-            "sub-001_prefix_acq-110_ground_truth_seg_label.json",
+            "sub-001_prefix_acq-110_ground-truth-seg-label.json",
         )
 
         # load in the files and check against what they should be

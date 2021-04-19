@@ -383,8 +383,9 @@ class BidsOutputFilter(BaseFilter):
             sub_directory = self.GT_SUBDIR
             # set the modality label
             modality_label = (
-                f"ground_truth_{image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]}"
-            )
+                "ground_truth_" + image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]
+            ).replace("_", "-")
+
             # if there is a LabelMap field, use LABEL_MAP_MAPPING to change the subfield names to
             # the BIDS standard
             if json_sidecar.get("LabelMap") is not None:

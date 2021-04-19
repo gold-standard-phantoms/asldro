@@ -37,8 +37,9 @@ where:
       ``'m0scan'``, otherwise ``'asl'``.
     :structural: determined by the input parameter ``modality``, which can be
       "T1w", "T2w", "FLAIR", or "anat" (default).
-    :ground_truth: the concatenation of 'ground_truth' and the name of 
-      the 'quantity' for the ground truth image, separated by an underscore.
+    :ground_truth: the concatenation of 'ground-truth' and the name of 
+      the 'quantity' for the ground truth image, separated by a hyphen. Any
+      underscores in the quantity name will be converted to hyphens.
 
 For example, running the DRO with parameters to generate the following image
 series in order:
@@ -76,20 +77,20 @@ Will result in the following files output
         |   |-- sub-001_acq-006_anat.json
         |
         |---ground_truth
-            |-- sub-001_acq-007_ground_truth_perfusion_rate.nii.gz
-            |-- sub-001_acq-007_ground_truth_perfusion_rate.json
-            |-- sub-001_acq-007_ground_truth_transit_time.nii.gz
-            |-- sub-001_acq-007_ground_truth_transit_time.json
-            |-- sub-001_acq-007_ground_truth_t1.nii.gz
-            |-- sub-001_acq-007_ground_truth_t1.json
-            |-- sub-001_acq-007_ground_truth_t2.nii.gz
-            |-- sub-001_acq-007_ground_truth_t2.json
-            |-- sub-001_acq-007_ground_truth_t2_star.nii.gz
-            |-- sub-001_acq-007_ground_truth_t2_star.json
-            |-- sub-001_acq-007_ground_truth_m0.nii.gz
-            |-- sub-001_acq-007_ground_truth_m0.json
-            |-- sub-001_acq-007_ground_truth_seg_label.nii.gz
-            |-- sub-001_acq-007_ground_truth_seg_label.json
+            |-- sub-001_acq-007_ground-truth-perfusion-rate.nii.gz
+            |-- sub-001_acq-007_ground-truth-perfusion-rate.json
+            |-- sub-001_acq-007_ground-truth-transit-time.nii.gz
+            |-- sub-001_acq-007_ground-truth-transit-time.json
+            |-- sub-001_acq-007_ground-truth-t1.nii.gz
+            |-- sub-001_acq-007_ground-truth-t1.json
+            |-- sub-001_acq-007_ground-truth-t2.nii.gz
+            |-- sub-001_acq-007_ground-truth-t2.json
+            |-- sub-001_acq-007_ground-truth-t2-star.nii.gz
+            |-- sub-001_acq-007_ground-truth-t2-star.json
+            |-- sub-001_acq-007_ground-truth-m0.nii.gz
+            |-- sub-001_acq-007_ground-truth-m0.json
+            |-- sub-001_acq-007_ground-truth-seg-label.nii.gz
+            |-- sub-001_acq-007_ground-truth-seg-label.json
 
 
 .. _bids-deviations:

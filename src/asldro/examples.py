@@ -515,7 +515,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
             )
             bids_output_filter.add_input(BidsOutputFilter.KEY_IMAGE, image_to_output)
             bids_output_filter.add_input(
-                BidsOutputFilter.KEY_FILENAME_PREFIX, "sub-" + subject_label
+                BidsOutputFilter.KEY_SUBJECT_LABEL, "sub-" + subject_label
             )
             # run the filter to write the BIDS files to disk
             bids_output_filter.run()
