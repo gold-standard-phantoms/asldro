@@ -116,12 +116,13 @@ There are three different image generation pipelines built into ASLDRO:
 :ground_truth: This pipeline simply resamples the input ground truth images to a specified
     resolution.
 
-Parameters for each ``series_type`` are described in the following pages:
+Parameters for each ``series_type`` are described below:
 
-:doc:`series-asl`
 
-:doc:`series-structural`
+.. include:: series-asl.rst
 
-:doc:`series-ground_truth`
+.. include:: series-structural.rst
+
+.. include:: series-ground_truth.rst
 
 

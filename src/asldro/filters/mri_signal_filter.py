@@ -1,6 +1,7 @@
 """ MRI Signal Filter """
 
 import numpy as np
+import pdb
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -33,7 +34,7 @@ class MriSignalFilter(BaseFilter):
     :param 't2_star': Transverse relaxation time including time-invariant magnetic
         field inhomogeneities, only required for gradient echo (>=0, non-complex data)
     :type 't2_star': BaseImageContainer
-    :param 'm0': Equilibrium magnetisation (>=0, non-complex data)
+    :param 'm0': Equilibrium magnetisation (non-complex data)
     :type 'm0': BaseImageContainer
     :param 'mag_eng': Added to M0 before relaxation is calculated,
         provides a means to encode another signal into the MRI signal (non-complex data)
@@ -47,14 +48,14 @@ class MriSignalFilter(BaseFilter):
     :param 'repetition_time': The repeat time in seconds (>=0)
     :type 'repetition_time': float
     :param 'excitation_flip_angle': Excitation pulse flip angle in degrees. Only used when
-        ``"acq_contrast"`` is ``"ge"`` or ``"ir"``.  Defaults to 90.0
+        ``'acq_contrast'`` is ``"ge"`` or ``"ir"``.  Defaults to 90.0
     :type 'excitation_flip_angle': float, optional
     :param 'inversion_flip_angle': Inversion pulse flip angle in degrees. Only used when
         ``acq_contrast`` is ``"ir"``. Defaults to 180.0
     :type 'inversion_flip_angle': float, optional
     :param 'inversion_time': The inversion time in seconds. Only used when
-        ``acq_contrast`` is ``"ir"``. Defaults to 1.0.
-    :param 'image_flavour': sets the metadata ``image_flavour`` in the output image to this.
+        ``'acq_contrast'`` is ``"ir"``. Defaults to 1.0.
+    :param 'image_flavour': sets the metadata ``'image_flavour'`` in the output image to this.
     :type 'image_flavour': str
 
     **Outputs**
@@ -63,34 +64,34 @@ class MriSignalFilter(BaseFilter):
     following entries
 
     :param 'image': An image of the generated MRI signal. Will be of the same class
-      as the input ``t1``
+      as the input ``'m0'``
     :type 'image': BaseImageContainer
+
+    **Output Image Metadata**
+
+    The metadata in the output image :class:`MriSignalFilter.outputs["image"]` is derived from
+    the input ``'m0'``. If the input ``'mag_enc'`` is present, its metadata is merged with
+    precedence. In addition, following parameters are added:
+
+    * ``'acq_contrast'``
+    * ``'echo time'``
+    * ``'excitation_flip_angle'``
+    * ``'image_flavour'``
+    * ``'inversion_time'``
+    * ``'inversion_flip_angle'``
+    * ``'mr_acq_type'` = "3D"
+
+    Metadata entries for ``'units'`` and ``'quantity'`` will be removed.
+
+    ``'image_flavour'`` is obtained (in order of precedence):
+
+    #. If present, from the input ``'image_flavour'``
+    #. If present, derived from the metadata in the input ``'mag_enc'``
+    #. "OTHER"
 
     **Signal Equations**
 
-    The following parameters are added to :class:`MriSignalFilter.outputs["image"].metadata`:
-
-    * ``acq_contrast``
-    * ``echo time``
-    * ``excitation_flip_angle``
-    * ``image_flavour``
-    * ``inversion_time``
-    * ``inversion_flip_angle``
-    * ``mr_acq_type`` = "3D"
-
-    ``image_flavour`` is obtained (in order of precedence):
-
-    #. If present, from the input ``image_flavour``
-    #. If present, derived from the metadata in the input ``mag_enc``
-    #. "OTHER"
-
-    If ``image_flavour`` is ``"PERFUSION"`` (i.e. an ASL image) then the following will be added:
-
-    * ``background_suppression = False`` - indicating that the ASL scan is not background
-      suppressed.
-
     The following equations are used to compute the MRI signal:
-
 
     *Gradient Echo*
 
@@ -101,13 +102,11 @@ class MriSignalFilter(BaseFilter):
         \left(e^{-\frac{TR}{T_{1}}}-\cos\theta_1\right)}  + M_{\text{enc}})
         \cdot e^{-\frac{\text{TE}}{T^{*}_2}}
 
-
     *Spin Echo* (assuming 90° and 180° pulses)
 
     .. math::
        S(\text{TE},\text{TR}) = (M_0 \cdot (1-e^{-\frac{\text{TR}}{T_1}}) + M_{\text{enc}})
        \cdot e^{-\frac{\text{TE}}{T_2}}
-
 
     *Inversion Recovery*
 
@@ -151,7 +150,6 @@ class MriSignalFilter(BaseFilter):
         super().__init__(name="MRI Signal Model")
 
     def _run(self):
-
         t1: np.ndarray = self.inputs[self.KEY_T1].image
         t2: np.ndarray = self.inputs[self.KEY_T2].image
         m0: np.ndarray = self.inputs[self.KEY_M0].image
@@ -159,10 +157,9 @@ class MriSignalFilter(BaseFilter):
         metadata = {}
         if self.inputs.get(self.KEY_MAG_ENC) is not None:
             mag_enc: np.ndarray = self.inputs[self.KEY_MAG_ENC].image
-            metadata = self.inputs[self.KEY_MAG_ENC].metadata
+            metadata = {**metadata, **self.inputs[self.KEY_MAG_ENC].metadata}
         else:
             mag_enc: np.ndarray = np.zeros(t1.shape)
-            metadata = {}
 
         # mag_enc might not have "image_flavour" set
         if metadata.get("image_flavour") is None:
@@ -171,10 +168,6 @@ class MriSignalFilter(BaseFilter):
         # if present override image_flavour with the input
         if self.inputs.get(self.KEY_IMAGE_FLAVOUR) is not None:
             metadata["image_flavour"] = self.inputs.get(self.KEY_IMAGE_FLAVOUR)
-
-        # if ``image_flavour`` is "PERFUSION" add a  ``background_suppression``` key as False
-        if metadata["image_flavour"] == "PERFUSION":
-            metadata[self.KEY_BACKGROUND_SUPPRESSION] = False
 
         acq_contrast: str = self.inputs[self.KEY_ACQ_CONTRAST]
         echo_time: float = self.inputs[self.KEY_ECHO_TIME]
@@ -306,9 +299,7 @@ class MriSignalFilter(BaseFilter):
             )
             metadata[self.KEY_INVERSION_TIME] = inversion_time
 
-        self.outputs[self.KEY_IMAGE]: BaseImageContainer = self.inputs[
-            self.KEY_T1
-        ].clone()
+        self.outputs[self.KEY_IMAGE] = self.inputs[self.KEY_M0].clone()
         self.outputs[self.KEY_IMAGE].image = mri_signal
         # merge the metadata field with the constructed one (we don't want to merge)
         self.outputs[self.KEY_IMAGE].metadata = {
@@ -317,6 +308,7 @@ class MriSignalFilter(BaseFilter):
         }
         self.outputs[self.KEY_IMAGE].metadata.pop("units", None)
         self.outputs[self.KEY_IMAGE].metadata.pop("quantity", None)
+        # pdb.set_trace()
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation critera
@@ -324,7 +316,7 @@ class MriSignalFilter(BaseFilter):
         't2' must be derived from BaseImageContainer, >=0, and non-complex
         't2_star' must be derived from BaseImageContainer, >=0, and non-complex
             Only required if 'acq_contrast' == 'ge'
-        'm0' must be derived from BaseImageContainer, >=0, and non-complex
+        'm0' must be derived from BaseImageContainer, and non-complex
         'mag_enc' (optional) must be derived from BaseImageContainer and non-complex
         'acq_contrast' must be a string and equal to "ge" or "se" (case insensitive)
         'echo_time' must be a float and >= 0
@@ -339,10 +331,7 @@ class MriSignalFilter(BaseFilter):
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_M0: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                        greater_than_equal_to_validator(0),
-                    ]
+                    validators=[isinstance_validator(BaseImageContainer),]
                 ),
                 self.KEY_T1: Parameter(
                     validators=[

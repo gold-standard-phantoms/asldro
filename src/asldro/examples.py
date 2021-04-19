@@ -2,12 +2,12 @@
 import pprint
 import logging
 import shutil
-import pdb
 from tempfile import TemporaryDirectory
 
 import numpy as np
 
 from asldro.containers.image import BaseImageContainer, NiftiImageContainer
+from asldro.filters.background_suppression_filter import BackgroundSuppressionFilter
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
@@ -19,13 +19,20 @@ from asldro.filters.acquire_mri_image_filter import AcquireMriImageFilter
 from asldro.filters.combine_time_series_filter import CombineTimeSeriesFilter
 from asldro.filters.append_metadata_filter import AppendMetadataFilter
 from asldro.filters.bids_output_filter import BidsOutputFilter
-from asldro.data.filepaths import GROUND_TRUTH_DATA
-from asldro.utils.general import splitext
+from asldro.utils.general import splitext, map_dict
 from asldro.validators.schemas.index import SCHEMAS
 
 from asldro.validators.user_parameter_input import (
     validate_input_params,
     get_example_input_params,
+    BACKGROUND_SUPPRESSION,
+    BS_SAT_PULSE_TIME,
+    BS_INV_PULSE_TIMES,
+    BS_PULSE_EFFICIENCY,
+    BS_T1_OPT,
+    BS_SAT_PULSE_TIME_OPT,
+    BS_NUM_INV_PULSES,
+    BS_APPLY_TO_ASL_CONTEXT,
 )
 
 logger = logging.getLogger(__name__)
@@ -168,15 +175,80 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 tuple(asl_params["acq_matrix"]),
             )
 
+            # determine if background suppression is to be performed
+            do_bs = False
+            if not asl_params[BACKGROUND_SUPPRESSION]:
+                do_bs = True
+                bs_params = map_dict(
+                    asl_params[BACKGROUND_SUPPRESSION],
+                    {
+                        BS_SAT_PULSE_TIME: BackgroundSuppressionFilter.KEY_SAT_PULSE_TIME,
+                        BS_INV_PULSE_TIMES: BackgroundSuppressionFilter.KEY_INV_PULSE_TIMES,
+                        BS_PULSE_EFFICIENCY: BackgroundSuppressionFilter.KEY_PULSE_EFFICIENCY,
+                        BS_NUM_INV_PULSES: BackgroundSuppressionFilter.KEY_NUM_INV_PULSES,
+                        BS_T1_OPT: BackgroundSuppressionFilter.KEY_T1_OPT,
+                    },
+                    io_map_optional=True,
+                )
+                # if "sat_pulse_time_opt" is provided then some values need switching
+                # round
+                if (
+                    asl_params[BACKGROUND_SUPPRESSION].get(BS_SAT_PULSE_TIME_OPT)
+                    is not None
+                ):
+                    # "sat_pulse_time" goes to "mag_time", as this is the time we
+                    # want to generate mangetisation at.
+                    bs_params[BackgroundSuppressionFilter.KEY_MAG_TIME] = bs_params[
+                        BackgroundSuppressionFilter.KEY_SAT_PULSE_TIME
+                    ]
+                    # "sat_pulse_time_opt" goes to "sat_pulse_time", because this is what
+                    # we want to generate optimised times for
+                    bs_params[
+                        BackgroundSuppressionFilter.KEY_SAT_PULSE_TIME
+                    ] = asl_params[BACKGROUND_SUPPRESSION][BS_SAT_PULSE_TIME_OPT]
+
+                bs_filter = BackgroundSuppressionFilter()
+                bs_filter.add_inputs(bs_params)
+                bs_filter.add_parent_filter(
+                    parent=ground_truth_filter,
+                    io_map={
+                        "m0": BackgroundSuppressionFilter.KEY_MAG_Z,
+                        "t1": BackgroundSuppressionFilter.KEY_T1,
+                    },
+                )
+
             # Acquisition Loop: loop over ASL context, run the AcquireMriImageFilter and put the
-            # output image into a list
-            # acquired_images_list: List[nib.Nifti2Image] = []
+            # output image into the CombineTimeSeriesFilter
             combine_time_series_filter = CombineTimeSeriesFilter()
             for idx, asl_context in enumerate(asl_params["asl_context"].split()):
                 acquire_mri_image_filter = AcquireMriImageFilter()
-                # map inputs from the ground truth: t1, t2, t2_star, m0 all share the same name
-                # so no explicit mapping is necessary.
-                acquire_mri_image_filter.add_parent_filter(parent=ground_truth_filter)
+                # check that background suppression is enabled, and that it should be run
+                # for the current ``asl_context```
+                if do_bs and (
+                    asl_context
+                    in asl_params[BACKGROUND_SUPPRESSION].get(BS_APPLY_TO_ASL_CONTEXT)
+                ):
+                    # map all inputs except for m0
+                    acquire_mri_image_filter.add_parent_filter(
+                        parent=ground_truth_filter,
+                        io_map={
+                            key: key
+                            for key in ground_truth_filter.outputs.keys()
+                            if key != "m0"
+                        },
+                    )
+                    # get m0 from bs
+                    acquire_mri_image_filter.add_parent_filter(
+                        parent=bs_filter,
+                        io_map={
+                            BackgroundSuppressionFilter.KEY_MAG_Z: AcquireMriImageFilter.KEY_M0,
+                        },
+                    )
+                else:
+                    # map all inputs from the ground truth
+                    acquire_mri_image_filter.add_parent_filter(
+                        parent=ground_truth_filter
+                    )
 
                 # map inputs from asl_params. acq_contrast, excitation_flip_angle, desired_snr,
                 # inversion_time, inversion_flip_angle (last 2 are optional)
@@ -236,15 +308,19 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                         m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
                     },
                 )
-                phase_magnitude_filter = PhaseMagnitudeFilter()
-                phase_magnitude_filter.add_parent_filter(
-                    parent=acquire_mri_image_filter
-                )
-
                 append_metadata_filter = AppendMetadataFilter()
-                append_metadata_filter.add_parent_filter(
-                    phase_magnitude_filter, io_map={"magnitude": "image"}
-                )
+
+                if asl_params["output_image_type"] == "magnitude":
+                    # if 'output_image_type' is 'magnitude' use the phase_magnitude filter
+                    phase_magnitude_filter = PhaseMagnitudeFilter()
+                    phase_magnitude_filter.add_parent_filter(acquire_mri_image_filter)
+                    append_metadata_filter.add_parent_filter(
+                        phase_magnitude_filter, io_map={"magnitude": "image"}
+                    )
+                else:
+                    # otherwise just pass on the complex data
+                    append_metadata_filter.add_parent_filter(acquire_mri_image_filter)
+
                 append_metadata_filter.add_input(
                     AppendMetadataFilter.KEY_METADATA,
                     {
@@ -255,8 +331,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                     },
                 )
 
-                # Add the acqusition pipeline to the combine time series filter after
-                # calculating the magnitude component of the time series data
+                # Add the acqusition pipeline to the combine time series filter
                 combine_time_series_filter.add_parent_filter(
                     parent=append_metadata_filter, io_map={"image": f"image_{idx}"}
                 )

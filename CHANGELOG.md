@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI for combining masks into a segmentation mask.
 - Pipeline for creating a QASPER ground truth
 - QASPER ground truth
+- Filter that simulates background suppression
 
 ### Fixed
 - Default parameter output has hrgt string instead of paths.

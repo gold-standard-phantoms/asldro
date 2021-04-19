@@ -9,7 +9,7 @@ from asldro.containers.image import NiftiImageContainer
 
 
 @pytest.mark.slow
-def test_run_full_pipeline():
+def test_run_default_pipeline():
     """ Runs the full ASL DRO pipeline """
     droout = run_full_pipeline()
 
@@ -22,14 +22,14 @@ def test_run_full_pipeline():
     gt_seg_label: NiftiImageContainer = droout["asldro_output"][seg_label_index[0]]
 
     # interpolation is nearest for the default so no new values should be created, check the
-    # unique values against the original ground truth 
+    # unique values against the original ground truth
     numpy.testing.assert_array_equal(
         np.unique(gt_seg_label.image), np.unique(droout["hrgt"]["seg_label"].image)
     )
 
 
 @pytest.mark.slow
-def test_run_full_pipeline_extended_params():
+def test_run_extended_pipeline():
     """Runs the full ASL DRO pipeline with modified input parameters"""
     input_params = get_example_input_params()
 
@@ -54,7 +54,7 @@ def test_run_full_pipeline_extended_params():
 
 
 @pytest.mark.slow
-def test_run_full_pipeline_snr_zero():
+def test_run_asl_pipeline_snr_zero():
     """Runs the full ASL DRO pipeline with the SNR=zero to check this works"""
     input_params = get_example_input_params()
 
@@ -63,7 +63,7 @@ def test_run_full_pipeline_snr_zero():
     input_params["image_series"] = [
         x for x in input_params["image_series"] if x["series_type"] in ["asl"]
     ]
-    run_full_pipeline(input_params=input_params)
+    dro_out = run_full_pipeline(input_params=input_params)
 
 
 @pytest.mark.slow

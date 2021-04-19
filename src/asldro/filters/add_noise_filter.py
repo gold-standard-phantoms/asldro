@@ -30,7 +30,7 @@ class AddNoiseFilter(BaseFilter):
     :type 'image': BaseImageContainer
     :param 'snr': the desired signal-to-noise ratio (>= 0). A value of zero means that no noise
         is added to the input image.
-    :type 'snr': float
+    :type 'snr': float or int
     :param 'reference_image': The reference image that is used to calculate the amplitude of
         the random noise to add to `'image'`. The shape of this must match the shape of `'image'`.
         If this is not supplied then `'image'` will be used for calculating the noise amplitude.
@@ -153,7 +153,7 @@ class AddNoiseFilter(BaseFilter):
                 ),
                 self.KEY_SNR: Parameter(
                     validators=[
-                        isinstance_validator(float),
+                        isinstance_validator((float, int)),
                         greater_than_equal_to_validator(0),
                     ]
                 ),

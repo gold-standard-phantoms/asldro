@@ -83,7 +83,7 @@ class AcquireMriImageFilter(FilterBlock):
     :type 'interpolation': str, optional
     :param 'snr': the desired signal-to-noise ratio (>= 0). A value of zero means that no noise
         is added to the input image.
-    :type 'snr': float
+    :type 'snr': float or int
     :param 'reference_image': The reference image that is used to calculate the amplitude of
         the random noise to add to `'image'`. The shape of this must match the shape of `'image'`.
         If this is not supplied then `'image'` will be used for calculating the noise amplitude.
@@ -279,7 +279,9 @@ class AcquireMriImageFilter(FilterBlock):
                 self.KEY_REF_IMAGE: Parameter(
                     validators=[isinstance_validator(BaseImageContainer)], optional=True
                 ),
-                self.KEY_SNR: Parameter(validators=[isinstance_validator(float),]),
+                self.KEY_SNR: Parameter(
+                    validators=[isinstance_validator((float, int))]
+                ),
             }
         )
         input_validator.validate(self.inputs, error_type=FilterInputValidationError)
