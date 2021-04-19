@@ -19,7 +19,7 @@ image.
 
 These will be saved in the following subdirectories:
 
-* 'asl' for series type 'asl'
+* 'perf' for series type 'asl'
 * 'anat' for series type 'structural'
 * 'ground_truth' for series type 'ground_truth'
 
@@ -53,7 +53,7 @@ Will result in the following files output
 ::
 
     output_archive.zip
-    |-- asl
+    |-- perf
     |   |-- 001_asl.nii.gz
     |   |-- 001_asl.json
     |   |-- 001_aslcontext.tsv

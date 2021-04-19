@@ -83,7 +83,7 @@ class BidsOutputFilter(BaseFilter):
     Files will be saved in subdirectories corresponding to the metadata entry ``series_type``:
 
     * 'structural' will be saved in the subdirectory 'anat'
-    * 'asl' will be saved in the subdirectory 'asl'
+    * 'asl' will be saved in the subdirectory 'perf'
     * 'ground_truth' will be saved in the subdirectory 'ground_truth'
 
     Filenames will be given by: <series_number>_<filename_prefix>_<modality_label>.<ext>, where
@@ -163,6 +163,9 @@ class BidsOutputFilter(BaseFilter):
     M0_ESTIMATE = "M0Estimate"
 
     SUPPORTED_STRUCT_MODALITY_LABELS = ["T1w", "T2w", "FLAIR", "anat"]
+    ASL_SUBDIR = "perf"
+    STRUCT_SUBDIR = "anat"
+    GT_SUBDIR = "ground_truth"
 
     # metadata parameters to BIDS fields mapping dictionary
     BIDS_MAPPING = {
@@ -263,7 +266,7 @@ class BidsOutputFilter(BaseFilter):
         ## Series type 'asl'
         if image.metadata[self.SERIES_TYPE] == ASL:
             # ASL series, create aslcontext.tsv string
-            sub_directory = "asl"
+            sub_directory = self.ASL_SUBDIR
 
             modality_label = self.determine_asl_modality_label(
                 image.metadata[ASL_CONTEXT]
@@ -354,7 +357,7 @@ class BidsOutputFilter(BaseFilter):
 
         ## Series type 'structural'
         elif image.metadata[self.SERIES_TYPE] == STRUCTURAL:
-            sub_directory = "anat"
+            sub_directory = self.STRUCT_SUBDIR
             modality_label = image.metadata[MODALITY]
             json_sidecar["ImageType"] = [
                 "ORIGINAL",
@@ -365,7 +368,7 @@ class BidsOutputFilter(BaseFilter):
 
         ## Series type 'ground_truth'
         elif image.metadata[self.SERIES_TYPE] == GROUND_TRUTH:
-            sub_directory = "ground_truth"
+            sub_directory = self.GT_SUBDIR
             # set the modality label
             modality_label = (
                 f"ground_truth_{image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]}"

@@ -313,14 +313,14 @@ def test_bids_output_filter_mock_data_asl(asl_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "asl", "prefix_010_asl.nii.gz"
+            temp_dir, "perf", "prefix_010_asl.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "asl", "prefix_010_asl.json"
+            temp_dir, "perf", "prefix_010_asl.json"
         )
 
         assert bids_output_filter.outputs["filename"][2] == os.path.join(
-            temp_dir, "asl", "prefix_010_aslcontext.tsv"
+            temp_dir, "perf", "prefix_010_aslcontext.tsv"
         )
 
         # load in the files and check against what they should be
@@ -396,10 +396,10 @@ def test_bids_output_filter_m0scan(structural_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "asl", "prefix_001_m0scan.nii.gz"
+            temp_dir, "perf", "prefix_001_m0scan.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "asl", "prefix_001_m0scan.json"
+            temp_dir, "perf", "prefix_001_m0scan.json"
         )
 
         # load in the files and check against what they should be
