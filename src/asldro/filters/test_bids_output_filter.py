@@ -187,7 +187,7 @@ def structural_input_fixture() -> (NiftiImageContainer, dict):
         "EchoTime": 0.01,
         "RepetitionTimePreparation": 0.3,
         "FlipAngle": 30,
-        "MrAcquisitionType": "3D",
+        "MRAcquisitionType": "3D",
         "ScanningSequence": "GR",
         "SeriesNumber": 1,
         "SeriesDescription": "test structural series",
@@ -271,7 +271,7 @@ def asl_input_fixture() -> (NiftiImageContainer, dict):
         "EchoTime": 0.01,
         "RepetitionTimePreparation": 0.3,
         "FlipAngle": 30,
-        "MrAcquisitionType": "3D",
+        "MRAcquisitionType": "3D",
         "ScanningSequence": "GR",
         "SeriesNumber": 10,
         "SeriesDescription": "test asl series",
@@ -291,6 +291,7 @@ def asl_input_fixture() -> (NiftiImageContainer, dict):
         "ComplexImageComponent": "REAL",
         "ImageType": ["ORIGINAL", "PRIMARY", "PERFUSION", "NONE",],
         "BackgroundSuppression": False,
+        "VascularCrushing": False,
     }
     return (image, d)
 

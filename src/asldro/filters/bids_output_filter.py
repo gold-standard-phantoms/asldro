@@ -184,7 +184,7 @@ class BidsOutputFilter(BaseFilter):
         MriSignalFilter.KEY_REPETITION_TIME: "RepetitionTimePreparation",
         MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE: "FlipAngle",
         MriSignalFilter.KEY_INVERSION_TIME: "InversionTime",
-        MriSignalFilter.KEY_ACQ_TYPE: "MrAcquisitionType",
+        MriSignalFilter.KEY_ACQ_TYPE: "MRAcquisitionType",
         MriSignalFilter.KEY_ACQ_CONTRAST: "ScanningSequence",
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
@@ -343,6 +343,9 @@ class BidsOutputFilter(BaseFilter):
                     ] = inv_pulse_times.size
                 else:
                     json_sidecar["BackgroundSuppression"] = False
+
+                # set vascular crushing to false
+                json_sidecar["VascularCrushing"] = False
 
                 # validate the sidecar against the ASL BIDS schema
                 # load in the ASL BIDS schema
