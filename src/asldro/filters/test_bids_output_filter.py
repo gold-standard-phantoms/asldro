@@ -33,6 +33,7 @@ INPUT_VALIDATION_DICT = {
     "image": [False, TEST_NIFTI_CON_ONES, TEST_NIFTI_ONES, 1, "str"],
     "output_directory": [False, "tempdir_placeholder", 1, "str"],
     "filename_prefix": [True, "prefix", 1, TEST_NIFTI_CON_ONES],
+    "subject_label": [True, "aAbB-cC01", "abc_def", "01%^", "", 1],
 }
 
 METDATA_VALIDATION_DICT_STRUCT = {
@@ -223,10 +224,10 @@ def test_bids_output_filter_mock_data_structural(structural_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "anat", "prefix_acq-001_T1w.nii.gz"
+            temp_dir, "sub-001", "anat", "sub-001_prefix_acq-001_T1w.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "anat", "prefix_acq-001_T1w.json"
+            temp_dir, "sub-001", "anat", "sub-001_prefix_acq-001_T1w.json"
         )
 
         # load in the files and check against what they should be
@@ -304,6 +305,7 @@ def test_bids_output_filter_mock_data_asl(asl_input):
         bids_output_filter.add_input("image", image)
         bids_output_filter.add_input("output_directory", temp_dir)
         bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.add_input("subject_label", "808")
         bids_output_filter.run()
 
         # remove AcquisitionDateTime entry as this can't be compared here
@@ -313,14 +315,14 @@ def test_bids_output_filter_mock_data_asl(asl_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "perf", "prefix_acq-010_asl.nii.gz"
+            temp_dir, "sub-808", "perf", "sub-808_prefix_acq-010_asl.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "perf", "prefix_acq-010_asl.json"
+            temp_dir, "sub-808", "perf", "sub-808_prefix_acq-010_asl.json"
         )
 
         assert bids_output_filter.outputs["filename"][2] == os.path.join(
-            temp_dir, "perf", "prefix_acq-010_aslcontext.tsv"
+            temp_dir, "sub-808", "perf", "sub-808_prefix_acq-010_aslcontext.tsv"
         )
 
         # load in the files and check against what they should be
@@ -396,10 +398,10 @@ def test_bids_output_filter_m0scan(structural_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "perf", "prefix_acq-001_m0scan.nii.gz"
+            temp_dir, "sub-001", "perf", "sub-001_prefix_acq-001_m0scan.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "perf", "prefix_acq-001_m0scan.json"
+            temp_dir, "sub-001", "perf", "sub-001_prefix_acq-001_m0scan.json"
         )
 
         # load in the files and check against what they should be
@@ -456,10 +458,16 @@ def test_bids_output_filter_mock_data_ground_truth():
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_t1.nii.gz"
+            temp_dir,
+            "sub-001",
+            "ground_truth",
+            "sub-001_prefix_acq-110_ground_truth_t1.nii.gz",
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_t1.json"
+            temp_dir,
+            "sub-001",
+            "ground_truth",
+            "sub-001_prefix_acq-110_ground_truth_t1.json",
         )
 
         # load in the files and check against what they should be
@@ -525,10 +533,16 @@ def test_bids_output_filter_mock_data_ground_truth_seg_label():
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_seg_label.nii.gz"
+            temp_dir,
+            "sub-001",
+            "ground_truth",
+            "sub-001_prefix_acq-110_ground_truth_seg_label.nii.gz",
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_seg_label.json"
+            temp_dir,
+            "sub-001",
+            "ground_truth",
+            "sub-001_prefix_acq-110_ground_truth_seg_label.json",
         )
 
         # load in the files and check against what they should be
@@ -721,7 +735,7 @@ def test_bids_output_filter_background_suppression(asl_input):
         assert bids_output_filter.outputs["sidecar"]["BackgroundSuppression"] == True
         assert (
             bids_output_filter.outputs["sidecar"]["BackgroundSuppressionNumberPulses"]
-            == 3
+            == 4
         )
         numpy.testing.assert_array_almost_equal(
             bids_output_filter.outputs["sidecar"]["BackgroundSuppressionPulseTime"],

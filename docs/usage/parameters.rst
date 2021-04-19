@@ -15,6 +15,7 @@ Below is an example input parameter file, giving its overall structure.
             "ground_truth": "hrgt_icbm_2009a_nls_3t",
             "image_override": {},
             "parameter_override": {},
+            "subject_label": "001"
         },
         "image_series": [
             {
@@ -71,6 +72,12 @@ ASLDRO will run:
   is applied before the offset (see :class:`asldro.filters.scale_offset_filter.ScaleOffsetFilter`
   for more details).
 
+.. _subject-label:
+
+:subject_label: (string) Corresponds to the `BIDS entity <https://bids-specification.readthedocs.io/en/stable/02-common-principles.html#file-name-structure>`_
+  ``subject``. Files will be saved within a sub-directory named 'sub-<subject_label>', and will be
+  prefixed with 'sub-<subject_label>'. If not supplied will default to "001"
+
 A more complete example is given below:
 
 .. code-block:: json
@@ -84,7 +91,8 @@ A more complete example is given below:
                 "m0": {"scale": 0.9, "offset": 1},
                 "t1": {"offset": 0.5},
                 "t2": {"scale": 1.1}
-            }
+            },
+            "subject_label": "asldro01"
         }
     }
 

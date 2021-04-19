@@ -218,7 +218,8 @@ def regex_validator(pattern: str, case_insensitive: bool = False) -> Validator:
         lambda value: re.match(
             pattern, value, flags=re.IGNORECASE if case_insensitive else 0
         )
-        is not None,
+        if isinstance(value, str)  # must be a string for regex to match
+        else None is not None,
         f"Value must match pattern {pattern}{' (ignoring case)' if case_insensitive else ''}",
     )
 

@@ -26,6 +26,7 @@ from asldro.validators.parameters import (
     from_list_validator,
     greater_than_equal_to_validator,
     for_each_validator,
+    regex_validator,
 )
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
@@ -67,6 +68,9 @@ class BidsOutputFilter(BaseFilter):
     :type 'image': BaseImageContainer
     :param 'output_directory': The root directory to save to
     :type 'output_directory': str
+    :param 'subject_label': The subject label, can only contain
+      alphanumeric characters and a hyphen (-). Defaults to "001".
+    :type 'subject_label': str, optional
     :param 'filename_prefix': string to prefix the filename with.
     :type 'filename_prefix': str, optional
 
@@ -86,8 +90,10 @@ class BidsOutputFilter(BaseFilter):
     * 'asl' will be saved in the subdirectory 'perf'
     * 'ground_truth' will be saved in the subdirectory 'ground_truth'
 
-    Filenames will be given by: <filename_prefix>_acq-<series_number>_<modality_label>.<ext>, where
+    Filenames will be given by: 
+    sub-<subject_label>_<filename_prefix>_acq-<series_number>_<modality_label>.<ext>, where
 
+    * <subject_label> is the string supplied by the input ``subject_label``
     * <series_number> is given by metadata field ``series_number``, which is an integer number
       and will be prefixed by zeros so that it is 3 characterslong, for example 003, 010, 243
     * <filename_prefix> is the string supplied by the input ``filename_prefix``
@@ -148,6 +154,7 @@ class BidsOutputFilter(BaseFilter):
     KEY_IMAGE = "image"
     KEY_OUTPUT_DIRECTORY = "output_directory"
     KEY_FILENAME_PREFIX = "filename_prefix"
+    KEY_SUBJECT_LABEL = "subject_label"
     KEY_FILENAME = "filename"
     KEY_SIDECAR = "sidecar"
 
@@ -191,7 +198,6 @@ class BidsOutputFilter(BaseFilter):
         BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         BackgroundSuppressionFilter.M_BSUP_NUM_PULSES: "BackgroundSuppressionNumberPulses",
         BackgroundSuppressionFilter.M_BSUP_SAT_PULSE_TIMING: "BackgroundSuppressionSatPulseTime",
-        BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: "BackgroundSuppressionInvPulseTime",
     }
 
     # maps ASLDRO MRI contrast to BIDS contrast names
@@ -227,6 +233,8 @@ class BidsOutputFilter(BaseFilter):
         """ Writes the input image to disk in BIDS format """
         image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
+        subject_string = "sub-" + self.inputs[self.KEY_SUBJECT_LABEL]
+        output_directory = os.path.join(output_directory, subject_string)
         # map the image metadata to the json sidecar
         json_sidecar = map_dict(image.metadata, self.BIDS_MAPPING, io_map_optional=True)
         series_number_string = f"acq-{image.metadata[self.SERIES_NUMBER]:03d}"
@@ -280,7 +288,11 @@ class BidsOutputFilter(BaseFilter):
                 asl_context_filename = os.path.join(
                     output_directory,
                     sub_directory,
-                    f"{filename_prefix}" + series_number_string + "_aslcontext.tsv",
+                    subject_string
+                    + "_"
+                    + filename_prefix
+                    + series_number_string
+                    + "_aslcontext.tsv",
                 )
                 # BIDS spec states ArterialSpinLabelingType should be uppercase
                 json_sidecar["ArterialSpinLabelingType"] = json_sidecar[
@@ -326,9 +338,9 @@ class BidsOutputFilter(BaseFilter):
                     json_sidecar[
                         "BackgroundSuppressionPulseTime"
                     ] = inv_pulse_times.tolist()
-                    json_sidecar["BackgroundSuppressionNumberPulses"] = np.sum(
-                        inv_pulse_times > 0
-                    ).item()
+                    json_sidecar[
+                        "BackgroundSuppressionNumberPulses"
+                    ] = inv_pulse_times.size
                 else:
                     json_sidecar["BackgroundSuppression"] = False
 
@@ -393,15 +405,18 @@ class BidsOutputFilter(BaseFilter):
             os.makedirs(os.path.join(output_directory, sub_directory))
 
         # construct filenames
-        nifti_filename = (
-            f"{filename_prefix}" + series_number_string + f"_{modality_label}.nii.gz"
+        base_filename = (
+            subject_string
+            + "_"
+            + filename_prefix
+            + series_number_string
+            + "_"
+            + modality_label
         )
-        json_filename = (
-            f"{filename_prefix}" + series_number_string + f"_{modality_label}.json"
-        )
+        nifti_filename = base_filename + ".nii.gz"
+        json_filename = base_filename + ".json"
 
         # turn the nifti and json filenames into full paths
-
         nifti_filename = os.path.join(output_directory, sub_directory, nifti_filename)
         # write the nifti file
         logger.info(f"saving {nifti_filename}")
@@ -445,6 +460,14 @@ class BidsOutputFilter(BaseFilter):
                     validators=isinstance_validator(str),
                     optional=True,
                     default_value="",
+                ),
+                self.KEY_SUBJECT_LABEL: Parameter(
+                    validators=[
+                        isinstance_validator(str),
+                        regex_validator("^[A-Za-z0-9\\-]+$"),
+                    ],
+                    optional=True,
+                    default_value="001",
                 ),
             }
         )

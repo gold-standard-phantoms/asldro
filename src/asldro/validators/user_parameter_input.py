@@ -109,6 +109,7 @@ DEFAULT_BS_PARAMS = {
     "num_inv_pulses": 4,
     "apply_to_asl_context": ["label", "control"],
 }
+DEFAULT_SUBJECT_LABEL = "001"
 
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
@@ -513,6 +514,12 @@ def validate_input_params(input_params: dict) -> dict:
             raise ValidationError(
                 f"Ground truth file {ground_truth_dict[filetype]} does not exist"
             )
+
+    # Check the subject label, if it is empty set to the default
+    if validated_input_params["global_configuration"].get("subject_label") is None:
+        validated_input_params["global_configuration"][
+            "subject_label"
+        ] = DEFAULT_SUBJECT_LABEL
 
     return validated_input_params
 

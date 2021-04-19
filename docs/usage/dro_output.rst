@@ -17,15 +17,18 @@ corresponding JSON sidecar generated. For ASL image series an additional
 *_aslcontext.tsv is generated which indicates the type of ASL volumes in the
 image.
 
-These will be saved in the following subdirectories:
+These will be saved in a subdirectory ``sub-<subject_label``> and then in
+the following subdirectories:
 
 * 'perf' for series type 'asl'
 * 'anat' for series type 'structural'
 * 'ground_truth' for series type 'ground_truth'
 
-Filenames are given by ``acq-<series_number>_<modality_label>.<ext>``,
+Filenames are given by ``sub-<subject_label>_acq-<series_number>_<modality_label>.<ext>``,
 where:
 
+* ``<subject_label>`` is given by the global configuration parameter :ref:`subject_label<subject-label>`
+  which defaults to "001" 
 * ``<series_number>`` is the order the particular image series is in the ``"image_series"``
   array in the input parameters file (1 indexed, zero padded to 3 digits).
 * ``<modality_label>`` is based on series type:
@@ -52,39 +55,41 @@ Will result in the following files output
 
 ::
 
-    output_archive.zip
-    |-- perf
-    |   |-- acq-001_asl.nii.gz
-    |   |-- acq-001_asl.json
-    |   |-- acq-001_aslcontext.tsv
-    |   |-- acq-002_asl.nii.gz
-    |   |-- acq-002_asl.json
-    |   |-- acq-002_aslcontext.tsv
-    |   |-- acq-003_m0scan.nii.gz
-    |   
-    |-- anat
-    |   |-- acq-004_T1w.nii.gz
-    |   |-- acq-004_T1w.json
-    |   |-- acq-005_T2w.nii.gz
-    |   |-- acq-005_T2w.json
-    |   |-- acq-006_anat.nii.gz
-    |   |-- acq-006_anat.json
-    |
-    |---ground_truth
-        |-- acq-007_ground_truth_perfusion_rate.nii.gz
-        |-- acq-007_ground_truth_perfusion_rate.json
-        |-- acq-007_ground_truth_transit_time.nii.gz
-        |-- acq-007_ground_truth_transit_time.json
-        |-- acq-007_ground_truth_t1.nii.gz
-        |-- acq-007_ground_truth_t1.json
-        |-- acq-007_ground_truth_t2.nii.gz
-        |-- acq-007_ground_truth_t2.json
-        |-- acq-007_ground_truth_t2_star.nii.gz
-        |-- acq-007_ground_truth_t2_star.json
-        |-- acq-007_ground_truth_m0.nii.gz
-        |-- acq-007_ground_truth_m0.json
-        |-- acq-007_ground_truth_seg_label.nii.gz
-        |-- acq-007_ground_truth_seg_label.json
+  output_archive.zip
+    |-- sub-001
+        |
+        |-- perf
+        |   |-- sub-001_acq-001_asl.nii.gz
+        |   |-- sub-001_acq-001_asl.json
+        |   |-- sub-001_acq-001_aslcontext.tsv
+        |   |-- sub-001_acq-002_asl.nii.gz
+        |   |-- sub-001_acq-002_asl.json
+        |   |-- sub-001_acq-002_aslcontext.tsv
+        |   |-- sub-001_acq-003_m0scan.nii.gz
+        |   
+        |-- anat
+        |   |-- sub-001_acq-004_T1w.nii.gz
+        |   |-- sub-001_acq-004_T1w.json
+        |   |-- sub-001_acq-005_T2w.nii.gz
+        |   |-- sub-001_acq-005_T2w.json
+        |   |-- sub-001_acq-006_anat.nii.gz
+        |   |-- sub-001_acq-006_anat.json
+        |
+        |---ground_truth
+            |-- sub-001_acq-007_ground_truth_perfusion_rate.nii.gz
+            |-- sub-001_acq-007_ground_truth_perfusion_rate.json
+            |-- sub-001_acq-007_ground_truth_transit_time.nii.gz
+            |-- sub-001_acq-007_ground_truth_transit_time.json
+            |-- sub-001_acq-007_ground_truth_t1.nii.gz
+            |-- sub-001_acq-007_ground_truth_t1.json
+            |-- sub-001_acq-007_ground_truth_t2.nii.gz
+            |-- sub-001_acq-007_ground_truth_t2.json
+            |-- sub-001_acq-007_ground_truth_t2_star.nii.gz
+            |-- sub-001_acq-007_ground_truth_t2_star.json
+            |-- sub-001_acq-007_ground_truth_m0.nii.gz
+            |-- sub-001_acq-007_ground_truth_m0.json
+            |-- sub-001_acq-007_ground_truth_seg_label.nii.gz
+            |-- sub-001_acq-007_ground_truth_seg_label.json
 
 
 .. _bids-deviations:

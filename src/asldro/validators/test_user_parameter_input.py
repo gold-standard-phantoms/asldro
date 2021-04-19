@@ -243,6 +243,7 @@ def fixture_expected_parsed_input():
                 "t2": {"offset": 2},
                 "m0": {"scale": 2, "offset": 1.5},
             },
+            "subject_label": "001",
         },
         "image_series": [
             {
@@ -360,11 +361,18 @@ def test_invalid_data_input_params(input_params: dict):
     input_params["global_configuration"]["ground_truth"] = "i_dont_exist"
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
+    input_params["global_configuration"].pop("ground_truth")
+
     input_params["global_configuration"]["image_override"] = "a_string"
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
 
     input_params["global_configuration"]["image_override"] = {"m0": "a_string"}
+    with pytest.raises(ValidationError):
+        validate_input_params(input_params)
+    input_params["global_configuration"].pop("image_override")
+    
+    input_params["global_configuration"]["subject_label"] = "invalid_characters!$%^"
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
 
