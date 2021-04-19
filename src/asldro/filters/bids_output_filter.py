@@ -86,7 +86,7 @@ class BidsOutputFilter(BaseFilter):
     * 'asl' will be saved in the subdirectory 'perf'
     * 'ground_truth' will be saved in the subdirectory 'ground_truth'
 
-    Filenames will be given by: <series_number>_<filename_prefix>_<modality_label>.<ext>, where
+    Filenames will be given by: <filename_prefix>_acq-<series_number>_<modality_label>.<ext>, where
 
     * <series_number> is given by metadata field ``series_number``, which is an integer number
       and will be prefixed by zeros so that it is 3 characterslong, for example 003, 010, 243
@@ -229,7 +229,7 @@ class BidsOutputFilter(BaseFilter):
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
         # map the image metadata to the json sidecar
         json_sidecar = map_dict(image.metadata, self.BIDS_MAPPING, io_map_optional=True)
-        series_number_string = f"{image.metadata[self.SERIES_NUMBER]:03d}"
+        series_number_string = f"acq-{image.metadata[self.SERIES_NUMBER]:03d}"
         # if the `filename_prefix` is not empty add an underscore after it
         if self.inputs[self.KEY_FILENAME_PREFIX] == "":
             filename_prefix = ""

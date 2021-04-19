@@ -23,7 +23,7 @@ These will be saved in the following subdirectories:
 * 'anat' for series type 'structural'
 * 'ground_truth' for series type 'ground_truth'
 
-Filenames are given by ``<series_number>_<modality_label>.<ext>``,
+Filenames are given by ``acq-<series_number>_<modality_label>.<ext>``,
 where:
 
 * ``<series_number>`` is the order the particular image series is in the ``"image_series"``
@@ -54,37 +54,37 @@ Will result in the following files output
 
     output_archive.zip
     |-- perf
-    |   |-- 001_asl.nii.gz
-    |   |-- 001_asl.json
-    |   |-- 001_aslcontext.tsv
-    |   |-- 002_asl.nii.gz
-    |   |-- 002_asl.json
-    |   |-- 002_aslcontext.tsv
-    |   |-- 003_m0scan.nii.gz
+    |   |-- acq-001_asl.nii.gz
+    |   |-- acq-001_asl.json
+    |   |-- acq-001_aslcontext.tsv
+    |   |-- acq-002_asl.nii.gz
+    |   |-- acq-002_asl.json
+    |   |-- acq-002_aslcontext.tsv
+    |   |-- acq-003_m0scan.nii.gz
     |   
     |-- anat
-    |   |-- 004_T1w.nii.gz
-    |   |-- 004_T1w.json
-    |   |-- 005_T2w.nii.gz
-    |   |-- 005_T2w.json
-    |   |-- 006_anat.nii.gz
-    |   |-- 006_anat.json
+    |   |-- acq-004_T1w.nii.gz
+    |   |-- acq-004_T1w.json
+    |   |-- acq-005_T2w.nii.gz
+    |   |-- acq-005_T2w.json
+    |   |-- acq-006_anat.nii.gz
+    |   |-- acq-006_anat.json
     |
     |---ground_truth
-        |-- 007_ground_truth_perfusion_rate.nii.gz
-        |-- 007_ground_truth_perfusion_rate.json
-        |-- 007_ground_truth_transit_time.nii.gz
-        |-- 007_ground_truth_transit_time.json
-        |-- 007_ground_truth_t1.nii.gz
-        |-- 007_ground_truth_t1.json
-        |-- 007_ground_truth_t2.nii.gz
-        |-- 007_ground_truth_t2.json
-        |-- 007_ground_truth_t2_star.nii.gz
-        |-- 007_ground_truth_t2_star.json
-        |-- 007_ground_truth_m0.nii.gz
-        |-- 007_ground_truth_m0.json
-        |-- 007_ground_truth_seg_label.nii.gz
-        |-- 007_ground_truth_seg_label.json
+        |-- acq-007_ground_truth_perfusion_rate.nii.gz
+        |-- acq-007_ground_truth_perfusion_rate.json
+        |-- acq-007_ground_truth_transit_time.nii.gz
+        |-- acq-007_ground_truth_transit_time.json
+        |-- acq-007_ground_truth_t1.nii.gz
+        |-- acq-007_ground_truth_t1.json
+        |-- acq-007_ground_truth_t2.nii.gz
+        |-- acq-007_ground_truth_t2.json
+        |-- acq-007_ground_truth_t2_star.nii.gz
+        |-- acq-007_ground_truth_t2_star.json
+        |-- acq-007_ground_truth_m0.nii.gz
+        |-- acq-007_ground_truth_m0.json
+        |-- acq-007_ground_truth_seg_label.nii.gz
+        |-- acq-007_ground_truth_seg_label.json
 
 
 .. _bids-deviations:

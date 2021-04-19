@@ -223,10 +223,10 @@ def test_bids_output_filter_mock_data_structural(structural_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "anat", "prefix_001_T1w.nii.gz"
+            temp_dir, "anat", "prefix_acq-001_T1w.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "anat", "prefix_001_T1w.json"
+            temp_dir, "anat", "prefix_acq-001_T1w.json"
         )
 
         # load in the files and check against what they should be
@@ -313,14 +313,14 @@ def test_bids_output_filter_mock_data_asl(asl_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "perf", "prefix_010_asl.nii.gz"
+            temp_dir, "perf", "prefix_acq-010_asl.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "perf", "prefix_010_asl.json"
+            temp_dir, "perf", "prefix_acq-010_asl.json"
         )
 
         assert bids_output_filter.outputs["filename"][2] == os.path.join(
-            temp_dir, "perf", "prefix_010_aslcontext.tsv"
+            temp_dir, "perf", "prefix_acq-010_aslcontext.tsv"
         )
 
         # load in the files and check against what they should be
@@ -396,10 +396,10 @@ def test_bids_output_filter_m0scan(structural_input):
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "perf", "prefix_001_m0scan.nii.gz"
+            temp_dir, "perf", "prefix_acq-001_m0scan.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "perf", "prefix_001_m0scan.json"
+            temp_dir, "perf", "prefix_acq-001_m0scan.json"
         )
 
         # load in the files and check against what they should be
@@ -456,10 +456,10 @@ def test_bids_output_filter_mock_data_ground_truth():
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "ground_truth", "prefix_110_ground_truth_t1.nii.gz"
+            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_t1.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "ground_truth", "prefix_110_ground_truth_t1.json"
+            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_t1.json"
         )
 
         # load in the files and check against what they should be
@@ -525,10 +525,10 @@ def test_bids_output_filter_mock_data_ground_truth_seg_label():
 
         # Check filenames
         assert bids_output_filter.outputs["filename"][0] == os.path.join(
-            temp_dir, "ground_truth", "prefix_110_ground_truth_seg_label.nii.gz"
+            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_seg_label.nii.gz"
         )
         assert bids_output_filter.outputs["filename"][1] == os.path.join(
-            temp_dir, "ground_truth", "prefix_110_ground_truth_seg_label.json"
+            temp_dir, "ground_truth", "prefix_acq-110_ground_truth_seg_label.json"
         )
 
         # load in the files and check against what they should be
