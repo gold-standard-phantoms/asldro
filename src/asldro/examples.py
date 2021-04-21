@@ -178,7 +178,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
 
             # determine if background suppression is to be performed
             do_bs = False
-            if not asl_params[BACKGROUND_SUPPRESSION]:
+            if asl_params[BACKGROUND_SUPPRESSION]:
                 do_bs = True
                 bs_params = map_dict(
                     asl_params[BACKGROUND_SUPPRESSION],
@@ -344,7 +344,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
             acquired_timeseries_nifti_container.header["descrip"] = image_series[
                 "series_description"
             ]
-
             # place in output_nifti list
             output_image_list.append(acquired_timeseries_nifti_container)
             # logging
@@ -515,7 +514,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
             )
             bids_output_filter.add_input(BidsOutputFilter.KEY_IMAGE, image_to_output)
             bids_output_filter.add_input(
-                BidsOutputFilter.KEY_SUBJECT_LABEL, "sub-" + subject_label
+                BidsOutputFilter.KEY_SUBJECT_LABEL, subject_label
             )
             # run the filter to write the BIDS files to disk
             bids_output_filter.run()

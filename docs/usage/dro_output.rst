@@ -36,7 +36,8 @@ where:
       only contains entries  with ``'m0scan'`` then it will be
       ``'m0scan'``, otherwise ``'asl'``.
     :structural: determined by the input parameter ``modality``, which can be
-      "T1w", "T2w", "FLAIR", or "anat" (default).
+      "T1w" (default), "T2w", "FLAIR", "PDw", "T2starw", "inplaneT1", "PDT2", or
+      "UNIT1".
     :ground_truth: the concatenation of 'ground-truth' and the name of 
       the 'quantity' for the ground truth image, separated by a hyphen. Any
       underscores in the quantity name will be converted to hyphens.
@@ -47,7 +48,7 @@ series in order:
 #. asl, ``asl_context = "m0scan, control, label"``
 #. asl, ``asl_context = "control, label"``
 #. asl, ``asl_context = "m0scan"``
-#. structural, ``modality = "T1w"``
+#. structural, ``modality = "FLAIR"``
 #. strutural, ``modality = "T2w"``
 #. structural, modality entry missing.
 #. ground truth
@@ -57,6 +58,9 @@ Will result in the following files output
 ::
 
   output_archive.zip
+    |-- dataset_description.json
+    |-- README
+    |-- .bidsignore
     |-- sub-001
         |
         |-- perf
@@ -69,34 +73,51 @@ Will result in the following files output
         |   |-- sub-001_acq-003_m0scan.nii.gz
         |   
         |-- anat
-        |   |-- sub-001_acq-004_T1w.nii.gz
-        |   |-- sub-001_acq-004_T1w.json
+        |   |-- sub-001_acq-004_FLAIR.nii.gz
+        |   |-- sub-001_acq-004_FLAIR.json
         |   |-- sub-001_acq-005_T2w.nii.gz
         |   |-- sub-001_acq-005_T2w.json
-        |   |-- sub-001_acq-006_anat.nii.gz
-        |   |-- sub-001_acq-006_anat.json
+        |   |-- sub-001_acq-006_T1w.nii.gz
+        |   |-- sub-001_acq-006_T1w.json
         |
         |---ground_truth
-            |-- sub-001_acq-007_ground-truth-perfusion-rate.nii.gz
-            |-- sub-001_acq-007_ground-truth-perfusion-rate.json
-            |-- sub-001_acq-007_ground-truth-transit-time.nii.gz
-            |-- sub-001_acq-007_ground-truth-transit-time.json
-            |-- sub-001_acq-007_ground-truth-t1.nii.gz
-            |-- sub-001_acq-007_ground-truth-t1.json
-            |-- sub-001_acq-007_ground-truth-t2.nii.gz
-            |-- sub-001_acq-007_ground-truth-t2.json
-            |-- sub-001_acq-007_ground-truth-t2-star.nii.gz
-            |-- sub-001_acq-007_ground-truth-t2-star.json
-            |-- sub-001_acq-007_ground-truth-m0.nii.gz
-            |-- sub-001_acq-007_ground-truth-m0.json
-            |-- sub-001_acq-007_ground-truth-seg-label.nii.gz
-            |-- sub-001_acq-007_ground-truth-seg-label.json
+            |-- sub-001_acq-007_Perfmap.nii.gz
+            |-- sub-001_acq-007_Perfmap.json
+            |-- sub-001_acq-007_ATTmap.nii.gz
+            |-- sub-001_acq-007_ATTmap.json
+            |-- sub-001_acq-007_T1map.nii.gz
+            |-- sub-001_acq-007_T1map.json
+            |-- sub-001_acq-007_T2map.nii.gz
+            |-- sub-001_acq-007_T2map.json
+            |-- sub-001_acq-007_T2starmap.nii.gz
+            |-- sub-001_acq-007_T2starmap.json
+            |-- sub-001_acq-007_M0map.nii.gz
+            |-- sub-001_acq-007_M0map.json
+            |-- sub-001_acq-007_dseg.nii.gz
+            |-- sub-001_acq-007_dseg.json
 
 
 .. _bids-deviations:
 
 Deviations from the BIDS Standard
 -----------------------------------
+
+Ground Truth Image Series
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+BIDS specifies that parameter maps should be saved in the 'anat' folder, however
+ground truth parameter maps generated using the ``ground_truth`` image series
+are saved in 'ground_truth' folder.
+
+Additional suffixes have been devised for non-supported parameter maps:
+
+* Perfmap: Perfusion rate map.
+* ATTmap: Transit time map.
+* Lambdamap: Blood brain partition coefficient map.
+
+The .bidsignore file has entries to ignore everything in the ground_truth folder
+and in addition the above non-supported suffixes.
+
 
 Background Suppression
 ~~~~~~~~~~~~~~~~~~~~~~~

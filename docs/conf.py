@@ -12,6 +12,8 @@
 #
 import os
 import sys
+from pprint import pformat
+
 
 import sphinx.ext.apidoc
 

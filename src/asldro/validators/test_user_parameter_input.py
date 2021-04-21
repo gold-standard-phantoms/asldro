@@ -12,6 +12,7 @@ from asldro.validators.user_parameter_input import (
     validate_input_params,
     get_example_input_params,
     DEFAULT_GROUND_TRUTH,
+    DEFAULT_BS_PARAMS,
 )
 
 
@@ -109,7 +110,7 @@ def test_structural_user_input_defaults_created():
         "desired_snr": 100.0,
         "random_seed": 0,
         "output_image_type": "magnitude",
-        "modality": "anat",
+        "modality": "T1w",
         "interpolation": "continuous",
     }
 
@@ -301,7 +302,7 @@ def fixture_expected_parsed_input():
                     "desired_snr": 100.0,
                     "random_seed": 0,
                     "output_image_type": "magnitude",
-                    "modality": "anat",
+                    "modality": "T1w",
                     "interpolation": "continuous",
                 },
             },
@@ -371,7 +372,7 @@ def test_invalid_data_input_params(input_params: dict):
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
     input_params["global_configuration"].pop("image_override")
-    
+
     input_params["global_configuration"]["subject_label"] = "invalid_characters!$%^"
     with pytest.raises(ValidationError):
         validate_input_params(input_params)
@@ -437,7 +438,6 @@ def test_example_input_params_valid():
     p = get_example_input_params()
     validate_input_params(p)
     assert p["global_configuration"]["ground_truth"] == DEFAULT_GROUND_TRUTH
-
 
 def test_user_parameter_input_background_suppression():
     """Tests the background suppression parameters"""

@@ -13,8 +13,10 @@ from asldro.utils.filter_validation import validate_filter_inputs
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = NiftiImageContainer(
-    nifti_img=nib.Nifti2Image(np.zeros(TEST_VOLUME_DIMENSIONS), affine=np.eye(4))
+    nifti_img=nib.Nifti2Image(np.zeros(TEST_VOLUME_DIMENSIONS), affine=np.eye(4)),
 )
+TEST_NIFTI_ONES.space_units = "mm"
+TEST_NIFTI_ONES.time_units = "sec"
 
 # input validation dictionary, [0] in each tuple passes, after that should fail validation
 INPUT_VALIDATION_DICTIONARY = {
@@ -68,7 +70,9 @@ def test_resample_filter_mock_data():
 
     # create NumpyImageContainer and NiftiImageContainer of this image
     numpy_image_container = NumpyImageContainer(image=image, affine=source_affine)
-    nifti_image_container = NiftiImageContainer(nifti_image)
+    numpy_image_container.space_units = "mm"
+    numpy_image_container.time_units = "sec"
+    nifti_image_container = numpy_image_container.as_nifti()
 
     # Create affine matrix for a translation of +10 along the x-axis
     affine_translate = AffineMatrixFilter()
@@ -224,6 +228,8 @@ def test_resample_filter_single_point_transformations(
     nii = nib.Nifti2Image(image, affine=affine)
 
     original_image_container = NiftiImageContainer(nifti_img=nii)
+    original_image_container.space_units = "mm"
+    original_image_container.time_units = "sec"
 
     # Create transformation affine.
     affine_filter = AffineMatrixFilter()
@@ -262,6 +268,7 @@ def test_resample_filter_metadata():
         "key2": "two",
         "key3": [2, 4, 5],
     }
+    test_image.nifti_image.header.set_xyzt_units(xyz="mm", t="sec")
     resample_affine = 2 * np.eye(4)
     resample_filter = ResampleFilter()
     resample_filter.add_input("affine", resample_affine)
@@ -278,6 +285,10 @@ def test_resample_filter_metadata():
         ),
     }
     assert resample_filter.outputs["image"].metadata == valid_dict
+    assert resample_filter.outputs["image"].nifti_image.header.get_xyzt_units() == (
+        "mm",
+        "sec",
+    )
 
 
 def test_resample_filter_interpolation():
@@ -288,6 +299,8 @@ def test_resample_filter_interpolation():
     test_data[2, 1, 1] = 2.0
     test_nifti = nib.Nifti1Image(test_data, np.eye(4))
     test_image = NiftiImageContainer(test_nifti)
+    test_image.space_units = "mm"
+    test_image.time_units = "sec"
     target_shape = (5, 5, 5)
     target_affine = 0.5 * np.eye(4)
 

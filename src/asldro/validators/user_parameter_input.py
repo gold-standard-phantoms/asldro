@@ -28,6 +28,7 @@ from asldro.validators.parameters import (
     for_each_validator,
     or_validator,
 )
+
 from asldro.validators.schemas.index import SCHEMAS
 from asldro.utils.general import splitext
 
@@ -110,6 +111,19 @@ DEFAULT_BS_PARAMS = {
     "apply_to_asl_context": ["label", "control"],
 }
 DEFAULT_SUBJECT_LABEL = "001"
+
+# supported structural image series modality labels
+SUPPORTED_STRUCT_MODALITY_LABELS = [
+    "T1w",
+    "T2w",
+    "FLAIR",
+    "PDw",
+    "T2starw",
+    "inplaneT1",
+    "inplaneT2",
+    "PDT2",
+    "UNIT1",
+]
 
 # Input validator
 IMAGE_TYPE_VALIDATOR = {
@@ -209,8 +223,8 @@ IMAGE_TYPE_VALIDATOR = {
                 default_value="magnitude",
             ),
             MODALITY: Parameter(
-                validators=from_list_validator(["T1w", "T2w", "FLAIR", "anat"]),
-                default_value="anat",
+                validators=from_list_validator(SUPPORTED_STRUCT_MODALITY_LABELS),
+                default_value="T1w",
             ),
             INTERPOLATION: Parameter(
                 validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
