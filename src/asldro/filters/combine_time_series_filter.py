@@ -71,8 +71,12 @@ class CombineTimeSeriesFilter(BaseFilter):
         output_container = NiftiImageContainer(
             nifti_img=nib.Nifti1Image(dataobj=dataobj, affine=containers[0].affine)
         )
+        output_container.nifti_image.header["xyzt_units"] = containers[
+            0
+        ].nifti_image.header["xyzt_units"]
         output_container.data_domain = containers[0].data_domain
-        # TODO: We could set output_container.time_step_seconds here
+        # TODO: We could set output_container.time_step_seconds here, at the moment assumed
+        # to be the same as the first input
 
         # Create the metadata
         output_container.metadata = {}

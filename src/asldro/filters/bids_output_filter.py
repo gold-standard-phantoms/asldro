@@ -1,5 +1,4 @@
 """ BidsOutputFilter """
-import pdb
 import os
 import logging
 from typing import Union, List
@@ -26,6 +25,7 @@ from asldro.validators.parameters import (
     from_list_validator,
     greater_than_equal_to_validator,
     for_each_validator,
+    regex_validator,
 )
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
@@ -40,6 +40,7 @@ from asldro.validators.user_parameter_input import (
     ASL_CONTEXT,
     SUPPORTED_IMAGE_TYPES,
     SUPPORTED_ASL_CONTEXTS,
+    SUPPORTED_STRUCT_MODALITY_LABELS,
 )
 from asldro.filters.background_suppression_filter import BackgroundSuppressionFilter
 
@@ -57,6 +58,9 @@ class BidsOutputFilter(BaseFilter):
     BIDS comprises of a NIFTI image file and accompanying .json sidecar that contains additional
     parameters.  More information on BIDS can be found at https://bids.neuroimaging.io/
 
+    Multiple instances of the BidsOutputFilter can be used to output multiple
+    images to the same directory, building a valid BIDS dataset.
+
     **Inputs**
 
     Input Parameters are all keyword arguments for the :class:`BidsOutputFilter.add_inputs()`
@@ -67,6 +71,9 @@ class BidsOutputFilter(BaseFilter):
     :type 'image': BaseImageContainer
     :param 'output_directory': The root directory to save to
     :type 'output_directory': str
+    :param 'subject_label': The subject label, can only contain
+      alphanumeric characters and a hyphen (-). Defaults to "001".
+    :type 'subject_label': str, optional
     :param 'filename_prefix': string to prefix the filename with.
     :type 'filename_prefix': str, optional
 
@@ -83,21 +90,23 @@ class BidsOutputFilter(BaseFilter):
     Files will be saved in subdirectories corresponding to the metadata entry ``series_type``:
 
     * 'structural' will be saved in the subdirectory 'anat'
-    * 'asl' will be saved in the subdirectory 'asl'
+    * 'asl' will be saved in the subdirectory 'perf'
     * 'ground_truth' will be saved in the subdirectory 'ground_truth'
 
-    Filenames will be given by: <series_number>_<filename_prefix>_<modality_label>.<ext>, where
+    Filenames will be given by:
+    ``sub-<subject_label>_<filename_prefix>_acq-<series_number>_<modality_label>.<ext>``, where
 
-    * <series_number> is given by metadata field ``series_number``, which is an integer number
+    * ``<subject_label>`` is the string supplied by the input ``subject_label``
+    * ``<series_number>`` is given by metadata field ``series_number``, which is an integer number
       and will be prefixed by zeros so that it is 3 characterslong, for example 003, 010, 243
-    * <filename_prefix> is the string supplied by the input ``filename_prefix``
-    * <modality_label> is determined based on ``series_type``:
+    * ``<filename_prefix>`` is the string supplied by the input ``filename_prefix``
+    * ``<modality_label>`` is determined based on ``series_type``:
 
         * 'structural': it is given by the metadata field ``modality``.
         * 'asl': it is determined by asl_context.  If asl_context only contains entries that match
           with 'm0scan' then it will be set to 'm0scan', otherwise 'asl'.
-        * 'ground_truth': it will be a concatenation of 'ground_truth_' + the metadata field
-          ``quantity``, e.g. 'ground_truth_t1'.
+        * 'ground_truth': the metadata field ``quantity`` will be mapped to the according BIDS 
+          parameter map names, as given by :class:`BidsOutputFilter.QUANTITY_MAPPING` 
 
     **Image Metadata**
 
@@ -134,20 +143,39 @@ class BidsOutputFilter(BaseFilter):
         (corresponding with the dicom tag (0008,0008).  For ASL images this should be 'PERFUSION'.
     :type 'image_flavour': str
     :param 'background_suppression': A boolean denoting whether background suppression has been
-      performed. Can be omitted, in which case it will be assumed there is no background suppression.
+      performed. Can be omitted, in which case it will be assumed there
+      is no background suppression.
     :type 'background_suppression': bool
-    :param 'background_suppression_inv_pulse_timing': A list of inversion pulse timings for the 
+    :param 'background_suppression_inv_pulse_timing': A list of inversion pulse timings for the
       background suppression pulses. Required if ``'background_suppression'`` is True.
     :type 'background_suppression_inv_pulse_timing': list[float]
 
-    Input image metadata will be mapped to corresponding BIDS fields.  See 
-    :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping. 
+    Input image metadata will be mapped to corresponding BIDS fields. See
+    :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping.
+
+    **dataset_description.json**
+
+    If it does not exist already, when run the filter will create the file ``dataset_description.json``
+    at the root of the output directory. This contains the
+    information contained in :class:`BidsOutputFilter.DATASET_DESCRIPTION`.
+
+    **README**
+    
+    If it does not already exist, when run the filter will create the text file ``README`` at the
+    root of the output directory. This contains some information about the dataset, including
+    a list of all the images output.
+
+    **.bidsignore**
+
+    A .bidsignore file is created at the root of the output directory, which includes entries
+    indicating non-standard files to ignore.
     """
 
     # Key Constants
     KEY_IMAGE = "image"
     KEY_OUTPUT_DIRECTORY = "output_directory"
     KEY_FILENAME_PREFIX = "filename_prefix"
+    KEY_SUBJECT_LABEL = "subject_label"
     KEY_FILENAME = "filename"
     KEY_SIDECAR = "sidecar"
 
@@ -162,7 +190,9 @@ class BidsOutputFilter(BaseFilter):
     M0_TYPE = "M0Type"
     M0_ESTIMATE = "M0Estimate"
 
-    SUPPORTED_STRUCT_MODALITY_LABELS = ["T1w", "T2w", "FLAIR", "anat"]
+    ASL_SUBDIR = "perf"
+    STRUCT_SUBDIR = "anat"
+    GT_SUBDIR = "ground_truth"
 
     # metadata parameters to BIDS fields mapping dictionary
     BIDS_MAPPING = {
@@ -174,7 +204,7 @@ class BidsOutputFilter(BaseFilter):
         MriSignalFilter.KEY_REPETITION_TIME: "RepetitionTimePreparation",
         MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE: "FlipAngle",
         MriSignalFilter.KEY_INVERSION_TIME: "InversionTime",
-        MriSignalFilter.KEY_ACQ_TYPE: "MrAcquisitionType",
+        MriSignalFilter.KEY_ACQ_TYPE: "MRAcquisitionType",
         MriSignalFilter.KEY_ACQ_CONTRAST: "ScanningSequence",
         SERIES_DESCRIPTION: "SeriesDescription",
         SERIES_NUMBER: "SeriesNumber",
@@ -188,7 +218,6 @@ class BidsOutputFilter(BaseFilter):
         BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         BackgroundSuppressionFilter.M_BSUP_NUM_PULSES: "BackgroundSuppressionNumberPulses",
         BackgroundSuppressionFilter.M_BSUP_SAT_PULSE_TIMING: "BackgroundSuppressionSatPulseTime",
-        BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: "BackgroundSuppressionInvPulseTime",
     }
 
     # maps ASLDRO MRI contrast to BIDS contrast names
@@ -217,6 +246,35 @@ class BidsOutputFilter(BaseFilter):
         "lesion": "L",
     }
 
+    # Dataset description dictionary
+    DATASET_DESCRIPTION = {
+        "Name": "DRO Data generated by ASLDRO",
+        "BIDSVersion": "1.5.0",
+        "DatasetType": "raw",
+        "License": "PD",
+        "HowToAcknowledge": "Please cite this abstract: ASLDRO: "
+        "Digital reference object software for Arterial Spin Labelling, "
+        "A Oliver-Taylor et al., Abstract #2731, Proc. ISMRM 2021",
+        "DROSoftware": "ASLDRO",
+        "DROSoftwareVersion": asldro_version,
+        "ReferencesAndLinks": [
+            "code: https://github.com/gold-standard-phantoms/asldro",
+            "pypi: https://pypi.org/project/asldro/",
+            "docs: https://asldro.readthedocs.io/",
+        ],
+    }
+
+    QUANTITY_MAPPING = {
+        "t1": "T1map",
+        "t2": "T2map",
+        "t2_star": "T2starmap",
+        "m0": "M0map",
+        "perfusion_rate": "Perfmap",
+        "transit_time": "ATTmap",
+        "lambda_blood_brain": "Lambdamap",
+        "seg_label": "dseg",
+    }
+
     def __init__(self):
         super().__init__(name="BIDS Output")
 
@@ -224,23 +282,23 @@ class BidsOutputFilter(BaseFilter):
         """ Writes the input image to disk in BIDS format """
         image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
+        subject_string = "sub-" + self.inputs[self.KEY_SUBJECT_LABEL]
+        output_directory = os.path.join(output_directory, subject_string)
         # map the image metadata to the json sidecar
         json_sidecar = map_dict(image.metadata, self.BIDS_MAPPING, io_map_optional=True)
-        series_number_string = f"{image.metadata[self.SERIES_NUMBER]:03d}"
+        series_number_string = f"acq-{image.metadata[self.SERIES_NUMBER]:03d}"
         # if the `filename_prefix` is not empty add an underscore after it
         if self.inputs[self.KEY_FILENAME_PREFIX] == "":
             filename_prefix = ""
         else:
             filename_prefix = self.inputs[self.KEY_FILENAME_PREFIX] + "_"
+
         # amend json sidecar
         # add ASLDRO information
-        json_sidecar[self.DRO_SOFTWARE] = "ASLDRO"
-        json_sidecar[self.DRO_SOFTWARE_VERSION] = asldro_version
-        json_sidecar[self.DRO_SOFTWARE_URL] = [
-            "code: https://github.com/gold-standard-phantoms/asldro",
-            "pypi: https://pypi.org/project/asldro/",
-            "docs: https://asldro.readthedocs.io/",
-        ]
+        json_sidecar["Manufacturer"] = "Gold Standard Phantoms"
+        json_sidecar[
+            "PulseSequenceDetails"
+        ] = f"Digital Reference Object Data generated by ASLDRO, version {asldro_version}"
         # set the acquisition date time to the current time in UTC
         json_sidecar[self.ACQ_DATE_TIME] = datetime.now(timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%S.%f"
@@ -263,7 +321,7 @@ class BidsOutputFilter(BaseFilter):
         ## Series type 'asl'
         if image.metadata[self.SERIES_TYPE] == ASL:
             # ASL series, create aslcontext.tsv string
-            sub_directory = "asl"
+            sub_directory = self.ASL_SUBDIR
 
             modality_label = self.determine_asl_modality_label(
                 image.metadata[ASL_CONTEXT]
@@ -277,7 +335,11 @@ class BidsOutputFilter(BaseFilter):
                 asl_context_filename = os.path.join(
                     output_directory,
                     sub_directory,
-                    f"{filename_prefix}" + series_number_string + "_aslcontext.tsv",
+                    subject_string
+                    + "_"
+                    + filename_prefix
+                    + series_number_string
+                    + "_aslcontext.tsv",
                 )
                 # BIDS spec states ArterialSpinLabelingType should be uppercase
                 json_sidecar["ArterialSpinLabelingType"] = json_sidecar[
@@ -286,8 +348,8 @@ class BidsOutputFilter(BaseFilter):
 
                 # set the BIDS field M0 correctly
                 if any("m0scan" in s for s in image.metadata[ASL_CONTEXT]):
-                    # if aslcontext contains one or more "m0scan" volumes set to "Included" to indicate
-                    # "WithinASL"
+                    # if aslcontext contains one or more "m0scan" volumes set to
+                    # "Included" to indicate "WithinASL"
                     json_sidecar[self.M0_TYPE] = "Included"
                 elif isinstance(image.metadata.get("m0"), (float, int)):
                     # numerical value of m0 supplied so use this.
@@ -323,11 +385,14 @@ class BidsOutputFilter(BaseFilter):
                     json_sidecar[
                         "BackgroundSuppressionPulseTime"
                     ] = inv_pulse_times.tolist()
-                    json_sidecar["BackgroundSuppressionNumberPulses"] = np.sum(
-                        inv_pulse_times > 0
-                    ).item()
+                    json_sidecar[
+                        "BackgroundSuppressionNumberPulses"
+                    ] = inv_pulse_times.size
                 else:
                     json_sidecar["BackgroundSuppression"] = False
+
+                # set vascular crushing to false
+                json_sidecar["VascularCrushing"] = False
 
                 # validate the sidecar against the ASL BIDS schema
                 # load in the ASL BIDS schema
@@ -354,7 +419,7 @@ class BidsOutputFilter(BaseFilter):
 
         ## Series type 'structural'
         elif image.metadata[self.SERIES_TYPE] == STRUCTURAL:
-            sub_directory = "anat"
+            sub_directory = self.STRUCT_SUBDIR
             modality_label = image.metadata[MODALITY]
             json_sidecar["ImageType"] = [
                 "ORIGINAL",
@@ -365,11 +430,13 @@ class BidsOutputFilter(BaseFilter):
 
         ## Series type 'ground_truth'
         elif image.metadata[self.SERIES_TYPE] == GROUND_TRUTH:
-            sub_directory = "ground_truth"
-            # set the modality label
-            modality_label = (
-                f"ground_truth_{image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]}"
-            )
+            sub_directory = self.GT_SUBDIR
+            # set the modality label using QUANTITY_MAPPING
+            modality_label = self.QUANTITY_MAPPING[
+                image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY]
+            ]
+            json_sidecar["Quantity"] = modality_label
+
             # if there is a LabelMap field, use LABEL_MAP_MAPPING to change the subfield names to
             # the BIDS standard
             if json_sidecar.get("LabelMap") is not None:
@@ -381,7 +448,7 @@ class BidsOutputFilter(BaseFilter):
             json_sidecar["ImageType"] = [
                 "ORIGINAL",
                 "PRIMARY",
-                image.metadata[GroundTruthLoaderFilter.KEY_QUANTITY].upper(),
+                modality_label.upper(),
                 "NONE",
             ]
 
@@ -390,23 +457,26 @@ class BidsOutputFilter(BaseFilter):
             os.makedirs(os.path.join(output_directory, sub_directory))
 
         # construct filenames
-        nifti_filename = (
-            f"{filename_prefix}" + series_number_string + f"_{modality_label}.nii.gz"
+        base_filename = (
+            subject_string
+            + "_"
+            + filename_prefix
+            + series_number_string
+            + "_"
+            + modality_label
         )
-        json_filename = (
-            f"{filename_prefix}" + series_number_string + f"_{modality_label}.json"
-        )
+        nifti_filename = base_filename + ".nii.gz"
+        json_filename = base_filename + ".json"
 
         # turn the nifti and json filenames into full paths
-
         nifti_filename = os.path.join(output_directory, sub_directory, nifti_filename)
         # write the nifti file
-        logger.info(f"saving {nifti_filename}")
+        logger.info("saving %s", nifti_filename)
         nib.save(image.nifti_image, nifti_filename)
 
         json_filename = os.path.join(output_directory, sub_directory, json_filename)
         # write the json sidecar
-        logger.info(f"saving {json_filename}")
+        logger.info("saving %s", json_filename)
         with open(json_filename, "w") as json_file:
             json.dump(json_sidecar, json_file, indent=4)
 
@@ -414,12 +484,55 @@ class BidsOutputFilter(BaseFilter):
         self.outputs[self.KEY_FILENAME] = [nifti_filename, json_filename]
         if "asl_context_filename" in locals():
             self.outputs[self.KEY_FILENAME].append(asl_context_filename)
-            logger.info(f"saving {asl_context_filename}")
+            logger.info("saving %s", asl_context_filename)
             with open(asl_context_filename, "w") as tsv_file:
                 tsv_file.write(asl_context_tsv)
                 tsv_file.close()
 
         self.outputs[self.KEY_SIDECAR] = json_sidecar
+
+        # if it doesn't exist, save the dataset_description.json file in the root output folder
+        dataset_description_filename = os.path.join(
+            self.inputs[self.KEY_OUTPUT_DIRECTORY], "dataset_description.json"
+        )
+        if not os.path.isfile(dataset_description_filename):
+            # write the json sidecar
+            logger.info("saving %s", dataset_description_filename)
+            with open(dataset_description_filename, "w") as json_file:
+                json.dump(self.DATASET_DESCRIPTION, json_file, indent=4)
+
+        # if it doesn't exist, save the canned text into README in the root output folder
+        readme_filename = os.path.join(self.inputs[self.KEY_OUTPUT_DIRECTORY], "README")
+        if not os.path.isfile(readme_filename):
+            logger.info("saving %s", readme_filename)
+            with open(readme_filename, mode="w") as readme_file:
+                readme_file.write(self.readme_canned_text())
+                readme_file.close()
+
+        # now append to readme some information about the image series
+        with open(readme_filename, mode="a") as readme_file:
+            readme_file.write(
+                f"{image.metadata[self.SERIES_NUMBER]}. {modality_label}: {image.metadata.get(self.SERIES_DESCRIPTION)}\n"
+            )
+            readme_file.close()
+
+        # Finally, create a .bidsignore file to deal with anything non-canon
+        bidsignore_filename = os.path.join(
+            self.inputs[self.KEY_OUTPUT_DIRECTORY], ".bidsignore"
+        )
+        if not os.path.isfile(bidsignore_filename):
+            with open(bidsignore_filename, mode="w") as bidsignore_file:
+                bidsignore_file.writelines(
+                    "\n".join(
+                        [
+                            "ground_truth/",
+                            "**/*Perfmap*",
+                            "**/*ATTmap*",
+                            "**/*Lambdamap*",
+                        ]
+                    )
+                )
+                bidsignore_file.close()
 
     def _validate_inputs(self):
         """ Checks that the inputs meet their validation critera
@@ -443,6 +556,14 @@ class BidsOutputFilter(BaseFilter):
                     optional=True,
                     default_value="",
                 ),
+                self.KEY_SUBJECT_LABEL: Parameter(
+                    validators=[
+                        isinstance_validator(str),
+                        regex_validator("^[A-Za-z0-9\\-]+$"),
+                    ],
+                    optional=True,
+                    default_value="001",
+                ),
             }
         )
         # validate the inputs
@@ -456,9 +577,7 @@ class BidsOutputFilter(BaseFilter):
                     validators=from_list_validator(SUPPORTED_IMAGE_TYPES)
                 ),
                 MODALITY: Parameter(
-                    validators=from_list_validator(
-                        self.SUPPORTED_STRUCT_MODALITY_LABELS
-                    ),
+                    validators=from_list_validator(SUPPORTED_STRUCT_MODALITY_LABELS),
                     optional=True,
                 ),
                 self.SERIES_NUMBER: Parameter(
@@ -604,7 +723,7 @@ class BidsOutputFilter(BaseFilter):
                             "if 'background_suppression' is True"
                         )
                 elif (
-                    # TODO: this shoudl catch the case where it is 0 but doesn't
+                    # Catch the case where it is 0 because False is a subclass of int
                     (
                         metadata.get(
                             BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION
@@ -678,3 +797,29 @@ class BidsOutputFilter(BaseFilter):
             if all("m0scan" in s for s in asl_context):
                 modality_label = "m0scan"
         return modality_label
+
+    @staticmethod
+    def readme_canned_text() -> str:
+        """Outputs canned text for the dataset readme"""
+
+        readme = """
+This dataset has been generated by ASLDRO, software that can generate digital reference
+objects for Arterial Spin Labelling (ASL) MRI.
+
+It creates synthetic raw ASL data according to set acquisition and data format parameters, based
+on input ground truth maps for:
+
+* Perfusion rate
+* Transit time
+* Intrinsic MRI parameters: M0, T1, T2, T2\\*
+* Tissue segmentation (defined as a single tissue type per voxel)
+
+For more information on ASLDRO please visit:
+
+* github: https://github.com/gold-standard-phantoms/asldro
+* pypi: https://pypi.org/project/asldro/
+* documentation: https://asldro.readthedocs.io/
+
+This dataset comprises of the following image series:
+"""
+        return readme

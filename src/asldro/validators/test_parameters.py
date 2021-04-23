@@ -370,6 +370,8 @@ def test_regex_validator():
     assert not validator("Cog")
     assert str(validator) == "Value must match pattern ^COW|dog|CaT$ (ignoring case)"
 
+    assert not validator(1)
+
 
 def test_reserved_string_list_validator_creator():
     """ Test the reserved string list validator creator """
@@ -493,10 +495,7 @@ def test_or_validator_creator():
 def test_or_validator():
     """Test the or_validator"""
     validator = or_validator(
-        [
-            range_inclusive_validator(0, 1),
-            range_exclusive_validator(100, 200),
-        ]
+        [range_inclusive_validator(0, 1), range_exclusive_validator(100, 200),]
     )
     assert (
         str(validator) == "Value(s) must be between 0 and 1 (inclusive) OR "
@@ -513,7 +512,6 @@ def test_or_validator():
     assert validator(150)
     assert validator(199.9)
     assert not validator(200)
-
 
 
 def test_parameter_validator_valid():

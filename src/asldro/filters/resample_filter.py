@@ -1,5 +1,4 @@
 """ Resample Filter """
-
 import numpy as np
 from nilearn.image import resample_img
 import nibabel as nib
@@ -64,13 +63,19 @@ class ResampleFilter(BaseFilter):
 
     def _run(self):
         # Clone the image and perform the resampling
-        resampled_image = self.inputs[self.KEY_IMAGE].as_nifti().clone()
+        resampled_image: BaseImageContainer = self.inputs[self.KEY_IMAGE].as_nifti().clone()
         resampled_image.nifti_image = resample_img(
             resampled_image.nifti_image,
             target_affine=self.inputs[self.KEY_AFFINE],
             target_shape=self.inputs[self.KEY_SHAPE],
             interpolation=self.inputs[self.KEY_INTERPOLATION],
         )
+        # set the xyzt_units to that of the input image as resample_img doesn't
+        # do this automatically
+
+        resampled_image.space_units = self.inputs[self.KEY_IMAGE].space_units
+        resampled_image.time_units = self.inputs[self.KEY_IMAGE].time_units
+
         self.outputs[self.KEY_IMAGE] = resampled_image
         self.outputs[self.KEY_IMAGE].metadata["voxel_size"] = list(
             nib.affines.voxel_sizes(resampled_image.nifti_image.affine)

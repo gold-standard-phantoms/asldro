@@ -27,15 +27,26 @@ def fixture_image_containers():
     `odd` is always equal to 1.5, but is only present in even indices, 
     the final image container has an extra `foo` metadata field.
     """
+    # create a dummy nifti image for the header
+    dummy_nifti = nib.Nifti1Image(dataobj=np.ones((2, 3, 4)), affine=np.eye(4))
+    dummy_nifti.header.set_xyzt_units("mm", "sec")
     num_image_containers = 10
     image_containers = {
         f"image_{''.join(['0' for _ in range(i)]) + str(i)}": NiftiImageContainer(
-            nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * i, affine=np.eye(4)),
+            nifti_img=nib.Nifti1Image(
+                dataobj=np.ones((2, 3, 4)) * i,
+                affine=np.eye(4),
+                header=dummy_nifti.header,
+            ),
             metadata={"to_list": i, "to_singleton": 10, "even": i},
         )
         if i % 2 == 0
         else NiftiImageContainer(
-            nifti_img=nib.Nifti1Image(dataobj=np.ones((2, 3, 4)) * i, affine=np.eye(4)),
+            nifti_img=nib.Nifti1Image(
+                dataobj=np.ones((2, 3, 4)) * i,
+                affine=np.eye(4),
+                header=dummy_nifti.header,
+            ),
             metadata={"to_list": i, "to_singleton": 10, "odd": 1.5},
         )
         for i in range(num_image_containers)
@@ -72,6 +83,9 @@ def test_combine_time_series_filter_good_input(
 
     # Check the image_type has been set correctly
     assert container.image_type == image_containers["image_0"].image_type
+
+    # Check the nifti's xyzt_units have been preserved
+    assert container.nifti_image.header.get_xyzt_units() == ("mm", "sec")
 
 
 def test_combine_time_series_filter_repeat_index(

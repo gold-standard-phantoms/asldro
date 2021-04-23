@@ -1,21 +1,35 @@
 {
   "type": "object",
-  "required": ["global_configuration", "image_series"],
+  "required": [
+    "global_configuration",
+    "image_series"
+  ],
   "properties": {
     "global_configuration": {
       "type": "object",
-      "required": ["ground_truth"],
+      "required": [
+        "ground_truth"
+      ],
       "properties": {
         "ground_truth": {
           "anyOf": [
-            { "type": "string" },
+            {
+              "type": "string"
+            },
             {
               "type": "object",
-              "required": ["nii", "json"],
+              "required": [
+                "nii",
+                "json"
+              ],
               "additionalProperties": false,
               "properties": {
-                "nii": { "type": "string" },
-                "json": { "type": "string" }
+                "nii": {
+                  "type": "string"
+                },
+                "json": {
+                  "type": "string"
+                }
               }
             }
           ]
@@ -23,13 +37,17 @@
         "image_override": {
           "type": "object",
           "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "number"
+            }
           }
         },
         "parameter_override": {
           "type": "object",
           "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*$": { "type": "number" }
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "number"
+            }
           }
         },
         "ground_truth_modulate": {
@@ -38,11 +56,19 @@
             "^[A-Za-z_][A-Za-z0-9_]*$": {
               "type": "object",
               "properties": {
-                "scale": { "type": "number" },
-                "offset": { "type": "number" }
+                "scale": {
+                  "type": "number"
+                },
+                "offset": {
+                  "type": "number"
+                }
               }
             }
           }
+        },
+        "subject_label": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9\\-]+$"
         }
       },
       "additionalProperties": false
@@ -51,13 +77,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["series_type"],
+        "required": [
+          "series_type"
+        ],
         "properties": {
           "series_type": {
             "type": "string",
-            "enum": ["asl", "structural", "ground_truth"]
+            "enum": [
+              "asl",
+              "structural",
+              "ground_truth"
+            ]
           },
-          "series_description": { "type": "string" },
+          "series_description": {
+            "type": "string"
+          },
           "series_parameters": {
             "type": "object"
           }
