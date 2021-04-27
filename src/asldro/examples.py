@@ -1,7 +1,9 @@
 """ The main ASLDRO pipeline """
+import pdb
 import pprint
 import logging
 import shutil
+from copy import deepcopy
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -139,31 +141,6 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 "Running DRO generation with the following parameters:\n%s",
                 pprint.pformat(asl_params),
             )
-
-            # Run the GkmFilter on the ground_truth data
-            gkm_filter = GkmFilter()
-            # Add ground truth parameters from the ground_truth_filter: perfusion_rate, transit_time
-            # m0,lambda_blood_brain, t1_arterial_blood all have the same keys; t1 maps
-            # to t1_tissue
-            gkm_filter.add_parent_filter(
-                parent=ground_truth_filter,
-                io_map={
-                    "perfusion_rate": gkm_filter.KEY_PERFUSION_RATE,
-                    "transit_time": gkm_filter.KEY_TRANSIT_TIME,
-                    "m0": gkm_filter.KEY_M0,
-                    "t1": gkm_filter.KEY_T1_TISSUE,
-                    "lambda_blood_brain": gkm_filter.KEY_LAMBDA_BLOOD_BRAIN,
-                    "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
-                },
-            )
-            # Add parameters from the input_params: label_type, signal_time, label_duration and
-            # label_efficiency all have the same keys
-            gkm_filter.add_inputs(asl_params)
-            # reverse the polarity of delta_m.image for encoding it into the label signal
-            invert_delta_m_filter = InvertImageFilter()
-            invert_delta_m_filter.add_parent_filter(
-                parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
-            )
             # Create one-time data that is required by the Acquisition Loop
             # 1. m0 resampled at the acquisition resolution
             m0_resample_filter = TransformResampleImageFilter()
@@ -175,8 +152,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 TransformResampleImageFilter.KEY_TARGET_SHAPE,
                 tuple(asl_params["acq_matrix"]),
             )
-
-            # determine if background suppression is to be performed
+            # 2. determine if background suppression is to be performed
+            # if so then generate the suppressed static magnetisation
             do_bs = False
             if asl_params[BACKGROUND_SUPPRESSION]:
                 do_bs = True
@@ -218,124 +195,179 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                     },
                 )
 
-            # Acquisition Loop: loop over ASL context, run the AcquireMriImageFilter and put the
-            # output image into the CombineTimeSeriesFilter
+            # initialise combine time series filter outside of both loops
             combine_time_series_filter = CombineTimeSeriesFilter()
-            for idx, asl_context in enumerate(asl_params["asl_context"].split()):
-                acquire_mri_image_filter = AcquireMriImageFilter()
-                # check that background suppression is enabled, and that it should be run
-                # for the current ``asl_context```
-                if do_bs and (
-                    asl_context
-                    in asl_params[BACKGROUND_SUPPRESSION].get(BS_APPLY_TO_ASL_CONTEXT)
+            # if "signal_time" is a singleton, copy and place in a list
+
+            if isinstance(asl_params["signal_time"], (float, int)):
+                signal_time_list = [deepcopy(asl_params["signal_time"])]
+            else:
+                # otherwise it is a list so copy the entire list
+                signal_time_list = deepcopy(asl_params["signal_time"])
+
+            vol_index = 0
+
+            # Multiphase ASL Loop: loop over signal_time_list
+            for multiphase_index, t in enumerate(signal_time_list):
+                # place the loop value for signal_time into the asl_params dict
+                asl_params["signal_time"] = t
+                # Run the GkmFilter on the ground_truth data
+                gkm_filter = GkmFilter()
+                # Add ground truth parameters from the ground_truth_filter: perfusion_rate, transit_time
+                # m0,lambda_blood_brain, t1_arterial_blood all have the same keys; t1 maps
+                # to t1_tissue
+                gkm_filter.add_parent_filter(
+                    parent=ground_truth_filter,
+                    io_map={
+                        "perfusion_rate": gkm_filter.KEY_PERFUSION_RATE,
+                        "transit_time": gkm_filter.KEY_TRANSIT_TIME,
+                        "m0": gkm_filter.KEY_M0,
+                        "t1": gkm_filter.KEY_T1_TISSUE,
+                        "lambda_blood_brain": gkm_filter.KEY_LAMBDA_BLOOD_BRAIN,
+                        "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
+                    },
+                )
+                # Add parameters from the input_params: label_type, signal_time, label_duration and
+                # label_efficiency all have the same keys
+                gkm_filter.add_inputs(asl_params)
+                # reverse the polarity of delta_m.image for encoding it into the label signal
+                invert_delta_m_filter = InvertImageFilter()
+                invert_delta_m_filter.add_parent_filter(
+                    parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
+                )
+
+                # ASL Context Loop: loop over ASL context, run the AcquireMriImageFilter and put the
+                # output image into the CombineTimeSeriesFilter
+
+                for asl_context_index, asl_context in enumerate(
+                    asl_params["asl_context"].split()
                 ):
-                    # map all inputs except for m0
-                    acquire_mri_image_filter.add_parent_filter(
-                        parent=ground_truth_filter,
+                    acquire_mri_image_filter = AcquireMriImageFilter()
+                    # check that background suppression is enabled, and that it should be run
+                    # for the current ``asl_context```
+                    if do_bs and (
+                        asl_context
+                        in asl_params[BACKGROUND_SUPPRESSION].get(
+                            BS_APPLY_TO_ASL_CONTEXT
+                        )
+                    ):
+                        # map all inputs except for m0
+                        acquire_mri_image_filter.add_parent_filter(
+                            parent=ground_truth_filter,
+                            io_map={
+                                key: key
+                                for key in ground_truth_filter.outputs.keys()
+                                if key != "m0"
+                            },
+                        )
+                        # get m0 from bs
+                        acquire_mri_image_filter.add_parent_filter(
+                            parent=bs_filter,
+                            io_map={
+                                BackgroundSuppressionFilter.KEY_MAG_Z: AcquireMriImageFilter.KEY_M0,
+                            },
+                        )
+                    else:
+                        # map all inputs from the ground truth
+                        acquire_mri_image_filter.add_parent_filter(
+                            parent=ground_truth_filter
+                        )
+
+                    # map inputs from asl_params. acq_contrast, excitation_flip_angle, desired_snr,
+                    # inversion_time, inversion_flip_angle (last 2 are optional)
+                    acquire_mri_image_filter.add_inputs(
+                        asl_params,
                         io_map={
-                            key: key
-                            for key in ground_truth_filter.outputs.keys()
-                            if key != "m0"
+                            "acq_contrast": AcquireMriImageFilter.KEY_ACQ_CONTRAST,
+                            "excitation_flip_angle": AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
+                            "desired_snr": AcquireMriImageFilter.KEY_SNR,
+                            "inversion_time": AcquireMriImageFilter.KEY_INVERSION_TIME,
+                            "inversion_flip_angle": AcquireMriImageFilter.KEY_INVERSION_FLIP_ANGLE,
+                        },
+                        io_map_optional=True,
+                    )
+
+                    # if asl_context == "label" use the inverted delta_m as
+                    # the input MriSignalFilter.KEY_MAG_ENC
+                    if asl_context.lower() == "label":
+                        acquire_mri_image_filter.add_parent_filter(
+                            parent=invert_delta_m_filter,
+                            io_map={"image": AcquireMriImageFilter.KEY_MAG_ENC},
+                        )
+                    # set the image flavour to "PERFUSION"
+                    acquire_mri_image_filter.add_input(
+                        AcquireMriImageFilter.KEY_IMAGE_FLAVOUR, "PERFUSION"
+                    )
+                    # build acquisition loop parameter dictionary - parameters that cannot be directly
+                    # mapped
+                    acq_loop_params = {
+                        AcquireMriImageFilter.KEY_ECHO_TIME: asl_params["echo_time"][
+                            asl_context_index
+                        ],
+                        AcquireMriImageFilter.KEY_REPETITION_TIME: asl_params[
+                            "repetition_time"
+                        ][asl_context_index],
+                        AcquireMriImageFilter.KEY_ROTATION: (
+                            asl_params["rot_x"][asl_context_index],
+                            asl_params["rot_y"][asl_context_index],
+                            asl_params["rot_z"][asl_context_index],
+                        ),
+                        AcquireMriImageFilter.KEY_TRANSLATION: (
+                            asl_params["transl_x"][asl_context_index],
+                            asl_params["transl_y"][asl_context_index],
+                            asl_params["transl_z"][asl_context_index],
+                        ),
+                        AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
+                            asl_params["acq_matrix"]
+                        ),
+                        AcquireMriImageFilter.KEY_INTERPOLATION: asl_params[
+                            "interpolation"
+                        ],
+                    }
+                    # add these inputs to the filter
+                    acquire_mri_image_filter.add_inputs(acq_loop_params)
+                    # map the reference_image for the noise generation to the m0 ground truth.
+                    acquire_mri_image_filter.add_parent_filter(
+                        m0_resample_filter,
+                        io_map={
+                            m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
                         },
                     )
-                    # get m0 from bs
-                    acquire_mri_image_filter.add_parent_filter(
-                        parent=bs_filter,
-                        io_map={
-                            BackgroundSuppressionFilter.KEY_MAG_Z: AcquireMriImageFilter.KEY_M0,
+                    append_metadata_filter = AppendMetadataFilter()
+
+                    if asl_params["output_image_type"] == "magnitude":
+                        # if 'output_image_type' is 'magnitude' use the phase_magnitude filter
+                        phase_magnitude_filter = PhaseMagnitudeFilter()
+                        phase_magnitude_filter.add_parent_filter(
+                            acquire_mri_image_filter
+                        )
+                        append_metadata_filter.add_parent_filter(
+                            phase_magnitude_filter, io_map={"magnitude": "image"}
+                        )
+                    else:
+                        # otherwise just pass on the complex data
+                        append_metadata_filter.add_parent_filter(
+                            acquire_mri_image_filter
+                        )
+
+                    append_metadata_filter.add_input(
+                        AppendMetadataFilter.KEY_METADATA,
+                        {
+                            "series_description": image_series["series_description"],
+                            "series_type": image_series["series_type"],
+                            "series_number": series_number,
+                            "asl_context": asl_context,
+                            "multiphase_index": multiphase_index,
                         },
                     )
-                else:
-                    # map all inputs from the ground truth
-                    acquire_mri_image_filter.add_parent_filter(
-                        parent=ground_truth_filter
+
+                    # Add the acqusition pipeline to the combine time series filter
+                    combine_time_series_filter.add_parent_filter(
+                        parent=append_metadata_filter,
+                        io_map={"image": f"image_{vol_index}"},
                     )
-
-                # map inputs from asl_params. acq_contrast, excitation_flip_angle, desired_snr,
-                # inversion_time, inversion_flip_angle (last 2 are optional)
-                acquire_mri_image_filter.add_inputs(
-                    asl_params,
-                    io_map={
-                        "acq_contrast": AcquireMriImageFilter.KEY_ACQ_CONTRAST,
-                        "excitation_flip_angle": AcquireMriImageFilter.KEY_EXCITATION_FLIP_ANGLE,
-                        "desired_snr": AcquireMriImageFilter.KEY_SNR,
-                        "inversion_time": AcquireMriImageFilter.KEY_INVERSION_TIME,
-                        "inversion_flip_angle": AcquireMriImageFilter.KEY_INVERSION_FLIP_ANGLE,
-                    },
-                    io_map_optional=True,
-                )
-
-                # if asl_context == "label" use the inverted delta_m as
-                # the input MriSignalFilter.KEY_MAG_ENC
-                if asl_context.lower() == "label":
-                    acquire_mri_image_filter.add_parent_filter(
-                        parent=invert_delta_m_filter,
-                        io_map={"image": AcquireMriImageFilter.KEY_MAG_ENC},
-                    )
-                # set the image flavour to "PERFUSION"
-                acquire_mri_image_filter.add_input(
-                    AcquireMriImageFilter.KEY_IMAGE_FLAVOUR, "PERFUSION"
-                )
-                # build acquisition loop parameter dictionary - parameters that cannot be directly
-                # mapped
-                acq_loop_params = {
-                    AcquireMriImageFilter.KEY_ECHO_TIME: asl_params["echo_time"][idx],
-                    AcquireMriImageFilter.KEY_REPETITION_TIME: asl_params[
-                        "repetition_time"
-                    ][idx],
-                    AcquireMriImageFilter.KEY_ROTATION: (
-                        asl_params["rot_x"][idx],
-                        asl_params["rot_y"][idx],
-                        asl_params["rot_z"][idx],
-                    ),
-                    AcquireMriImageFilter.KEY_TRANSLATION: (
-                        asl_params["transl_x"][idx],
-                        asl_params["transl_y"][idx],
-                        asl_params["transl_z"][idx],
-                    ),
-                    AcquireMriImageFilter.KEY_TARGET_SHAPE: tuple(
-                        asl_params["acq_matrix"]
-                    ),
-                    AcquireMriImageFilter.KEY_INTERPOLATION: asl_params[
-                        "interpolation"
-                    ],
-                }
-                # add these inputs to the filter
-                acquire_mri_image_filter.add_inputs(acq_loop_params)
-                # map the reference_image for the noise generation to the m0 ground truth.
-                acquire_mri_image_filter.add_parent_filter(
-                    m0_resample_filter,
-                    io_map={
-                        m0_resample_filter.KEY_IMAGE: AcquireMriImageFilter.KEY_REF_IMAGE
-                    },
-                )
-                append_metadata_filter = AppendMetadataFilter()
-
-                if asl_params["output_image_type"] == "magnitude":
-                    # if 'output_image_type' is 'magnitude' use the phase_magnitude filter
-                    phase_magnitude_filter = PhaseMagnitudeFilter()
-                    phase_magnitude_filter.add_parent_filter(acquire_mri_image_filter)
-                    append_metadata_filter.add_parent_filter(
-                        phase_magnitude_filter, io_map={"magnitude": "image"}
-                    )
-                else:
-                    # otherwise just pass on the complex data
-                    append_metadata_filter.add_parent_filter(acquire_mri_image_filter)
-
-                append_metadata_filter.add_input(
-                    AppendMetadataFilter.KEY_METADATA,
-                    {
-                        "series_description": image_series["series_description"],
-                        "series_type": image_series["series_type"],
-                        "series_number": series_number,
-                        "asl_context": asl_context,
-                    },
-                )
-
-                # Add the acqusition pipeline to the combine time series filter
-                combine_time_series_filter.add_parent_filter(
-                    parent=append_metadata_filter, io_map={"image": f"image_{idx}"}
-                )
+                    # increment the volume index
+                    vol_index += 1
 
             combine_time_series_filter.run()
             acquired_timeseries_nifti_container: NiftiImageContainer = (
@@ -507,7 +539,7 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
 
     # Output everything to a temporary directory
     with TemporaryDirectory() as temp_dir:
-        for idx, image_to_output in enumerate(output_image_list):
+        for asl_context_index, image_to_output in enumerate(output_image_list):
             bids_output_filter = BidsOutputFilter()
             bids_output_filter.add_input(
                 BidsOutputFilter.KEY_OUTPUT_DIRECTORY, temp_dir

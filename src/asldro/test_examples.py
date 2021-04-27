@@ -54,16 +54,22 @@ def test_run_extended_pipeline():
 
 
 @pytest.mark.slow
-def test_run_asl_pipeline_snr_zero():
-    """Runs the full ASL DRO pipeline with the SNR=zero to check this works"""
+def test_run_asl_pipeline_multiphase():
+    """Runs the full ASL DRO pipeline for muliphase ASL 
+    with the SNR=zero to check this works"""
     input_params = get_example_input_params()
-
-    input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
     # remove the ground truth and structural image series
     input_params["image_series"] = [
         x for x in input_params["image_series"] if x["series_type"] in ["asl"]
     ]
-    dro_out = run_full_pipeline(input_params=input_params)
+    input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
+    input_params["image_series"][0]["series_parameters"]["signal_time"] = [
+        1.0,
+        1.25,
+        1.5,
+    ]
+
+    run_full_pipeline(input_params=input_params)
 
 
 @pytest.mark.slow
