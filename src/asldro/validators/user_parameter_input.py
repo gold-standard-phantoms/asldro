@@ -276,7 +276,13 @@ IMAGE_TYPE_VALIDATOR = {
                 validators=range_inclusive_validator(0, 100), default_value=1.8
             ),
             SIGNAL_TIME: Parameter(
-                validators=range_inclusive_validator(0, 100), default_value=3.6
+                validators=or_validator(
+                    [
+                        range_inclusive_validator(0, 100),
+                        for_each_validator(range_inclusive_validator(0, 100)),
+                    ]
+                ),
+                default_value=3.6,
             ),
             LABEL_EFFICIENCY: Parameter(
                 validators=range_inclusive_validator(0, 1), default_value=0.85

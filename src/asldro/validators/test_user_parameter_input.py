@@ -490,3 +490,20 @@ def test_user_parameter_input_background_suppression():
         "inv_pulse_times": [0.05, 1.0, 1.5],
         "apply_to_asl_context": ["label", "control"],
     }
+
+
+def test_user_parameter_input_signal_time_list():
+    """Tests the background suppression parameters"""
+    p = get_example_input_params()
+    # set "signal_time" to a valid list of times
+    lab_dur = 1.8
+    pld = [0.25, 0.5, 0.75, 1.0]
+    p["image_series"][0]["series_parameters"]["signal_time"] = [
+        t + lab_dur for t in pld
+    ]
+    validate_input_params(p)
+
+    # try numbers that are out of range
+    p["image_series"][0]["series_parameters"]["signal_time"] = [-1.0, 0, 1.0]
+    with pytest.raises(ValidationError):
+        validate_input_params(p)

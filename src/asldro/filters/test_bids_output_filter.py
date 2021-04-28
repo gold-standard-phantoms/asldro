@@ -70,6 +70,23 @@ METDATA_VALIDATION_DICT_CASL_BS = {
     ],
 }
 
+METDATA_VALIDATION_DICT_MULTIPHASE_CASL = {
+    "series_number": [False, 1, "001", 1.0],
+    "series_type": [False, "asl", "struct", 1],
+    "asl_context": [False, ["m0scan", "control", "label"], 1, "str"],
+    "label_duration": [False, 1.8, 1, "str"],
+    "label_type": [False, "pcasl", 1, TEST_NIFTI_ONES],
+    "image_flavour": [False, "PERFUSION", 1, TEST_NIFTI_ONES],
+    "post_label_delay": [
+        False,
+        [0.5, None, 1.0, None, 1.5, None],
+        [0.5, 0.6, 1.0, None, 1.5, None],
+        [0.5, 1.0, 1.5],
+        "str",
+    ],
+    "multiphase_index": [False, [0, 0, 1, 1, 2, 2], [0, 1, 2]],
+}
+
 METDATA_VALIDATION_DICT_PASL = {
     "series_number": [False, 1, "001", 1.0],
     "series_type": [False, "asl", "struct", 1],
@@ -129,6 +146,7 @@ def test_bids_output_filter_validate_inputs():
         METDATA_VALIDATION_DICT_PASL,
         METDATA_VALIDATION_DICT_GROUND_TRUTH,
         METDATA_VALIDATION_DICT_CASL_BS,
+        METDATA_VALIDATION_DICT_MULTIPHASE_CASL
     ],
 )
 def test_bids_output_filter_validate_metadata(validation_metadata: dict):
@@ -363,6 +381,114 @@ def test_bids_output_filter_mock_data_asl(asl_input):
             "control\n",
             "label",
         ]
+
+
+def test_bids_output_filter_mock_data_asl_multiphase(asl_input):
+    """ Tests the BidsOutputFilter with some mock data """
+    # test with PLD's in ascending order
+    image = deepcopy(asl_input[0])
+    # mock multiphase data comprising 3 PLD's,
+    # m0scan, control and label for each PLD.
+    image.metadata["post_label_delay"] = [
+        None,
+        None,
+        1.0,
+        None,
+        None,
+        1.5,
+        None,
+        None,
+        2.0,
+    ]
+    image.metadata["multiphase_index"] = [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    image.metadata[
+        "asl_context"
+    ] = "m0scan control label m0scan control label m0scan control label".split()
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["PostLabelingDelay"], [1.0, 1.5, 2.0,]
+        )
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["MultiphaseIndex"],
+            [0, 0, 0, 1, 1, 1, 2, 2, 2,],
+        )
+
+    # test with PLD's in descending order
+    image.metadata["post_label_delay"] = [
+        None,
+        None,
+        2.0,
+        None,
+        None,
+        1.5,
+        None,
+        None,
+        1.0,
+    ]
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["PostLabelingDelay"], [2.0, 1.5, 1.0,]
+        )
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["MultiphaseIndex"],
+            [0, 0, 0, 1, 1, 1, 2, 2, 2,],
+        )
+    
+     # test with PLD's repeated
+    image.metadata["post_label_delay"] = [
+        None,
+        None,
+        2.0,
+        None,
+        None,
+        1.5,
+        None,
+        None,
+        2.0,
+    ]
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["PostLabelingDelay"], [2.0, 1.5, 2.0,]
+        )
+        numpy.testing.assert_array_equal(
+            bids_output_filter.outputs["sidecar"]["MultiphaseIndex"],
+            [0, 0, 0, 1, 1, 1, 2, 2, 2,],
+        )
+
+    # check that background suppression values are correctly calculated
+    # labeling duration is 1.8, max PLD is 2.0s
+    inv_pulse_times = [0.4, 1.1, 1.7]
+    image.metadata["background_suppression"] = True
+    image.metadata["background_suppression_inv_pulse_timing"] = inv_pulse_times
+    with TemporaryDirectory() as temp_dir:
+        bids_output_filter = BidsOutputFilter()
+        bids_output_filter.add_input("image", image)
+        bids_output_filter.add_input("output_directory", temp_dir)
+        bids_output_filter.add_input("filename_prefix", "prefix")
+        bids_output_filter.run()
+
+        numpy.testing.assert_array_almost_equal(
+            bids_output_filter.outputs["sidecar"]["BackgroundSuppressionPulseTime"],
+            [3.4, 2.7, 2.1],
+        )
 
 
 def test_bids_output_filter_m0_float(asl_input):

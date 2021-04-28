@@ -26,6 +26,8 @@ from asldro.validators.parameters import (
     greater_than_equal_to_validator,
     for_each_validator,
     regex_validator,
+    or_validator,
+    non_empty_list_validator,
 )
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
@@ -135,8 +137,9 @@ class BidsOutputFilter(BaseFilter):
     :param 'label_duration': duration of the labelling pulse in seconds.
     :type 'label_duration': float
     :param 'post_label_delay: delay time following the labelling pulse before the acquisition in
-        seconds.
-    :type 'post_label_delay': float
+        seconds. For multiphase ASL these values are supplied as a list, where entries are either
+        numeric or equal to ``None``. 
+    :type 'post_label_delay': float or List containg either float or ``None``.
     :param 'label_efficiency': the degree of inversion of the magnetisation (between 0 and 1)
     :type 'label_efficiency': float
     :param 'image_flavour': a string that is used as the third entry in the BIDS field ``ImageType``
@@ -149,15 +152,29 @@ class BidsOutputFilter(BaseFilter):
     :param 'background_suppression_inv_pulse_timing': A list of inversion pulse timings for the
       background suppression pulses. Required if ``'background_suppression'`` is True.
     :type 'background_suppression_inv_pulse_timing': list[float]
+    :param 'multiphase_index': Array of the index in the multiphase loop when the volume was
+      acquired. Only required if ``post_label_delay`` is a list and has length > 1
+    :type 'multiphase_index': int or List[int]
+
+    In a multiphase ASL image is supplied (more than one PLD), then there are additional validation
+    checks:
+
+    * The length of ``multiphase_index`` and ``post_label_delay`` must the the same.
+    * All values of ``post_label_delay`` corresponding to a given ``multiphase_index``
+      that are not equal to ``None`` must be the same.
 
     Input image metadata will be mapped to corresponding BIDS fields. See
     :class:`BidsOutputFilter.BIDS_MAPPING` for this mapping.
 
+    Note that for multiphase ASL with background suppression, the BIDS timings are calculated based
+    on the longest post labelling delay.
+
     **dataset_description.json**
 
-    If it does not exist already, when run the filter will create the file ``dataset_description.json``
-    at the root of the output directory. This contains the
-    information contained in :class:`BidsOutputFilter.DATASET_DESCRIPTION`.
+    If it does not exist already, when run the filter will create the file
+    ``dataset_description.json`` at the root of the output directory.
+    This contains the information contained in 
+    :class:`BidsOutputFilter.DATASET_DESCRIPTION`.
 
     **README**
     
@@ -218,6 +235,7 @@ class BidsOutputFilter(BaseFilter):
         BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         BackgroundSuppressionFilter.M_BSUP_NUM_PULSES: "BackgroundSuppressionNumberPulses",
         BackgroundSuppressionFilter.M_BSUP_SAT_PULSE_TIMING: "BackgroundSuppressionSatPulseTime",
+        "multiphase_index": "MultiphaseIndex",
     }
 
     # maps ASLDRO MRI contrast to BIDS contrast names
@@ -367,15 +385,49 @@ class BidsOutputFilter(BaseFilter):
                     "NONE",
                 ]
 
+                # if the data is multiphase then the sidecar needs some editing to ensure
+                # post label delay is correctly dealt with
+                if isinstance(json_sidecar["PostLabelingDelay"], list):
+                    if len(json_sidecar["PostLabelingDelay"]) > 1:
+                        unique_mpindex = np.unique(json_sidecar["MultiphaseIndex"])
+                        new_pld_array = []
+                        for index in unique_mpindex:
+                            mp_index_pld_vals = [
+                                val
+                                for idx, val in enumerate(
+                                    json_sidecar["PostLabelingDelay"]
+                                )
+                                if json_sidecar["MultiphaseIndex"][idx] == index
+                                and val is not None
+                            ]
+                            new_pld_array.append(mp_index_pld_vals[0])
+                        json_sidecar["PostLabelingDelay"] = new_pld_array
+
+                        # indexes = np.unique(
+                        #     np.asarray(
+                        #         json_sidecar["PostLabelingDelay"], dtype=np.float
+                        #     ),
+                        #     return_index=True,
+                        # )[1]
+                        # # np.unique returns sorted values, we want them in the order they
+                        # # come in
+                        # json_sidecar["PostLabelingDelay"] = [
+                        #     json_sidecar["PostLabelingDelay"][index]
+                        #     for index in sorted(indexes)
+                        #     if json_sidecar["PostLabelingDelay"][index] is not None
+                        # ]
+                else:
+                    # data is single phase, so if MultiphaseIndex is present, remove
+                    json_sidecar.pop("MultiphaseIndex", None)
+
                 # do some things for background suppression
                 if json_sidecar.get("BackgroundSuppression", False):
                     # calculate the inversion pulse timings with respect to the start of
                     # the labelling pulse (which occurs
                     # LabelingDuration + PostLabelingDelay before the excitation pulse)
-                    label_and_pld_dur = (
-                        json_sidecar["LabelingDuration"]
-                        + json_sidecar["PostLabelingDelay"]
-                    )
+                    # use the maximum PLD to cover case where data is multiphase
+                    max_pld = np.max(json_sidecar["PostLabelingDelay"])
+                    label_and_pld_dur = json_sidecar["LabelingDuration"] + max_pld
                     inv_pulse_times = label_and_pld_dur - np.asarray(
                         image.metadata[
                             BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING
@@ -596,13 +648,19 @@ class BidsOutputFilter(BaseFilter):
                     validators=isinstance_validator(float), optional=True
                 ),
                 GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: Parameter(
-                    validators=isinstance_validator(float), optional=True
+                    validators=or_validator(
+                        [isinstance_validator(float), non_empty_list_validator()]
+                    ),
+                    optional=True,
                 ),
                 GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: Parameter(
                     validators=isinstance_validator(bool), optional=True
                 ),
                 GkmFilter.KEY_POST_LABEL_DELAY: Parameter(
-                    validators=isinstance_validator(float), optional=True
+                    validators=or_validator(
+                        [isinstance_validator(float), non_empty_list_validator()]
+                    ),
+                    optional=True,
                 ),
                 GkmFilter.KEY_LABEL_EFFICIENCY: Parameter(
                     validators=isinstance_validator(float), optional=True
@@ -621,6 +679,15 @@ class BidsOutputFilter(BaseFilter):
                 ),
                 BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: Parameter(
                     validators=for_each_validator(greater_than_equal_to_validator(0)),
+                    optional=True,
+                ),
+                "multiphase_index": Parameter(
+                    validators=or_validator(
+                        [
+                            for_each_validator(isinstance_validator(int)),
+                            isinstance_validator(int),
+                        ]
+                    ),
                     optional=True,
                 ),
             }
@@ -740,6 +807,41 @@ class BidsOutputFilter(BaseFilter):
                     raise FilterInputValidationError(
                         "'BackgroundSuppression should be a bool"
                     )
+
+                # validation specific for multiphase ASL
+                if isinstance(metadata.get(GkmFilter.KEY_POST_LABEL_DELAY), list):
+                    if len(metadata.get(GkmFilter.KEY_POST_LABEL_DELAY)) > 1:
+                        if metadata.get("multiphase_index") is None:
+                            raise FilterInputValidationError(
+                                "metadata field 'multiphase_index' is required for 'series_type'"
+                                + "and 'modality' is 'asl', and 'post_label_delay' has length > 1"
+                            )
+                        if not len(metadata.get("multiphase_index")) == len(
+                            metadata.get(GkmFilter.KEY_POST_LABEL_DELAY)
+                        ):
+                            raise FilterInputValidationError(
+                                "For 'series_type' and 'modality' 'asl', and if 'post_label_delay' has length > 1"
+                                "'multiphase_index' must have the same length as 'post_label_delay'"
+                            )
+                        # for each multiphase index, the values of post_label_delay should all be the
+                        # same or none
+                        unique_mpindex = np.unique(metadata["multiphase_index"])
+
+                        for index in unique_mpindex:
+                            mp_index_pld_vals = [
+                                val
+                                for idx, val in enumerate(metadata["post_label_delay"])
+                                if metadata["multiphase_index"][idx] == index
+                                and val is not None
+                            ]
+                            if not np.all(
+                                np.asarray(mp_index_pld_vals) == mp_index_pld_vals[0]
+                            ):
+                                raise FilterInputValidationError(
+                                    "For multiphase ASL data, at each multiphase index"
+                                    "all non-None values of 'post_label_delay' must be the"
+                                    "same "
+                                )
 
                 if metadata.get(GkmFilter.KEY_LABEL_TYPE) in (
                     GkmFilter.CASL,
