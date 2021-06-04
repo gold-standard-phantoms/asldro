@@ -13,6 +13,7 @@ Welcome to ASL DRO's documentation
    usage/dro_output
    usage/ground_truth
    usage/custom_ground_truth
+   usage/asl_quantification
    usage/development  
    api
 

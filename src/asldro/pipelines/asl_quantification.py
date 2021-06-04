@@ -3,6 +3,7 @@ import logging
 import os
 import json
 import nibabel as nib
+from asldro.filters.bids_output_filter import BidsOutputFilter
 from asldro.filters.json_loader import JsonLoaderFilter
 from asldro.filters.nifti_loader import NiftiLoaderFilter
 from asldro.filters.asl_quantification_filter import AslQuantificationFilter
@@ -13,10 +14,10 @@ from asldro.utils.general import splitext, map_dict
 PASL_DEFAULT_PARAMS = {
     "QuantificationModel": "whitepaper",
     "PostLabelingDelay": 1.8,
-    "BolusCutOffDelayTime": 0.98,
+    "LabelingEfficiency": 0.98,
     "BloodBrainPartitionCoefficient": 0.9,
-    "ArterialSpinLabelingType": "PCASL",
-    "LabelingDuration": 1.8,
+    "ArterialSpinLabelingType": "PASL",
+    "BolusCutOffDelayTime": 0.8,
 }
 CASL_DEFAULT_PARAMS = {
     "QuantificationModel": "whitepaper",
@@ -42,22 +43,72 @@ BIDS_TO_ASLDRO_MAPPING = {
     "BloodBrainPartitionCoefficient": "lambda_blood_brain",
     "T1ArterialBlood": "t1_arterial_blood",
     "ArterialSpinLabelingType": "label_type",
+    "BolusCutOffDelayTime": "label_duration",
 }
 
 
 def asl_quantification(
     asl_nifti_filename: str, quant_params_filename: str = None, output_dir: str = None
 ) -> dict:
-    """[summary]
+    """Performs ASL quantification on an ASL BIDS file, optionally using 
+    quantification parameters.
 
-    :param asl_image_filename: [description]
-    :type asl_image_filename: str
-    :param quant_params_filename: [description]
-    :type quant_params_filename: str
-    :param output_dir: [description], defaults to None
+    :param asl_nifti_filename: Filename of the ASL NIFTI file. It is assumed
+      that there are also corresponding *.json and *context.tsv files within
+      the same parent directory
+    :type asl_nifti_filename: str
+    :param quant_params_filename: Filename of the quantification parameter file
+    :type quant_params_filename: str, optional
+    :param output_dir: Directory to save the generated NIFTI and JSON sidecar,
+      files to, if not supplied then no files will be saved, defaults to None
     :type output_dir: str, optional
-    :return: [description]
+    :return: A dictionary with the following entries:
+
+        :image: (NiftiImageContainer) The quantified perfusion rate/CBF map.
+        :filenames: (dict) A dictionary containing the filenames of the saved
+          NIFTI and JSON sidecar files. Only present if the ``output_dr`` argument
+          is not ``None``.
+        :quantification_parameters: A dictionay containing entries with the actual
+          quantification parameters used. These are based on parameters contained
+          in the image, 
+
     :rtype: dict
+
+    The quantification parameters are:
+
+        :QuantificationModel: (string) defaults to "whitepaper" 
+          (see :class:`.AslQuantificationFilter`)
+        :ArterialSpinLabelingType: (string) "PCASL", "CASL" or "PASL"
+        :PostLabelingDelay: (float) The post labeling delay in seconds.
+        :LabelingDuration: (float) The label duration in seconds (pCASL/CASL only)
+        :BolusCutOffDelayTime: (float) The bolus cutoff delay time (PASL only)
+        :LabelingEfficiency: (float) The efficiency of the labeling pulse
+        :T1ArterialBlood: (float) If not supplied the default value is based on
+            the value of the BIDS field "MagneticFieldStrength":
+
+            :1.5 Tesla: 1.35s 
+            :3.0 Tesla: 1.65s
+
+    Valid ASL BIDS files should contain sufficient information to be able to 
+    calculate a CBF map. The order of precedence (1 = highest) for parameters
+    are:
+
+    1. Supplied quantification parameters
+    2. Parameters in the BIDS sidecar
+    3. Default parameters
+
+    Default quantification parameters for (p)CASL are:
+
+        :PostLabelingDelay: 1.8
+        :LabelingDuration: 1.8
+        :LabelingEfficiency: 0.85
+
+    Default quantification parameters for PASL are: 
+
+        :PostLabelingDelay: 1.8
+        :BolusCutOffDelayTime: 0.8
+        :LabelingEfficiency: 0.98
+
     """
     # load in the asl images and quantification parameters, validate against
     # the schema
@@ -128,7 +179,9 @@ def asl_quantification(
         ]
 
     asl_quantification_filter = AslQuantificationFilter()
-    asl_quantification_filter.add_inputs(map_dict(quant_params, BIDS_TO_ASLDRO_MAPPING))
+    asl_quantification_filter.add_inputs(
+        map_dict(quant_params, BIDS_TO_ASLDRO_MAPPING, io_map_optional=True)
+    )
     asl_quantification_filter.add_inputs(asl_bids_loader.outputs)
     asl_quantification_filter.run()
 
@@ -147,12 +200,10 @@ def asl_quantification(
             asl_quantification_filter.outputs["perfusion_rate"].nifti_image,
             output_nifti_filename,
         )
-        with open(output_json_filename, "w") as json_file:
-            json.dump(
-                asl_quantification_filter.outputs["perfusion_rate"].metadata,
-                json_file,
-                indent=4,
-            )
+        BidsOutputFilter.save_json(
+            asl_quantification_filter.outputs["perfusion_rate"].metadata,
+            output_json_filename,
+        )
         output_filenames = {
             "nifti": output_nifti_filename,
             "json": output_json_filename,

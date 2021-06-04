@@ -31,17 +31,20 @@ class AslQuantificationFilter(BaseFilter):
     :type 'label': BaseImageContainer
     :param 'm0': equilibrium magnetisation image
     :type 'm0': BaseImageContainer
-    :param 'label_type': the type of labelling used: "pasl" for pulsed ASL  "pcasl" or "casl" for
-        for continuous ASL.
+    :param 'label_type': the type of labelling used: "pasl" for pulsed ASL
+      "pcasl" or "casl" for for continuous ASL.
     :type 'label_type': "str"
     :param 'lambda_blood_brain': The blood-brain-partition-coefficient (0 to 1 inclusive)
     :type 'lambda_blood_brain': float
-    :param 'label_duration': The length of the labelling pulse, seconds (0 to 100 inclusive)
+    :param 'label_duration': The temporal duration of the labelled bolus, seconds
+      (0 to 100 inclusive). For PASL this is equivalent to :math:`\text{TI}_1`
     :type 'label_duration': float
-    :param 'post_label_delay': The duration between the end of the labelling pulse and the imaging
-        excitation pulse, seconds (0 to 100 inclusive)
+    :param 'post_label_delay': The duration between the end of the labelling
+        pulse and the imaging excitation pulse, seconds (0 to 100 inclusive).
+        For PASL this is equivalent to :math:`\text{TI}`
     :type 'post_label_delay': float
-    :param 'label_efficiency': The degree of inversion of the labelling (0 to 1 inclusive)
+    :param 'label_efficiency': The degree of inversion of the labelling
+      (0 to 1 inclusive)
     :type 'label_efficiency': float
     :param 't1_arterial_blood': Longitudinal relaxation time of arterial blood,
         seconds (0 exclusive to 100 inclusive)
@@ -57,22 +60,21 @@ class AslQuantificationFilter(BaseFilter):
     :param 'perfusion_rate': map of the calculated perfusion rate
     :type 'perfusion_rate': BaseImageContainer
 
+    **Quantification Model**
 
     The following equations are used to calculate the perfusion rate, depending on the
     input ``model``:
 
-    * If ``model`` is equal to 'whitepaper' then the equations used are those featured in the paper
-      Alsop et al. Recommended implementation of arterial spin-labeled perfusion MRI for clinical
-      applications: A consensus of the ISMRM perfusion study group and the European consortium for
-      ASL in dementia. Magnetic Resonance in Medicine 2014;73:102–116 doi: 10.1002/mrm.25197.
+    :'whitepaper': equations used are those described in:
 
-        * For ``label_type`` 'pcasl' or 'casl'
+        Alsop et al. Recommended implementation of arterial spin-labeled
+        perfusion MRI for clinical applications: A consensus of the ISMRM
+        perfusion study group and the European consortium for ASL in
+        dementia. Magnetic Resonance in Medicine 2014;73:102–116
+        https://doi.org/10.1002/mrm.25197.
 
-        .. math::
-            f = \frac{6000 \cdot\ (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
-            e^{\frac{\text{PLD}}{T_{1,b}}}}{2 \cdot \alpha \cdot T_{1,b} \cdot \text{SI}_{\text{M0}}
-            \cdot (1-e^{-\frac{\tau}{T_{1,b}}})}
-            \text{where:}
+      for pCASL/CASL see :class:`AslQuantificationFilter.asl_quant_wp_casl`, and
+      for PASL see :class:`AslQuantificationFilter.asl_quant_wp_pasl`.
 
 
     """
@@ -116,7 +118,9 @@ class AslQuantificationFilter(BaseFilter):
                 GkmFilter.CASL,
                 GkmFilter.PCASL,
             ]:
-                self.outputs[self.KEY_PERFUSION_RATE].image = self.asl_quant_wp_casl(
+                self.outputs[
+                    self.KEY_PERFUSION_RATE
+                ].image = AslQuantificationFilter.asl_quant_wp_casl(
                     control=images[self.KEY_CONTROL],
                     label=images[self.KEY_LABEL],
                     m0=images[self.KEY_M0],
@@ -126,20 +130,36 @@ class AslQuantificationFilter(BaseFilter):
                     label_efficiency=self.inputs[self.KEY_LABEL_EFFICIENCY],
                     t1_arterial_blood=self.inputs[self.KEY_T1_ARTERIAL_BLOOD],
                 )
-                self.outputs[self.KEY_PERFUSION_RATE].metadata.pop(
-                    "RepetitionTime", None
+
+            elif self.inputs[self.KEY_LABEL_TYPE].lower() in [GkmFilter.PASL]:
+                self.outputs[
+                    self.KEY_PERFUSION_RATE
+                ].image = AslQuantificationFilter.asl_quant_wp_pasl(
+                    control=images[self.KEY_CONTROL],
+                    label=images[self.KEY_LABEL],
+                    m0=images[self.KEY_M0],
+                    lambda_blood_brain=self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN],
+                    bolus_duration=self.inputs[self.KEY_LABEL_DURATION],
+                    inversion_time=self.inputs[self.KEY_POST_LABEL_DELAY],
+                    label_efficiency=self.inputs[self.KEY_LABEL_EFFICIENCY],
+                    t1_arterial_blood=self.inputs[self.KEY_T1_ARTERIAL_BLOOD],
                 )
-                self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("EchoTime", None)
-                self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("M0", None)
-                self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("FlipAngle", None)
-                self.outputs[self.KEY_PERFUSION_RATE].metadata["asl_context"] = "cbf"
-                self.outputs[self.KEY_PERFUSION_RATE].metadata["Units"] = "ml/100g/min"
-                self.outputs[self.KEY_PERFUSION_RATE].metadata["ImageType"] = [
-                    "DERIVED",
-                    "PRIMARY",
-                    "PERFUSION",
-                    "RCBF",
-                ]
+        # amend the metadata
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("RepetitionTime", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop(
+            "RepetitionTimePreparation", None
+        )
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("EchoTime", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("M0Type", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("FlipAngle", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["asl_context"] = "cbf"
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["Units"] = "ml/100g/min"
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["ImageType"] = [
+            "DERIVED",
+            "PRIMARY",
+            "PERFUSION",
+            "RCBF",
+        ]
 
     def _validate_inputs(self):
         """Checks the inputs meet their validation criteria
@@ -252,26 +272,51 @@ class AslQuantificationFilter(BaseFilter):
         label_efficiency: float,
         t1_arterial_blood: float,
     ) -> np.ndarray:
-        """
-        Performs ASL quantification using the White Paper equation for continuous ASL
+        r"""
+        Performs ASL quantification using the White Paper equation for
+        (pseudo)continuous ASL, as given in
 
-        :param control: [description]
+            Alsop et al. Recommended implementation of arterial spin-labeled
+            perfusion MRI for clinical applications: A consensus of the ISMRM
+            perfusion study group and the European consortium for ASL in
+            dementia. Magnetic Resonance in Medicine 2014;73:102–116
+            https://doi.org/10.1002/mrm.25197.
+
+
+        .. math::
+            &f = \frac{6000 \cdot\ (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
+            e^{\frac{\text{PLD}}{T_{1,b}}}}{2 \cdot \alpha \cdot T_{1,b} \cdot \text{SI}_{\text{M0}}
+            \cdot (1-e^{-\frac{\tau}{T_{1,b}}})}\\
+            \text{where,}\\
+            &f = \text{perfusion rate in ml/100g/min}\\
+            &\text{SI}_{\text{control}} = \text{control image signal}\\
+            &\text{SI}_{\text{label}} = \text{label image signal}\\
+            &\text{SI}_{\text{M0}} = \text{equilibrium magnetision signal}\\
+            &\tau = \text{label duration}\\
+            &\text{PLD} = \text{Post Label Delay}\\
+            &T_{1,b} = \text{longitudinal relaxation time of arterial blood}\\
+            &\alpha = \text{labelling efficiency}\\
+            &\lambda = \text{blood-brain partition coefficient}\\
+
+        :param control: control image, :math:`\text{SI}_{\text{control}}`
         :type control: np.ndarray
-        :param label: [description]
+        :param label: label image :math:`\text{SI}_{\text{label}}`
         :type label: np.ndarray
-        :param m0: [description]
+        :param m0: equilibrium magnetisation image, :math:`\text{SI}_{\text{M0}}`
         :type m0: np.ndarray
-        :param lambda_blood_brain: [description]
+        :param lambda_blood_brain: blood-brain partition coefficient in ml/g, :math:`\lambda`
         :type lambda_blood_brain: float
-        :param label_duration: [description]
+        :param label_duration: label duration in seconds, :math:`\tau`
         :type label_duration: float
-        :param post_label_delay: [description]
+        :param post_label_delay: duration between the end of the label pulse
+          and the start of the image acquisition in seconds, :math:`\text{PLD}`
         :type post_label_delay: float
-        :param label_efficiency: [description]
+        :param label_efficiency: labelling efficiency, :math:`\alpha`
         :type label_efficiency: float
-        :param t1_arterial_blood: [description]
+        :param t1_arterial_blood: longitudinal relaxation time of arterial 
+          blood in seconds, :math:`T_{1,b}`
         :type t1_arterial_blood: float
-        :return: [description]
+        :return: the perfusion rate in ml/100g/min, :math:`f`
         :rtype: np.ndarray
         """
         return np.divide(
@@ -284,6 +329,78 @@ class AslQuantificationFilter(BaseFilter):
             * t1_arterial_blood
             * m0
             * (1 - np.exp(-label_duration / t1_arterial_blood)),
+            out=np.zeros_like(m0),
+            where=m0 != 0,
+        )
+
+    @staticmethod
+    def asl_quant_wp_pasl(
+        control: np.ndarray,
+        label: np.ndarray,
+        m0: np.ndarray,
+        lambda_blood_brain: float,
+        bolus_duration: float,
+        inversion_time: float,
+        label_efficiency: float,
+        t1_arterial_blood: float,
+    ) -> np.ndarray:
+        r"""
+        Performs ASL quantification using the White Paper equation for
+        pulsed ASL, as given in
+
+            Alsop et al. Recommended implementation of arterial spin-labeled
+            perfusion MRI for clinical applications: A consensus of the ISMRM
+            perfusion study group and the European consortium for ASL in
+            dementia. Magnetic Resonance in Medicine 2014;73:102–116
+            https://doi.org/10.1002/mrm.25197.
+
+
+        .. math::
+            &f = \frac{6000 \cdot\ (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
+            e^{\frac{\text{TI}}{T_{1,b}}}}{2 \cdot \alpha \cdot \text{TI}_1
+            \cdot \text{SI}_{\text{M0}}}\\
+            \text{where,}\\
+            &f = \text{perfusion rate in ml/100g/min}\\
+            &\text{SI}_{\text{control}} = \text{control image signal}\\
+            &\text{SI}_{\text{label}} = \text{label image signal}\\
+            &\text{SI}_{\text{M0}} = \text{equilibrium magnetision signal}\\
+            &\text{TI} = \text{inversion time}\\
+            &\text{TI}_1 = \text{bolus duration}\\
+            &T_{1,b} = \text{longitudinal relaxation time of arterial blood}\\
+            &\alpha = \text{labelling efficiency}\\
+            &\lambda = \text{blood-brain partition coefficient}\\
+
+        :param control: control image, :math:`\text{SI}_{\text{control}}`
+        :type control: np.ndarray
+        :param label: label image, :math:`\text{SI}_{\text{label}}`
+        :type label: np.ndarray
+        :param m0: equilibrium magnetisation image, :math:`\text{SI}_{\text{M0}}`
+        :type m0: np.ndarray
+        :param lambda_blood_brain: blood-brain partition coefficient in ml/g,
+          :math:`\lambda`
+        :type lambda_blood_brain: float
+        :param inversion_time: time between the inversion pulse and the start
+          of the image acquisition in seconds, :math:`\text{TI}`
+        :type inversion_time: float
+        :param bolus_duration: temporal duration of the labelled bolus in
+          seconds, defined as the duration between the inversion pulse and
+          the start of the bolus cutoff pulses (QUIPPSS, Q2-TIPS etc),
+          :math:`\text{TI}_1`
+        :type bolus_duration: float
+        :param label_efficiency: labelling efficiency, :math:`\alpha`
+        :type label_efficiency: float
+        :param t1_arterial_blood: longitudinal relaxation time of arterial 
+          blood in seconds, :math:`T_{1,b}`
+        :type t1_arterial_blood: float
+        :return: the perfusion rate in ml/100g/min, :math:`f`
+        :rtype: np.ndarray
+        """
+        return np.divide(
+            6000
+            * lambda_blood_brain
+            * (control - label)
+            * np.exp(inversion_time / t1_arterial_blood),
+            2 * label_efficiency * bolus_duration * m0,
             out=np.zeros_like(m0),
             where=m0 != 0,
         )

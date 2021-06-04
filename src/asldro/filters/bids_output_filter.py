@@ -33,7 +33,7 @@ from asldro.filters.gkm_filter import GkmFilter
 from asldro.filters.mri_signal_filter import MriSignalFilter
 from asldro.filters.ground_truth_loader import GroundTruthLoaderFilter
 from asldro.filters.transform_resample_image_filter import TransformResampleImageFilter
-from asldro.utils.general import map_dict
+from asldro.utils.general import map_dict, splitext
 from asldro.validators.user_parameter_input import (
     ASL,
     STRUCTURAL,
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 class BidsOutputFilter(BaseFilter):
-    """ A filter that will output an input image container in Brain Imaging Data Structure
+    """A filter that will output an input image container in Brain Imaging Data Structure
     (BIDS) format, in accordance with the version 1.5.0 specification.
 
     BIDS comprises of a NIFTI image file and accompanying .json sidecar that contains additional
@@ -107,8 +107,8 @@ class BidsOutputFilter(BaseFilter):
         * 'structural': it is given by the metadata field ``modality``.
         * 'asl': it is determined by asl_context.  If asl_context only contains entries that match
           with 'm0scan' then it will be set to 'm0scan', otherwise 'asl'.
-        * 'ground_truth': the metadata field ``quantity`` will be mapped to the according BIDS 
-          parameter map names, as given by :class:`BidsOutputFilter.QUANTITY_MAPPING` 
+        * 'ground_truth': the metadata field ``quantity`` will be mapped to the according BIDS
+          parameter map names, as given by :class:`BidsOutputFilter.QUANTITY_MAPPING`
 
     **Image Metadata**
 
@@ -138,7 +138,7 @@ class BidsOutputFilter(BaseFilter):
     :type 'label_duration': float
     :param 'post_label_delay: delay time following the labelling pulse before the acquisition in
         seconds. For multiphase ASL these values are supplied as a list, where entries are either
-        numeric or equal to ``None``. 
+        numeric or equal to ``None``.
     :type 'post_label_delay': float or List containg either float or ``None``.
     :param 'label_efficiency': the degree of inversion of the magnetisation (between 0 and 1)
     :type 'label_efficiency': float
@@ -173,11 +173,11 @@ class BidsOutputFilter(BaseFilter):
 
     If it does not exist already, when run the filter will create the file
     ``dataset_description.json`` at the root of the output directory.
-    This contains the information contained in 
+    This contains the information contained in
     :class:`BidsOutputFilter.DATASET_DESCRIPTION`.
 
     **README**
-    
+
     If it does not already exist, when run the filter will create the text file ``README`` at the
     root of the output directory. This contains some information about the dataset, including
     a list of all the images output.
@@ -297,7 +297,7 @@ class BidsOutputFilter(BaseFilter):
         super().__init__(name="BIDS Output")
 
     def _run(self):
-        """ Writes the input image to disk in BIDS format """
+        """Writes the input image to disk in BIDS format"""
         image: BaseImageContainer = self.inputs[self.KEY_IMAGE]
         output_directory = self.inputs[self.KEY_OUTPUT_DIRECTORY]
         subject_string = "sub-" + self.inputs[self.KEY_SUBJECT_LABEL]
@@ -529,8 +529,7 @@ class BidsOutputFilter(BaseFilter):
         json_filename = os.path.join(output_directory, sub_directory, json_filename)
         # write the json sidecar
         logger.info("saving %s", json_filename)
-        with open(json_filename, "w") as json_file:
-            json.dump(json_sidecar, json_file, indent=4)
+        BidsOutputFilter.save_json(json_sidecar, json_filename)
 
         # add filenames to outputs
         self.outputs[self.KEY_FILENAME] = [nifti_filename, json_filename]
@@ -549,9 +548,9 @@ class BidsOutputFilter(BaseFilter):
         )
         if not os.path.isfile(dataset_description_filename):
             # write the json sidecar
-            logger.info("saving %s", dataset_description_filename)
-            with open(dataset_description_filename, "w") as json_file:
-                json.dump(self.DATASET_DESCRIPTION, json_file, indent=4)
+            BidsOutputFilter.save_json(
+                self.DATASET_DESCRIPTION, dataset_description_filename
+            )
 
         # if it doesn't exist, save the canned text into README in the root output folder
         readme_filename = os.path.join(self.inputs[self.KEY_OUTPUT_DIRECTORY], "README")
@@ -587,7 +586,7 @@ class BidsOutputFilter(BaseFilter):
                 bidsignore_file.close()
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation critera
+        """Checks that the inputs meet their validation critera
         'image' must be a derived from BaseImageContainer
         'output_directory' must be a string and a path
         'filename_prefix' must be a string and is optional
@@ -639,10 +638,12 @@ class BidsOutputFilter(BaseFilter):
                     ]
                 ),
                 ASL_CONTEXT: Parameter(
-                    validators=isinstance_validator((str, list)), optional=True,
+                    validators=isinstance_validator((str, list)),
+                    optional=True,
                 ),
                 GkmFilter.KEY_LABEL_TYPE: Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=isinstance_validator(str),
+                    optional=True,
                 ),
                 GkmFilter.KEY_LABEL_DURATION: Parameter(
                     validators=isinstance_validator(float), optional=True
@@ -666,13 +667,16 @@ class BidsOutputFilter(BaseFilter):
                     validators=isinstance_validator(float), optional=True
                 ),
                 GroundTruthLoaderFilter.KEY_QUANTITY: Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=isinstance_validator(str),
+                    optional=True,
                 ),
                 GroundTruthLoaderFilter.KEY_UNITS: Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=isinstance_validator(str),
+                    optional=True,
                 ),
                 "image_flavour": Parameter(
-                    validators=isinstance_validator(str), optional=True,
+                    validators=isinstance_validator(str),
+                    optional=True,
                 ),
                 BackgroundSuppressionFilter.M_BSUP_INV_PULSE_TIMING: Parameter(
                     validators=isinstance_validator(bool), optional=True
@@ -925,3 +929,23 @@ For more information on ASLDRO please visit:
 This dataset comprises of the following image series:
 """
         return readme
+
+    @staticmethod
+    def save_json(data: dict, filename):
+        """
+        Saves a dictionary as a json file
+        data will be pretty-printed with indent level 4
+
+        :param data: dictionary of data to save
+        :type data: dict
+        :param filename: filename to save to, the directory this resides
+          in must exist.
+        :type filename: path or string
+        :raises ValueError: If the directory that ``filename`` resides in
+          does not exist.
+        """
+        # check the path exists
+        if not os.path.exists(os.path.dirname(filename)):
+            raise ValueError("base folder of filename doesn't exist")
+        with open(filename, "w") as json_file:
+            json.dump(data, json_file, indent=4)

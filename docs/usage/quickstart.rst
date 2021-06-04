@@ -40,6 +40,13 @@ To output the HRGT, type::
 
 where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
 
+ASLDRO has a built in ASL quantification module, for testing and verification
+of the DRO outputs::
+
+    asldro asl-quantify --params QUANT_PARAMS_PATH ASL_NIFTI_PATH OUTPUT_DIR
+
+See :doc:`asl_quantification` for more details.
+
 There are also two ancillary command line features that assist with the creation of 
 HRGT's. To create a valid HRGT::
 
