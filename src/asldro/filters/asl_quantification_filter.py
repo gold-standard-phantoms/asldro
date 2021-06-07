@@ -319,6 +319,9 @@ class AslQuantificationFilter(BaseFilter):
         :return: the perfusion rate in ml/100g/min, :math:`f`
         :rtype: np.ndarray
         """
+        control = np.asarray(control)
+        label = np.asarray(label)
+        m0 = np.asarray(m0)
         return np.divide(
             6000
             * lambda_blood_brain
@@ -395,6 +398,9 @@ class AslQuantificationFilter(BaseFilter):
         :return: the perfusion rate in ml/100g/min, :math:`f`
         :rtype: np.ndarray
         """
+        control = np.asarray(control)
+        label = np.asarray(label)
+        m0 = np.asarray(m0)
         return np.divide(
             6000
             * lambda_blood_brain

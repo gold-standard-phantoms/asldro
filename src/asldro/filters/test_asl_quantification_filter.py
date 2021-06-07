@@ -72,11 +72,101 @@ INPUT_VALIDATION_DICT = {
     "t1_arterial_blood": [False, 1.65, -1.65, "str"],
 }
 
+CASL_VALIDATION_DATA = (
+    (0.0, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 0.000000000000),
+    (0.0005, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 4.314996006478),
+    (0.001, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 8.629992012956),
+    (0.0015, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 12.944988019434),
+    (0.002, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 17.259984025912),
+    (0.0025, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 21.574980032390),
+    (0.003, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 25.889976038868),
+    (0.0035, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 30.204972045346),
+    (0.004, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 34.519968051824),
+    (0.0045, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 38.834964058302),
+    (0.005, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 43.149960064780),
+    (0.0055, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 47.464956071258),
+    (0.006, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 51.779952077736),
+    (0.0065, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 56.094948084214),
+    (0.007, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 60.409944090692),
+    (0.0075, 1.0, 0.9, 1.8, 1.8, 0.85, 1.65, 64.724940097170),
+)
+
+PASL_VALIDATION_DATA = (
+    (0.0000, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 0.000000000000),
+    (0.0005, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 5.126175896834),
+    (0.0010, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 10.252351793669),
+    (0.0015, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 15.378527690503),
+    (0.0020, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 20.504703587338),
+    (0.0025, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 25.630879484172),
+    (0.0030, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 30.757055381007),
+    (0.0035, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 35.883231277841),
+    (0.0040, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 41.009407174676),
+    (0.0045, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 46.135583071510),
+    (0.0050, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 51.261758968345),
+    (0.0055, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 56.387934865179),
+    (0.0060, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 61.514110762013),
+    (0.0065, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 66.640286658848),
+    (0.0070, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 71.766462555682),
+    (0.0075, 1.00, 0.90, 0.80, 1.80, 0.98, 1.65, 76.892638452517),
+)
+
 
 def test_asl_quantification_filter_validate_inputs():
     """Check a FilterInputValidationError is raised when the inputs to the
     AslQuantificationFilter are incorrect or missing"""
     validate_filter_inputs(AslQuantificationFilter, INPUT_VALIDATION_DICT)
+
+
+@pytest.mark.parametrize(
+    "delta_m, m0, lambda_blood_brain, label_dur, pld, lab_eff, t1, expected",
+    CASL_VALIDATION_DATA,
+)
+def test_asl_quantification_verify_casl_numeric(
+    delta_m, m0, lambda_blood_brain, label_dur, pld, lab_eff, t1, expected
+):
+    """Verifies the numerical output of the asl_quant_wp_casl static method"""
+    actual = (
+        AslQuantificationFilter.asl_quant_wp_casl(
+            m0,
+            m0 - delta_m,
+            m0,
+            lambda_blood_brain,
+            label_dur,
+            pld,
+            lab_eff,
+            t1,
+        ),
+    )
+    np.testing.assert_array_almost_equal(
+        actual,
+        expected,
+    )
+
+
+@pytest.mark.parametrize(
+    "delta_m, m0, lambda_blood_brain, bol_dur, inv_time, lab_eff, t1, expected",
+    PASL_VALIDATION_DATA,
+)
+def test_asl_quantification_filter_verify_pasl_numeric(
+    delta_m, m0, lambda_blood_brain, bol_dur, inv_time, lab_eff, t1, expected
+):
+    """Verifies the numerical output of the asl_quant_wp_pasl static method"""
+    actual = (
+        AslQuantificationFilter.asl_quant_wp_pasl(
+            m0,
+            m0 - delta_m,
+            m0,
+            lambda_blood_brain,
+            bol_dur,
+            inv_time,
+            lab_eff,
+            t1,
+        ),
+    )
+    np.testing.assert_array_almost_equal(
+        actual,
+        expected,
+    )
 
 
 def test_asl_quantification_filter_asl_quant_wp_casl():
