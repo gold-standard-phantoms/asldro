@@ -73,8 +73,8 @@ class AslQuantificationFilter(BaseFilter):
         dementia. Magnetic Resonance in Medicine 2014;73:102–116
         https://doi.org/10.1002/mrm.25197.
 
-      for pCASL/CASL see :class:`AslQuantificationFilter.asl_quant_wp_casl`, and
-      for PASL see :class:`AslQuantificationFilter.asl_quant_wp_pasl`.
+      * for pCASL/CASL see :class:`AslQuantificationFilter.asl_quant_wp_casl`
+      * for PASL see :class:`AslQuantificationFilter.asl_quant_wp_pasl`.
 
 
     """
@@ -92,6 +92,7 @@ class AslQuantificationFilter(BaseFilter):
     KEY_POST_LABEL_DELAY = GkmFilter.KEY_POST_LABEL_DELAY
 
     WHITEPAPER = "whitepaper"
+    M0_TOL = 1e-6
 
     def __init__(self):
         super().__init__(name="ASL Quantification")
@@ -333,7 +334,7 @@ class AslQuantificationFilter(BaseFilter):
             * m0
             * (1 - np.exp(-label_duration / t1_arterial_blood)),
             out=np.zeros_like(m0),
-            where=m0 != 0,
+            where=np.abs(m0) >= AslQuantificationFilter.M0_TOL,
         )
 
     @staticmethod
@@ -408,5 +409,5 @@ class AslQuantificationFilter(BaseFilter):
             * np.exp(inversion_time / t1_arterial_blood),
             2 * label_efficiency * bolus_duration * m0,
             out=np.zeros_like(m0),
-            where=m0 != 0,
+            where=np.abs(m0) >= AslQuantificationFilter.M0_TOL,
         )

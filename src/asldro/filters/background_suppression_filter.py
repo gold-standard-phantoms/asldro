@@ -53,7 +53,12 @@ class BackgroundSuppressionFilter(BaseFilter):
       sample the longitudinal magnetisation. The output magnetisation will
       only reflect the pulses that will have run by this time. Must be
       greater than 0. If omitted, defaults to the same value
-      as ``'sat_pulse_time'``.
+      as ``'sat_pulse_time'``. If ``'mag_time'`` is longer than
+      ``'sat_pulse_time'``, then this difference will be added to both
+      ``'sat_pulse_time'`` and also ``'inv_pulse_times'`` (regardless of
+      whether this has been supplied as an input or optimised values calculated).
+      If the pulse timings already include an added delay to ensure the
+      magnetisation is positive then this parameter should be omitted.
     :type 'mag_time': float
     :param 'num_inv_pulses': The number of inversion pulses to calculate
       optimised timings for. Must be greater than 0, and this parameter
@@ -125,8 +130,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         super().__init__(name="Background Suppression Filter")
 
     def _run(self):
-        """Runs the filter
-        """
+        """Runs the filter"""
         mag_z: BaseImageContainer = self.inputs[self.KEY_MAG_Z]
         t1: BaseImageContainer = self.inputs[self.KEY_T1]
         sat_pulse_time = self.inputs[self.KEY_SAT_PULSE_TIME]
@@ -149,8 +153,10 @@ class BackgroundSuppressionFilter(BaseFilter):
         # or if optimised times need to be calculated
         if self.inputs.get(self.KEY_INV_PULSE_TIMES) is None:
             # calculation required: minimise the least squares problem
-            # argmin(||Mz(t=sat_pulse_time)||^2) to find the inversion pulse
-            # times for the given T1's
+            # argmin(||Mz(t=sat_time)||^2 + sum(Mz(t=sat_time) < 0))
+            # to find the inversion pulse
+            # times for the given T1's, whilst ensuring that the magnetisation
+            # is always positive.
             t1_opt = self.inputs[self.KEY_T1_OPT]
             num_inv_pulses = self.inputs[self.KEY_NUM_INV_PULSES]
             # if `pulse_efficiency` is 'realistic' then calculate the pulse
@@ -170,9 +176,15 @@ class BackgroundSuppressionFilter(BaseFilter):
                 self.inputs[self.KEY_INV_PULSE_TIMES]
             )
 
+        # if mag_time > sat_pulse_time add the difference to sat_pulse_time
+        # and inv_pulse_times
+        if mag_time > sat_pulse_time:
+            post_sat_delay = mag_time - sat_pulse_time
+            sat_pulse_time += post_sat_delay
+            inv_pulse_times += post_sat_delay
+
         # calculate the longitudinal magnetisation at mag_time based on
         # the inversion pulse times
-        # pdb.set_trace()
         self.outputs[self.KEY_MAG_Z] = mag_z.clone()
         self.outputs[self.KEY_MAG_Z].image = self.calculate_mz(
             self.outputs[self.KEY_MAG_Z].image,
@@ -224,7 +236,10 @@ class BackgroundSuppressionFilter(BaseFilter):
                     ]
                 ),
                 self.KEY_SAT_PULSE_TIME: Parameter(
-                    validators=[isinstance_validator(float), greater_than_validator(0),]
+                    validators=[
+                        isinstance_validator(float),
+                        greater_than_validator(0),
+                    ]
                 ),
                 self.KEY_INV_PULSE_TIMES: Parameter(
                     validators=[
@@ -343,7 +358,8 @@ class BackgroundSuppressionFilter(BaseFilter):
           to the imaging excitation pulse, :math:`\{ \tau_i, \tau_{i+1}... \tau_{M-1}, \tau_M \}`
         :type inv_pulse_times: list[float]
         :param mag_time: The time at which to calculate the
-          longitudinal magnetisation, :math:`t`
+          longitudinal magnetisation, :math:`t`, cannot be greater than
+          sat_pulse_time
         :type mag_time: float
         :param sat_pulse_time: The time between the saturation pulse
           and the imaging excitation pulse, :math:`Q`.
@@ -382,6 +398,12 @@ class BackgroundSuppressionFilter(BaseFilter):
         """
         # check that initial_mz, t1 and pulse_eff are broadcastable
         np.broadcast(initial_mz, t1, inv_eff, sat_eff)
+
+        # check mag_time is not larger than sat_pulse_time
+        if mag_time > sat_pulse_time:
+            raise ValueError(
+                "argument 'mag_time' must not be greater than sat_pulse_time"
+            )
 
         # sort the inversion pulse times into ascending order
         # inv_pulse_times = np.sort(inv_pulse_times)
@@ -492,7 +514,13 @@ class BackgroundSuppressionFilter(BaseFilter):
         .. math::
 
             \begin{align}
-                &\min \sum\limits_i^N M_z^2(t=Q, T_{1,i},\chi, \psi, \tau)\\
+                &\min \left (\sum\limits_i^N M_z^2(t=Q, T_{1,i},\chi, \psi, \tau)
+                + \sum\limits_i^N 
+                \begin{cases}
+                1 & M_z(t=Q, T_{1,i},\chi, \psi, \tau) < 0\\
+                0 & M_z(t=Q, T_{1,i},\chi, \psi, \tau) \geq 0
+                \end{cases}
+                \right) \\
                 &\text{where}\\
                 &N = \text{The number of $T_1$ species to optimise for}\\
             \end{align}
@@ -502,12 +530,17 @@ class BackgroundSuppressionFilter(BaseFilter):
             raise ValueError("num_pulses must be greater than 0")
 
         x0 = np.ones((num_pulses,))
-        # create the objective function to optimise: ||Mz(t=sat_time)||^2
+        # create the objective function to optimise: ||Mz(t=sat_time)||^2 + sum(Mz(t=sat_time) < 0)
         fun = lambda x: np.sum(
             BackgroundSuppressionFilter.calculate_mz(
                 np.ones_like(t1), t1, x, sat_time, sat_time, pulse_eff
             )
             ** 2
+        ) + np.sum(
+            BackgroundSuppressionFilter.calculate_mz(
+                np.ones_like(t1), t1, x, sat_time, sat_time, pulse_eff
+            )
+            < 0
         )
         # perform the optimisation
         result = minimize(fun, x0, method=method)

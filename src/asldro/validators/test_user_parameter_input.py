@@ -17,7 +17,7 @@ from asldro.validators.user_parameter_input import (
 
 
 def test_user_input_valid():
-    """ Tests a valid set of inputs """
+    """Tests a valid set of inputs"""
     d = {
         "label_type": "PASL",
         "label_duration": 2.0,
@@ -52,7 +52,7 @@ def test_user_input_valid():
 
 
 def test_asl_user_input_defaults_created():
-    """ Test default values for the asl image type """
+    """Test default values for the asl image type"""
     correct_defaults = {
         "label_type": "pcasl",
         "asl_context": "m0scan control label",
@@ -74,10 +74,10 @@ def test_asl_user_input_defaults_created():
         "excitation_flip_angle": 90.0,
         "inversion_flip_angle": 180.0,
         "inversion_time": 1.0,
-        "interpolation": "continuous",
+        "interpolation": "linear",
         "background_suppression": {
             "sat_pulse_time": 4.0,
-            "sat_pulse_time_opt": 3.9,
+            "sat_pulse_time_opt": 3.98,
             "pulse_efficiency": "ideal",
             "num_inv_pulses": 4,
             "apply_to_asl_context": ["label", "control"],
@@ -92,7 +92,7 @@ def test_asl_user_input_defaults_created():
 
 
 def test_structural_user_input_defaults_created():
-    """ Test default values for the structural image type """
+    """Test default values for the structural image type"""
     correct_defaults = {
         "echo_time": 0.005,
         "repetition_time": 0.3,
@@ -111,7 +111,7 @@ def test_structural_user_input_defaults_created():
         "random_seed": 0,
         "output_image_type": "magnitude",
         "modality": "T1w",
-        "interpolation": "continuous",
+        "interpolation": "linear",
     }
 
     # Validation should include inputs
@@ -121,7 +121,7 @@ def test_structural_user_input_defaults_created():
 
 
 def test_ground_truth_user_input_defaults_created():
-    """ Test default values for the ground_truth image type """
+    """Test default values for the ground_truth image type"""
     correct_defaults = {
         "rot_z": 0.0,
         "rot_y": 0.0,
@@ -130,7 +130,7 @@ def test_ground_truth_user_input_defaults_created():
         "transl_y": 0.0,
         "transl_z": 0.0,
         "acq_matrix": [64, 64, 40],
-        "interpolation": ["continuous", "nearest"],
+        "interpolation": ["linear", "nearest"],
     }
 
     # Validation should include inputs
@@ -188,7 +188,7 @@ def test_mismatch_asl_context_array_sizes():
 
 @pytest.fixture
 def input_params():
-    """ A valid input parameter config """
+    """A valid input parameter config"""
     return {
         "global_configuration": {
             "ground_truth": "hrgt_icbm_2009a_nls_3t",
@@ -271,10 +271,10 @@ def fixture_expected_parsed_input():
                     "excitation_flip_angle": 90.0,
                     "inversion_flip_angle": 180.0,
                     "inversion_time": 1.0,
-                    "interpolation": "continuous",
+                    "interpolation": "linear",
                     "background_suppression": {
                         "sat_pulse_time": 4.0,
-                        "sat_pulse_time_opt": 3.9,
+                        "sat_pulse_time_opt": 3.98,
                         "pulse_efficiency": "ideal",
                         "num_inv_pulses": 4,
                         "apply_to_asl_context": ["label", "control"],
@@ -303,7 +303,7 @@ def fixture_expected_parsed_input():
                     "random_seed": 0,
                     "output_image_type": "magnitude",
                     "modality": "T1w",
-                    "interpolation": "continuous",
+                    "interpolation": "linear",
                 },
             },
             {
@@ -317,7 +317,7 @@ def fixture_expected_parsed_input():
                     "transl_x": 0.0,
                     "transl_y": 0.0,
                     "transl_z": 0.0,
-                    "interpolation": ["continuous", "nearest"],
+                    "interpolation": ["linear", "nearest"],
                 },
             },
         ],
@@ -419,10 +419,10 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
             "excitation_flip_angle": 90.0,
             "inversion_flip_angle": 180.0,
             "inversion_time": 1.0,
-            "interpolation": "continuous",
+            "interpolation": "linear",
             "background_suppression": {
                 "sat_pulse_time": 4.0,
-                "sat_pulse_time_opt": 3.9,
+                "sat_pulse_time_opt": 3.98,
                 "pulse_efficiency": "ideal",
                 "num_inv_pulses": 4,
                 "apply_to_asl_context": ["label", "control"],
@@ -438,6 +438,7 @@ def test_example_input_params_valid():
     p = get_example_input_params()
     validate_input_params(p)
     assert p["global_configuration"]["ground_truth"] == DEFAULT_GROUND_TRUTH
+
 
 def test_user_parameter_input_background_suppression():
     """Tests the background suppression parameters"""
@@ -457,7 +458,7 @@ def test_user_parameter_input_background_suppression():
     d = validate_input_params(p)
     assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
         "sat_pulse_time": 4.0,
-        "sat_pulse_time_opt": 3.9,
+        "sat_pulse_time_opt": 3.98,
         "pulse_efficiency": "ideal",
         "num_inv_pulses": 4,
         "apply_to_asl_context": ["label", "control"],
@@ -468,7 +469,7 @@ def test_user_parameter_input_background_suppression():
     d = validate_input_params(p)
     assert d["image_series"][0]["series_parameters"]["background_suppression"] == {
         "sat_pulse_time": 4.0,
-        "sat_pulse_time_opt": 3.9,
+        "sat_pulse_time_opt": 3.98,
         "pulse_efficiency": "ideal",
         "num_inv_pulses": 4,
         "apply_to_asl_context": ["label", "control"],

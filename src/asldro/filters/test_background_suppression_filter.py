@@ -63,7 +63,7 @@ def input_validation_dict_fixture(test_data):
             ],
             "sat_pulse_time": [False, 4.0, 4, -1.0, "str"],
             "inv_pulse_times": [False, [0.5, 2.7], [-0.5, -2.7], 0.5, "str"],
-            "mag_time": [True, 4.1, 4, "str"],
+            "mag_time": [True, 3.9, 4, "str"],
             "pulse_efficiency": [True, "realistic", "idle", -3.0, 0.99, -1],
         },
         # for the case where sat_pulse_times are not provided
@@ -78,7 +78,7 @@ def input_validation_dict_fixture(test_data):
             ],
             "t1": [False, test_data["t1"], im_complex, im_wrong_size, 1.0, "str"],
             "sat_pulse_time": [False, 4.0, 4, -1.0, "str"],
-            "mag_time": [True, 4.1],
+            "mag_time": [True, 4.0],
             "pulse_efficiency": [True, "realistic", "idle", -3.0, 0.99, -1],
             "t1_opt": [
                 True,
@@ -201,6 +201,13 @@ def test_background_suppression_filter_calculate_mz(test_data):
         mz, calc_mz_function(initial_mz, t1, inv_pulse_times[3], mag_time, inv_eff)
     )
 
+    # mag_time longer than sat_pulse_time should throw an error
+    mag_time = 5.0
+    with pytest.raises(ValueError):
+        BackgroundSuppressionFilter.calculate_mz(
+            initial_mz, t1, inv_pulse_times, sat_time, mag_time, inv_eff
+        )
+
     # test something equivalent to the optimisation
     initial_mz = np.array([1.0, 1.0, 1.0])
     t1 = np.array([1.0, 1.4, 4.5])
@@ -238,30 +245,35 @@ def test_background_suppression_filter_calculate_pulse_efficiency(test_data):
 
 def test_background_suppression_filter_optimise_inv_pulse_times():
     """Tests BackgroundSuppressionFilter.optimise_inv_pulse_times static method"""
-    sat_time = 4.0
-    t1 = [1.0, 1.4, 4.5]
+    sat_time = 3.6
+    t1 = [1.33, 0.83, 3.0]
     pulse_eff = -1.0
-    num_pulses = 2
+    num_pulses = 4
     initial_mz = 1.0
 
     # 0 pulses should raise a ValueError
     with pytest.raises(ValueError):
         BackgroundSuppressionFilter.optimise_inv_pulse_times(
-            sat_time, t1, pulse_eff, 0,
+            sat_time,
+            t1,
+            pulse_eff,
+            0,
         )
 
     result = BackgroundSuppressionFilter.optimise_inv_pulse_times(
-        sat_time, t1, pulse_eff, num_pulses,
+        sat_time,
+        t1,
+        pulse_eff,
+        num_pulses,
     )
     mz = BackgroundSuppressionFilter.calculate_mz(
         initial_mz, t1, result.x, sat_time, sat_time, pulse_eff
     )
-
     # This should result in a successful optimisation
     assert result.success
 
-    # the value of mz should be less than 0.05 for all cases
-    assert np.all(np.abs(mz) < 0.05)
+    # the value of mz should be between 0 and 0.05 for all
+    assert np.all(mz < 0.1) and np.all(mz >= 0.0)
 
 
 def test_background_suppression_filter_mock_data(test_data: dict):
@@ -304,11 +316,12 @@ def test_background_suppression_filter_mock_data(test_data: dict):
             for key in ["mag_z", "t1", "sat_pulse_time", "inv_pulse_times", "mag_time"]
         }
     )
+    post_sat_delay = test_data["mag_time"] - test_data["sat_pulse_time"]
     bsup_filter.run()
     mz = calc_mz_function(
         test_data["mag_z"].image,
         test_data["t1"].image,
-        test_data["inv_pulse_times"],
+        np.asarray(test_data["inv_pulse_times"]) + post_sat_delay,
         test_data["mag_time"],
         -1,
     )

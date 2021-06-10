@@ -13,7 +13,9 @@ ASL BIDS data, comprising a NIFTI, JSON sidecar and *aslcontext.tsv file
 where:
 
 :``path/to/quant_params``: Path to a JSON file (must have extension .json) providing
-  parameters for the quantifiction calculation. It has the following objects:
+  parameters for the quantifiction calculation. If supplied they will override
+  any values that are within the ASL image's BIDS sidecar. This allows
+  assumed values to be overidden for example. It has the following objects:
 
     :QuantificationModel: (string) defaults to "whitepaper" 
         (see :class:`.AslQuantificationFilter` for options)
