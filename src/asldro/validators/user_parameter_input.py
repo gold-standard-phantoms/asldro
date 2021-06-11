@@ -105,7 +105,7 @@ DEFAULT_ASL_MATRIX = [64, 64, 40]
 
 DEFAULT_BS_PARAMS = {
     "sat_pulse_time": 4.0,
-    "sat_pulse_time_opt": 3.9,
+    "sat_pulse_time_opt": 3.98,
     "pulse_efficiency": "ideal",
     "num_inv_pulses": 4,
     "apply_to_asl_context": ["label", "control"],
@@ -159,7 +159,7 @@ IMAGE_TYPE_VALIDATOR = {
                 validators=for_each_validator(
                     from_list_validator(SUPPORTED_INTERPOLATION_TYPES)
                 ),
-                default_value=[CONTINUOUS, NEAREST],
+                default_value=[LINEAR, NEAREST],
             ),
         }
     ),
@@ -228,7 +228,7 @@ IMAGE_TYPE_VALIDATOR = {
             ),
             INTERPOLATION: Parameter(
                 validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
-                default_value=CONTINUOUS,
+                default_value=LINEAR,
             ),
         }
     ),
@@ -337,7 +337,7 @@ IMAGE_TYPE_VALIDATOR = {
             ),
             INTERPOLATION: Parameter(
                 validators=from_list_validator(SUPPORTED_INTERPOLATION_TYPES),
-                default_value=CONTINUOUS,
+                default_value=LINEAR,
             ),
             BACKGROUND_SUPPRESSION: Parameter(
                 validators=isinstance_validator((dict, bool)),

@@ -9,6 +9,7 @@ from typing import List
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 
 from asldro.examples import run_full_pipeline
+from asldro.pipelines.asl_quantification import asl_quantification
 from asldro.pipelines.generate_ground_truth import generate_hrgt
 from asldro.pipelines.combine_masks import combine_fuzzy_masks
 from asldro.validators import parameters
@@ -169,9 +170,22 @@ def combine_masks(args):
     combine_fuzzy_masks(args.combine_masks_params_path, args.output_filename)
 
 
+def asl_quantify(args):
+    """Parses the 'asl-quantify' subcommand. Must have a:
+    * 'input_nifti_path', which is the path to the raw ASL data in BIDS format.
+      It is assumed that there is a corresponding *.json and *context.tsv file at
+      the same location.
+    * 'paras', which is the path to a JSON file containing parameters
+      for the ASL quantification.
+    * 'output_dir', which is the path to a directory to save the output file to.
+    """
+    asl_quantification(args.asl_nifti_path, args.params, args.output_dir)
+
+
 def main():
     """Main function for the Command Line Interface. Provides multiple options
     which are best documented by running the command line tool with `--help`"""
+
     parser = argparse.ArgumentParser(
         description="""A set of tools for generating an
         Arterial Spin Labelling (ASL) Digital Reference Object (DRO).
@@ -296,6 +310,39 @@ def main():
         "Will overwrite an existing file.",
     )
 
+    # ASL Quantify
+    asl_quantify_parser = subparsers.add_parser(
+        name="asl-quantify",
+        description="""Performs ASL quantification on ASL BIDS data.""",
+    )
+
+    asl_quantify_parser.add_argument(
+        "--params",
+        type=FileType(extensions=["json"], should_exist=False),
+        help="(optional) The path to the JSON parameter file containing quantification"
+        "parameters. Must be a .json. If supplied, the values present will"
+        "override any values contained in the BIDS sidecar, or that are default"
+        "for this pipeline",
+    )
+
+    asl_quantify_parser.add_argument(
+        "asl_nifti_path",
+        type=FileType(extensions=["nii", "nii.gz"], should_exist=True),
+        help="The path to the input ASL NIFTI image. This should be accompanied"
+        "by corresponding *.json and *context.tsv files in BIDS format",
+    )
+
+    asl_quantify_parser.add_argument(
+        "output_dir",
+        type=DirType(should_exist=True),
+        help="The directory to output to. "
+        "Must exist. Will overwrite any existing files with the same names"
+        "Quantified maps of perfusion rate and the accompanying JSON sidecar"
+        "will be saved with the same filename as the input NIFTI, with '_cbf'"
+        "appended",
+    )
+
+    asl_quantify_parser.set_defaults(func=asl_quantify)
     combine_masks_parser.set_defaults(func=combine_masks)
 
     create_hrgt_parser.set_defaults(func=create_hrgt)

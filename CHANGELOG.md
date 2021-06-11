@@ -1,11 +1,14 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Not Versioned
+
 ### Added
+
 - Filter that assigns values to regions specified in a segmentation mask.
 - Filter validation utility function.
 - Numeric utility functions for creating 3D gaussian maps.
@@ -15,27 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pipeline for creating a QASPER ground truth
 - QASPER ground truth
 - Filter that simulates background suppression
+- Filter for loading in ASL BIDS files
+- Filter for performing ASL quantification
 
 ### Fixed
+
 - Default parameter output has hrgt string instead of paths.
 - Long, unecessary tests removed.
 - Resampling corrected to use the input voxel size as part of the
   scaling calculation.
 
 ### Changed
+
 - BIDS output now matches 1.5.0 specification
 - Changed to readthedocs theme.
 - Blood brain partition coefficient can be supplied as a ground truth
   image in addition to a single parameter.
 - GkmFilter accepts the blood brain partition coefficient as an image.
-
-
+- Default interpolation is now linear (was continuous) as this has more
+  consistent results
 
 ## [2.2.0] - 2020-12-03
+
 ### Fixed
+
 - Bug that caused an error if the SNR was set to 0.
 
 ### Changed
+
 - Default 'image_type' attribute of image containers is now 'REAL_IMAGE_TYPE'
 - PhaseMagnitudeFilter now accepts additional 'image_type'
 - Supplied ground truths (hrgt_icbm_2009a_nls_3t and hrgt_icbm_2009a_nls_31.5t)
@@ -43,18 +53,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   White Matter.
 
 ## [2.1.0] - 2020-11-27
+
 ### Added
+
 - Allow using an input (external) HRGT file.
 - Modulation of ground truth quantities by a scale and offset value
 
 ### Fixed
+
 - Bug that caused ground truth not to be resampled before being output
 
 ### Changed
+
 - JSON loader filter can take any JSON schema (or none)
 
 ## [2.0.0] - 2020-11-19
+
 ### Added
+
 - Inversion recovery MRI model
 - Image container metadata
 - Acquire MRI Image Filter (combines MRI Signal, transform/resampling, noise)
@@ -68,11 +84,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow overriding the ground truth values in the input parameter file
 
 ### Changed
+
 - New input parameter file format (allows multi-series output)
 - GE MRI signal model now allows arbitrary flip-angle
 
 ## [1.0.0] - 2020-10-16
+
 ### Added
+
 - Project repository set up with Continuous integration,
   Continuous testing (pytest, tox), Repository structure,
   Versioning information, Setup configuration,

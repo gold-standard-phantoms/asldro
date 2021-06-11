@@ -7,6 +7,9 @@ Getting started
 Eager to get started? This page gives a good introduction to ASL DRO.
 Follow :doc:`installation` to set up a project and install ASL DRO first.
 
+Running with defaults
+~~~~~~~~~~~~~~~~~~~~~~
+
 After installation the command line tool ``asldro`` will be made available. You can run::
 
     asldro generate path/to/output_file.zip
@@ -14,9 +17,15 @@ After installation the command line tool ``asldro`` will be made available. You 
 to run the DRO generation as-per the ASL White Paper specification. The output file may
 be either .zip or .tar.gz.
 
+Specifying a parameter file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
 Is it also possible to specify a parameter file, which will override any of the default values::
 
     asldro generate --params path/to/input_params.json path/to/output_file.zip
+
+Output default parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is possible to create an example parameters file containing the model defaults by running::
 
@@ -29,6 +38,9 @@ For details on input parameters see :doc:`parameters`.
 
 For details on the output DRO data see :doc:`dro_output`.
 
+Output built-in ground truths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 It is also possible to output the high-resolution ground-truth (HRGT) files.
 To get a list of the available data, type::
 
@@ -39,6 +51,19 @@ To output the HRGT, type::
     asldro output hrgt HRGT OUTPUT_DIR
 
 where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
+
+Perform ASL quantification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ASLDRO has a built in ASL quantification module, for testing and verification
+of the DRO outputs::
+
+    asldro asl-quantify --params QUANT_PARAMS_PATH ASL_NIFTI_PATH OUTPUT_DIR
+
+See :doc:`asl_quantification` for more details.
+
+Generate your own ground truths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are also two ancillary command line features that assist with the creation of 
 HRGT's. To create a valid HRGT::
@@ -87,13 +112,6 @@ The full ASL pipeline comprises of:
 
 The structural pipeline excludes the General Kinetic Model, and just generates volumes with synthetic
 MR contrast.  The ground truth pipeline only has the motion model and sampling.
-
-Each volume described in ``asl_context`` has the motion, resampling and noise processes applied
-independently. The rotation and translation arrays in the input parameters describe this motion, and
-the the random number generator is initialised with the same seed each time the DRO is run, so each
-volume will have noise that is unique, but statistically the same.
-
-If ``desired_snr`` is set to ``0``, the resultant images will not have any noise applied. 
 
 Each pipeline outputs files in BIDS (https://bids.neuroimaging.io/) format, consisting of a NIFTI
 image file and accompanying json sidecar. In the case of an ASL image an 
