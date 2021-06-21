@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GkmFilter accepts the blood brain partition coefficient as an image.
 - Default interpolation is now linear (was continuous) as this has more
   consistent results
+- Unique version number for output DRO data based on git commit hash.
 
 ## [2.2.0] - 2020-12-03
 
