@@ -1100,11 +1100,17 @@ def test_bids_output_filter_determine_source_version_static_method():
         fn = os.path.join(repo_path, "file")
         os.mkdir(repo_path)
 
-        # no repo yet
+        # no repository
         version = BidsOutputFilter.determine_source_version(repo_path, "str")
         assert version == "str"
+
         # create a new repo
         new_repo = git.Repo.init(repo_path)
+        # repo exists but no master branch
+        version = BidsOutputFilter.determine_source_version(repo_path, "str")
+        assert version == "str-unverified"
+
+        # create master branch
         new_repo.git.checkout(b="master")
         open(fn, "wb").close()
         # add a file, commit and add a v1.0.0 tag

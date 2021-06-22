@@ -987,15 +987,27 @@ This dataset comprises of the following image series:
             # compare current head's commit with the last commit to the master
             # branch, which should be the last release
 
-            if (not repo.is_dirty()) and (repo.head.commit == repo.commit("master")):
-                updated_version = version
-                logger.info("commit hash matches most recent master release")
-            else:
-                logger.info("commit more recent than last release")
-                updated_version = repo.git.describe("--tags", "--dirty")
+            try:
+                master_hash = repo.commit("master")
+                head_hash = repo.head.commit
 
-            # clear the repo's cache
-            repo.git.clear_cache()
+                if (not repo.is_dirty()) and (head_hash == master_hash):
+                    updated_version = version
+                    logger.info("commit hash matches most recent master release")
+                else:
+                    logger.info("commit more recent than last release")
+                    updated_version = repo.git.describe("--tags", "--dirty")
+
+                # clear the repo's cache
+                repo.git.clear_cache()
+            except:
+                # case where git is not installed, or the master hash
+                # cannot be found
+                logger.info(
+                    "cannot get git information, use release version"
+                    "with unverified caveat"
+                )
+                updated_version = version + "-unverified"
 
         except git.exc.InvalidGitRepositoryError:
             logger.info(
