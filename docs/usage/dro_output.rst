@@ -128,8 +128,10 @@ are exported to BIDS are traceable to the actual git commit:
   * dirty indicates that when the DRO was run there were uncommited changes in
     the repository.
 
-This requires git to be installed on the host system. If it isn't then the 
-version number will revert to the release version.
+This requires git to be installed on the host system and for the master branch's
+git commit information to be available. If it isn't then the 
+version number will be the release version appended with "-unverified", e.g.
+"v2.2.0-unverified". 
 
 This version information is included in:
 

@@ -8,7 +8,6 @@ import json
 from tempfile import TemporaryDirectory
 import pytest
 import git
-import pdb
 
 import numpy as np
 import numpy.testing
@@ -202,7 +201,6 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
             test_filter.add_inputs(passing_inputs)
             # optional inputs should run without issue
             if is_optional:
-                # pdb.set_trace()
                 test_filter.run()
             else:
                 with pytest.raises(FilterInputValidationError):
@@ -222,7 +220,7 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
 def asldro_version_fixture() -> str:
     """generates the version string based on the current git state"""
     return BidsOutputFilter.determine_source_version(
-        os.path.dirname(os.path.realpath(__file__)), __version__
+        os.path.dirname(os.path.realpath(__file__)), "v" + __version__
     )
 
 

@@ -1,7 +1,6 @@
 """ BidsOutputFilter """
 import os
 import logging
-import pdb
 from typing import Union, List
 from datetime import datetime, timezone
 import json
@@ -294,7 +293,7 @@ class BidsOutputFilter(BaseFilter):
             filename_prefix = self.inputs[self.KEY_FILENAME_PREFIX] + "_"
 
         asldro_version = BidsOutputFilter.determine_source_version(
-            os.path.dirname(os.path.realpath(__file__)), __version__
+            os.path.dirname(os.path.realpath(__file__)), "v" + __version__
         )
 
         # amend json sidecar
@@ -777,7 +776,6 @@ class BidsOutputFilter(BaseFilter):
                 # if "background_suppression" is True then additional parameters are required
                 if metadata.get(BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION):
                     # check that 'background_suppression' actually is a bool and not an int
-                    # pdb.set_trace()
                     if not isinstance(
                         metadata.get(
                             BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION
@@ -978,6 +976,12 @@ This dataset comprises of the following image series:
 
         If no git repo can be found then it is likely that a python package
         is being used, in which ``version`` will be returned.
+
+        If a git repo can be found, but no hash information can be obtained
+        then it is likely that git is not installed, or insufficient commits
+        were pulled/fetched. In which case it is not possible to verify the
+        version, and so ``version`` will be appended with "-unverified", e.g.
+        "v2.2.0-unverified".
         """
         # determine if the program is being run from source code - look for the
         # presence of a .git directory by creating a GitPython repo
