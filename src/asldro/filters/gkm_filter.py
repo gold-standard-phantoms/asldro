@@ -37,8 +37,10 @@ class GkmFilter(BaseFilter):
     :param 'm0': The tissue equilibrium magnetisation, can be a map or single value (>=0).
     :type 'perfusion_rate': BaseImageContainer or float
     :param 'label_type': Determines which GKM equations to use:
-      "casl" OR "pcasl" (case insensitive) for the continuous model
-      "pasl" (case insensitive) for the pulsed model
+
+      * "casl" OR "pcasl" (case insensitive) for the continuous model
+      * "pasl" (case insensitive) for the pulsed model
+
     :type 'label_type': str
     :param 'label_duration': The length of the labelling pulse, seconds (0 to 100 inclusive)
     :type 'label_duration': float
@@ -55,6 +57,19 @@ class GkmFilter(BaseFilter):
     :param 't1_tissue': Longitudinal relaxation time of the tissue,
         seconds (0 to 100 inclusive, however voxels with ``t1 = 0`` will have ``delta_m = 0``)
     :type 't1_tissue': BaseImageContainer
+    :param 'model': The model to use to generate the perfusion signal:
+
+      * "full" for the full General Kinetic Model.
+      * "whitepaper" for the simplified model, derived from the quantification
+        equations in Alsop et al. Recommended implementation of arterial spin-labeled
+        perfusion MRI for clinical applications: A consensus of the ISMRM
+        perfusion study group and the European consortium for ASL in
+        dementia. Magnetic Resonance in Medicine 2014;73:102–116
+        https://doi.org/10.1002/mrm.25197.
+
+      Defaults to "full".
+
+    :type 'model': str
 
     **Outputs**
 
@@ -78,6 +93,7 @@ class GkmFilter(BaseFilter):
     * ``lambda_blood_brain`` (only if a single value is supplied)
     * ``t1_arterial_blood``
     * ``m0`` (only if a single value is supplied)
+    * ``gkm_model`` = ``model``
 
     ``post_label_delay`` is calculated as ``signal_time - label_duration``
 
@@ -98,20 +114,25 @@ class GkmFilter(BaseFilter):
     KEY_T1_ARTERIAL_BLOOD = "t1_arterial_blood"
     KEY_T1_TISSUE = "t1_tissue"
     KEY_DELTA_M = "delta_m"
-    KEY_POST_LABEL_DELAY = "post_label_delay"
-    KEY_BOLUS_CUT_OFF_FLAG = "bolus_cut_off_flag"
-    KEY_BOLUS_CUT_OFF_DELAY_TIME = "bolus_cut_off_delay_time"
+    KEY_MODEL = "model"
+    M_POST_LABEL_DELAY = "post_label_delay"
+    M_BOLUS_CUT_OFF_FLAG = "bolus_cut_off_flag"
+    M_BOLUS_CUT_OFF_DELAY_TIME = "bolus_cut_off_delay_time"
+    M_GKM_MODEL = "gkm_model"
 
     # Value constants
     CASL = "casl"
     PCASL = "pcasl"
     PASL = "pasl"
 
+    MODEL_FULL = "full"
+    MODEL_WP = "whitepaper"
+
     def __init__(self):
         super().__init__(name="General Kinetic Model")
 
     def _run(self):
-        """ Generates the delta_m signal based on the inputs """
+        """Generates the delta_m signal based on the inputs"""
 
         perfusion_rate: np.ndarray = self.inputs[self.KEY_PERFUSION_RATE].image / 6000.0
         transit_time: np.ndarray = self.inputs[self.KEY_TRANSIT_TIME].image
@@ -121,6 +142,7 @@ class GkmFilter(BaseFilter):
         signal_time: float = self.inputs[self.KEY_SIGNAL_TIME]
         label_efficiency: float = self.inputs[self.KEY_LABEL_EFFICIENCY]
         t1_arterial_blood: float = self.inputs[self.KEY_T1_ARTERIAL_BLOOD]
+        model: str = self.inputs[self.KEY_MODEL]
 
         # blank dictionary for metadata to add
         metadata = {}
@@ -170,118 +192,159 @@ class GkmFilter(BaseFilter):
         if self.inputs[self.KEY_LABEL_TYPE].lower() == self.PASL:
             # do GKM for PASL
             logger.info("General Kinetic Model for Pulsed ASL")
-            k: np.ndarray = (
-                1 / t1_arterial_blood if t1_arterial_blood != 0 else 0
-            ) - np.divide(1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0)
-            # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
-            # numerator and denominator separately for q_pasl_arriving
-            numerator = np.exp(k * signal_time) * (
-                np.exp(-k * transit_time) - np.exp(-k * signal_time)
-            )
-            denominator = k * (signal_time - transit_time)
+            if model == self.MODEL_FULL:
 
-            q_pasl_arriving = np.divide(
-                numerator,
-                denominator,
-                out=np.zeros_like(numerator),
-                where=denominator != 0,
-            )
+                k: np.ndarray = (
+                    1 / t1_arterial_blood if t1_arterial_blood != 0 else 0
+                ) - np.divide(
+                    1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0
+                )
+                # if transit_time == signal_time then there is a divide-by-zero condition.  Calculate
+                # numerator and denominator separately for q_pasl_arriving
+                numerator = np.exp(k * signal_time) * (
+                    np.exp(-k * transit_time) - np.exp(-k * signal_time)
+                )
+                denominator = k * (signal_time - transit_time)
 
-            numerator = np.exp(k * signal_time) * (
-                np.exp(-k * transit_time) - np.exp(-k * (transit_time + label_duration))
-            )
+                q_pasl_arriving = np.divide(
+                    numerator,
+                    denominator,
+                    out=np.zeros_like(numerator),
+                    where=denominator != 0,
+                )
 
-            denominator = k * label_duration
-            q_pasl_arrived = np.divide(
-                numerator,
-                denominator,
-                out=np.zeros_like(denominator),
-                where=denominator != 0,
-            )
+                numerator = np.exp(k * signal_time) * (
+                    np.exp(-k * transit_time)
+                    - np.exp(-k * (transit_time + label_duration))
+                )
 
-            delta_m_arriving = (
-                2
-                * m0_arterial_blood
-                * perfusion_rate
-                * (signal_time - transit_time)
-                * label_efficiency
-                * (
-                    np.exp(-signal_time / t1_arterial_blood)
+                denominator = k * label_duration
+                q_pasl_arrived = np.divide(
+                    numerator,
+                    denominator,
+                    out=np.zeros_like(denominator),
+                    where=denominator != 0,
+                )
+
+                delta_m_arriving = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * (signal_time - transit_time)
+                    * label_efficiency
+                    * (
+                        np.exp(-signal_time / t1_arterial_blood)
+                        if t1_arterial_blood > 0
+                        else 0
+                    )
+                    * q_pasl_arriving
+                )
+                delta_m_arrived = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * label_efficiency
+                    * label_duration
+                    * (
+                        np.exp(-signal_time / t1_arterial_blood)
+                        if t1_arterial_blood > 0
+                        else 0
+                    )
+                    * q_pasl_arrived
+                )
+            elif model == self.MODEL_WP:
+
+                delta_m_arriving = np.zeros_like(delta_m)
+                # use simplified model for PASL
+                delta_m_arrived = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * label_duration
+                    * label_efficiency
+                    * np.exp(-signal_time / t1_arterial_blood)
                     if t1_arterial_blood > 0
                     else 0
                 )
-                * q_pasl_arriving
-            )
-            delta_m_arrived = (
-                2
-                * m0_arterial_blood
-                * perfusion_rate
-                * label_efficiency
-                * label_duration
-                * (
-                    np.exp(-signal_time / t1_arterial_blood)
-                    if t1_arterial_blood > 0
-                    else 0
-                )
-                * q_pasl_arrived
-            )
-            metadata[self.KEY_BOLUS_CUT_OFF_FLAG] = True
-            metadata[self.KEY_BOLUS_CUT_OFF_DELAY_TIME] = label_duration
+
+            metadata[self.M_BOLUS_CUT_OFF_FLAG] = True
+            metadata[self.M_BOLUS_CUT_OFF_DELAY_TIME] = label_duration
 
         elif self.inputs[self.KEY_LABEL_TYPE].lower() in [self.CASL, self.PCASL]:
             # do GKM for CASL/pCASL
             logger.info("General Kinetic Model for Continuous/pseudo-Continuous ASL")
-            q_ss_arriving = 1 - np.exp(
-                -np.divide(
-                    (signal_time - transit_time),
-                    t1_prime,
-                    out=np.zeros_like(t1_prime),
-                    where=t1_prime != 0,
-                )
-            )
-            q_ss_arrived = 1 - np.exp(
-                -np.divide(
-                    label_duration,
-                    t1_prime,
-                    out=np.zeros_like(t1_prime),
-                    where=t1_prime != 0,
-                )
-            )
-
-            delta_m_arriving = (
-                2
-                * m0_arterial_blood
-                * perfusion_rate
-                * t1_prime
-                * label_efficiency
-                * (
-                    np.exp(-transit_time / t1_arterial_blood)
-                    if t1_arterial_blood != 0
-                    else np.zeros_like(transit_time)
-                )
-                * q_ss_arriving
-            )
-            delta_m_arrived = (
-                2
-                * m0_arterial_blood
-                * perfusion_rate
-                * t1_prime
-                * label_efficiency
-                * (
-                    np.exp(-transit_time / t1_arterial_blood)
-                    if t1_arterial_blood != 0
-                    else np.zeros_like(transit_time)
-                )
-                * np.exp(
+            if model == self.MODEL_FULL:
+                q_ss_arriving = 1 - np.exp(
                     -np.divide(
-                        (signal_time - label_duration - transit_time),
+                        (signal_time - transit_time),
                         t1_prime,
                         out=np.zeros_like(t1_prime),
                         where=t1_prime != 0,
                     )
                 )
-                * q_ss_arrived
-            )
+                q_ss_arrived = 1 - np.exp(
+                    -np.divide(
+                        label_duration,
+                        t1_prime,
+                        out=np.zeros_like(t1_prime),
+                        where=t1_prime != 0,
+                    )
+                )
+
+                delta_m_arriving = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * t1_prime
+                    * label_efficiency
+                    * (
+                        np.exp(-transit_time / t1_arterial_blood)
+                        if t1_arterial_blood != 0
+                        else np.zeros_like(transit_time)
+                    )
+                    * q_ss_arriving
+                )
+                delta_m_arrived = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * t1_prime
+                    * label_efficiency
+                    * (
+                        np.exp(-transit_time / t1_arterial_blood)
+                        if t1_arterial_blood != 0
+                        else np.zeros_like(transit_time)
+                    )
+                    * np.exp(
+                        -np.divide(
+                            (signal_time - label_duration - transit_time),
+                            t1_prime,
+                            out=np.zeros_like(t1_prime),
+                            where=t1_prime != 0,
+                        )
+                    )
+                    * q_ss_arrived
+                )
+            elif model == self.MODEL_WP:
+                delta_m_arriving = np.zeros_like(delta_m)
+                delta_m_arrived = (
+                    2
+                    * m0_arterial_blood
+                    * perfusion_rate
+                    * t1_arterial_blood
+                    * label_efficiency
+                    * np.exp(
+                        -(signal_time - label_duration) / t1_arterial_blood
+                        if t1_arterial_blood != 0
+                        else 0
+                    )
+                    * (
+                        1 - np.exp(-label_duration / t1_arterial_blood)
+                        if t1_arterial_blood != 0
+                        else 0
+                    )
+                )
+
             metadata[self.KEY_LABEL_DURATION] = label_duration
 
         # combine the different arrival states into delta_m
@@ -301,10 +364,11 @@ class GkmFilter(BaseFilter):
             **metadata,
             **{
                 self.KEY_LABEL_TYPE: self.inputs[self.KEY_LABEL_TYPE].lower(),
-                self.KEY_POST_LABEL_DELAY: (signal_time - label_duration),
+                self.M_POST_LABEL_DELAY: (signal_time - label_duration),
                 self.KEY_LABEL_EFFICIENCY: label_efficiency,
                 self.KEY_T1_ARTERIAL_BLOOD: t1_arterial_blood,
                 "image_flavour": "PERFUSION",
+                self.M_GKM_MODEL: model,
             },
         }
         # merge this with the output image's metadata
@@ -388,10 +452,18 @@ class GkmFilter(BaseFilter):
                         isinstance_validator(float),
                     ]
                 ),
+                self.KEY_MODEL: Parameter(
+                    validators=from_list_validator(
+                        [self.MODEL_FULL, self.MODEL_WP], case_insensitive=True
+                    ),
+                    default_value=self.MODEL_FULL,
+                ),
             }
         )
 
-        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
+        new_params = input_validator.validate(
+            self.inputs, error_type=FilterInputValidationError
+        )
 
         # Check that all the input images are all the same dimensions
         input_keys = self.inputs.keys()
@@ -414,6 +486,8 @@ class GkmFilter(BaseFilter):
                     ],
                 ]
             )
+        # merge the updated parameters from the output with the input parameters
+        self.inputs = {**self._i, **new_params}
 
     @staticmethod
     def check_and_make_image_from_value(
@@ -422,19 +496,19 @@ class GkmFilter(BaseFilter):
         metadata: dict,
         metadata_key: str,
     ) -> np.ndarray:
-        """ Checks the type of the input parameter to see if it is a float or a BaseImageContainer.
+        """Checks the type of the input parameter to see if it is a float or a BaseImageContainer.
         If it is an image:
-        
+
         * return the image ndarray
         * check if it has the same value everywhere (i.e. an image override), if it does then
           place the value into the `metadata` dict under the `metadata_key`
-        
+
         If it is a float:
         * make a ndarray with the same value
         * place the value into the `metadata` dict under the `metadata_key`
 
         This makes calculations more straightforward as a ndarray can always be expected.
-        
+
         **Arguments**
 
         :param arg: The input parameter to check
@@ -448,7 +522,7 @@ class GkmFilter(BaseFilter):
 
         :return: image of the parameter
         :rype: np.ndarray
-        
+
         """
 
         if isinstance(arg, BaseImageContainer):
@@ -463,4 +537,3 @@ class GkmFilter(BaseFilter):
             out_array: np.ndarray = arg * np.ones(shape)
             metadata[metadata_key] = arg
         return out_array
-
