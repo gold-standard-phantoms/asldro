@@ -7,6 +7,7 @@ import datetime
 import json
 from tempfile import TemporaryDirectory
 import pytest
+import git
 
 import numpy as np
 import numpy.testing
@@ -17,7 +18,7 @@ from asldro.filters.basefilter import FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer
 from asldro.utils.filter_validation import validate_filter_inputs
 
-from asldro import __version__ as asldro_version
+from asldro import __version__
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_NIFTI_ONES = nib.Nifti2Image(
@@ -200,7 +201,6 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
             test_filter.add_inputs(passing_inputs)
             # optional inputs should run without issue
             if is_optional:
-                # pdb.set_trace()
                 test_filter.run()
             else:
                 with pytest.raises(FilterInputValidationError):
@@ -216,8 +216,16 @@ def test_bids_output_filter_validate_metadata(validation_metadata: dict):
                     test_filter.run()
 
 
+@pytest.fixture(name="asldro_version", scope="module")
+def asldro_version_fixture() -> str:
+    """generates the version string based on the current git state"""
+    return BidsOutputFilter.determine_source_version(
+        os.path.dirname(os.path.realpath(__file__)), "v" + __version__
+    )
+
+
 @pytest.fixture(name="structural_input")
-def structural_input_fixture() -> Tuple[NiftiImageContainer, dict]:
+def structural_input_fixture(asldro_version) -> Tuple[NiftiImageContainer, dict]:
     """Mock data and expected sidecar for structural image series"""
     image = deepcopy(TEST_NIFTI_CON_ONES)
     image.metadata = {
@@ -294,7 +302,7 @@ def test_bids_output_filter_mock_data_structural(structural_input):
 
 
 @pytest.fixture(name="asl_input")
-def asl_input_fixture() -> Tuple[NiftiImageContainer, dict]:
+def asl_input_fixture(asldro_version) -> Tuple[NiftiImageContainer, dict]:
     """creates test data for testing BIDS output of an ASL image"""
     image = deepcopy(TEST_NIFTI_CON_ONES)
     image.metadata = {
@@ -621,7 +629,7 @@ def test_bids_output_filter_m0scan(structural_input):
         assert loaded_json == bids_output_filter.outputs["sidecar"]
 
 
-def test_bids_output_filter_mock_data_ground_truth():
+def test_bids_output_filter_mock_data_ground_truth(asldro_version):
     """Tests the BidsOutputFilter with some mock data"""
     with TemporaryDirectory() as temp_dir:
         image = deepcopy(TEST_NIFTI_CON_ONES)
@@ -687,7 +695,7 @@ def test_bids_output_filter_mock_data_ground_truth():
         assert loaded_json == bids_output_filter.outputs["sidecar"]
 
 
-def test_bids_output_filter_mock_data_ground_truth_seg_label():
+def test_bids_output_filter_mock_data_ground_truth_seg_label(asldro_version):
     """Tests the BidsOutputFilter with some mock data"""
     with TemporaryDirectory() as temp_dir:
         image = deepcopy(TEST_NIFTI_CON_ONES)
@@ -962,7 +970,7 @@ def test_bids_output_filter_background_suppression(asl_input):
         )
 
 
-def test_bids_output_filter_dataset_description():
+def test_bids_output_filter_dataset_description(asldro_version):
     """Checks that the dataset_description.json file
     is correctly output"""
     with TemporaryDirectory() as temp_dir:
@@ -1079,3 +1087,54 @@ def test_bids_output_filter_save_json_static_method():
             loaded_data = json.load(json_file)
 
         assert loaded_data == data
+
+
+def test_bids_output_filter_determine_source_version_static_method():
+    """Tests the determine_asldro_version static method"""
+
+    with TemporaryDirectory() as temp_dir:
+
+        repo_path = os.path.join(temp_dir, "test_repo")
+        fn = os.path.join(repo_path, "file")
+        os.mkdir(repo_path)
+
+        # no repository
+        version = BidsOutputFilter.determine_source_version(repo_path, "str")
+        assert version == "str"
+
+        # create a new repo
+        new_repo = git.Repo.init(repo_path)
+        # repo exists but no master branch
+        version = BidsOutputFilter.determine_source_version(repo_path, "str")
+        assert version == "str-unverified"
+
+        # create master branch
+        new_repo.git.checkout(b="master")
+        open(fn, "wb").close()
+        # add a file, commit and add a v1.0.0 tag
+        new_repo.index.add([fn])
+        new_repo.index.commit("initial commit")
+        new_repo.create_tag("v1.0.0")
+        version = BidsOutputFilter.determine_source_version(repo_path, "v1.0.0")
+        assert version == "v1.0.0"
+        new_repo.git.clear_cache()
+
+        # check out a new branch
+        new_repo.git.checkout(b="test-branch")
+
+        # make changes to the repo so it is 'dirty'
+        with open(fn, mode="w") as file:
+            file.write("some text")
+            file.close()
+        version = BidsOutputFilter.determine_source_version(repo_path, "v1.0.0")
+        assert version == "v1.0.0-dirty"
+
+        # commit these changes
+        new_repo.index.add([fn])
+        new_repo.index.commit("updated file")
+        version = BidsOutputFilter.determine_source_version(repo_path, "v1.0.0")
+        assert version == f"v1.0.0-1-g{new_repo.head.commit.hexsha[:7]}"
+        new_repo.git.clear_cache()
+
+        # clear the repo's cache
+        new_repo.git.clear_cache()

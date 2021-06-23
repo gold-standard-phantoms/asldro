@@ -96,6 +96,47 @@ Will result in the following files output
             |-- sub-001_acq-007_dseg.nii.gz
             |-- sub-001_acq-007_dseg.json
 
+ASLDRO version
+----------------
+
+ASLDRO can be run from released packages available at pypi.org, or directly
+from source code. When a release is created, the version number is manually
+created and added to the module version (i.e. setup.py),
+and a tag added to the git source control. However, this means that subsequent
+edits and commits based on a release will still have the module version as the
+derived release. So, there is an additional mechanism to ensure that data that
+are exported to BIDS are traceable to the actual git commit: 
+
+1. If no git repository information is found (e.g. installed from pypi using pip)
+   then the version will be the release version.
+2. If the git commit hash of the HEAD matches the most recent commit hash
+   from the master branch then it is considered to be the release version.
+3. If the git commit hash doesn't match the most recent commit to the master
+   branch, or the repository is 'dirty' (uncommited changes) then the version
+   will be generated using the command ``git describe --tags --dirty``
+   (see https://git-scm.com/docs/git-describe for more details).
+   
+   For example::
+   
+    v2.2.0-77-gc8678e5-dirty
+    
+  * v2.2.0 is the parent branch (which has the tag v2.2.0)
+  * 77 is the number of commits that the current branch is ahead of the parent
+    branch.
+  * gc8678e5 has two parts: the 'g' at the start indicates git, and the remainder
+    is the abbreviated commit hash for the current branch.
+  * dirty indicates that when the DRO was run there were uncommited changes in
+    the repository.
+
+This requires git to be installed on the host system and for the master branch's
+git commit information to be available. If it isn't then the 
+version number will be the release version appended with "-unverified", e.g.
+"v2.2.0-unverified". 
+
+This version information is included in:
+
+* The JSON sidecars
+* dataset_description.json
 
 .. _bids-deviations:
 
