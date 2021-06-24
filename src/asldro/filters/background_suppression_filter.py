@@ -341,14 +341,7 @@ class BackgroundSuppressionFilter(BaseFilter):
         sat_eff: np.ndarray = 1.0,
     ) -> np.ndarray:
         r"""Calculates the longitudinal magnetisation after
-        a sequence of background suppression pulses. Calculates
-        according to the equation in:
-
-            Mani, S., Pauly, J., Conolly, S., Meyer, C. and
-            Nishimura, D. (1997), Background suppression with
-            multiple inversion recovery nulling: Applications
-            to projective angiography. Magn. Reson. Med., 37:
-            898-905. https://doi.org/10.1002/mrm.1910370615
+        a sequence of background suppression pulses :cite:p:`Mani1997`
 
         :param initial_mz: The initial longitudinal magnetisation, :math:`M_z(t=0)`
         :type initial_mz: np.ndarray
@@ -430,13 +423,8 @@ class BackgroundSuppressionFilter(BaseFilter):
 
     @staticmethod
     def calculate_pulse_efficiency(t1: np.ndarray) -> np.ndarray:
-        r"""Calculates the pulse efficiency per t1 according to the
-        polynomial described in:
-
-            Maleki, N., Dai, W. & Alsop, D.C. Optimization of
-            background suppression for arterial spin labeling
-            perfusion imaging. Magn Reson Mater Phy 25,
-            127–133 (2012). https://doi.org/10.1007/s10334-011-0286-3
+        r"""Calculates the pulse efficiency per T1 based on a polynomial
+        fit :cite:p:`Maleki2011`.
 
         :param t1: t1 times to calculate the pulse efficiencies for, seconds.
         :type t1: np.ndarray

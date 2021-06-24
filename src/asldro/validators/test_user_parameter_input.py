@@ -45,6 +45,7 @@ def test_user_input_valid():
         "interpolation": "linear",
         "background_suppression": False,
         "output_image_type": "complex",
+        "gkm_model": "whitepaper",
     }
     assert d == IMAGE_TYPE_VALIDATOR[ASL].validate(
         d
@@ -83,6 +84,7 @@ def test_asl_user_input_defaults_created():
             "apply_to_asl_context": ["label", "control"],
         },
         "output_image_type": "magnitude",
+        "gkm_model": "full",
     }
 
     # Validation should include inputs
@@ -280,6 +282,7 @@ def fixture_expected_parsed_input():
                         "apply_to_asl_context": ["label", "control"],
                     },
                     "output_image_type": "magnitude",
+                    "gkm_model": "full",
                 },
             },
             {
@@ -428,6 +431,7 @@ def test_missing_series_parameters_inserts_defaults(input_params: dict):
                 "apply_to_asl_context": ["label", "control"],
             },
             "output_image_type": "magnitude",
+            "gkm_model": "full",
         },
     }
 

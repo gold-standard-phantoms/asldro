@@ -10,6 +10,7 @@ import os
 from copy import deepcopy
 import jsonschema
 from asldro.data.filepaths import GROUND_TRUTH_DATA
+from asldro.filters.gkm_filter import GkmFilter
 
 from asldro.validators.parameters import (
     ParameterValidator,
@@ -42,6 +43,7 @@ SIGNAL_TIME = "signal_time"
 LABEL_EFFICIENCY = "label_efficiency"
 LAMBDA_BLOOD_BRAIN = "lambda_blood_brain"
 T1_ARTERIAL_BLOOD = "t1_arterial_blood"
+GKM_MODEL = "gkm_model"
 M0 = "m0"
 ECHO_TIME = "echo_time"
 REPETITION_TIME = "repetition_time"
@@ -346,6 +348,12 @@ IMAGE_TYPE_VALIDATOR = {
             OUTPUT_IMAGE_TYPE: Parameter(
                 validators=from_list_validator(["complex", "magnitude"]),
                 default_value="magnitude",
+            ),
+            GKM_MODEL: Parameter(
+                validators=from_list_validator(
+                    [GkmFilter.MODEL_WP, GkmFilter.MODEL_FULL]
+                ),
+                default_value=GkmFilter.MODEL_FULL,
             ),
         },
         post_validators=[

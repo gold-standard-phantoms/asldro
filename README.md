@@ -1,8 +1,6 @@
 # Overview
 
-
-
-![image](docs/images/asldro_logo.png)
+![image](/docs/images/asldro_logo.png)
 
 [![image](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb)
 [![image](https://shields.io/pypi/l/asldro.svg)](https://pypi.org/project/asldro/)
@@ -11,30 +9,38 @@ ASL DRO is software that can generate digital reference objects for Arterial Spi
 It creates synthetic raw ASL data according to set acquisition and data format parameters, based
 on input ground truth maps for:
 
+- Perfusion rate
 
-* Perfusion rate
+- Transit time
 
+- Intrinsic MRI parameters: M0, T1, T2, T2\*
 
-* Transit time
-
-
-* Intrinsic MRI parameters: M0, T1, T2, T2\*
-
-
-* Tissue segmentation (defined as a single tissue type per voxel)
+- Tissue segmentation (defined as a single tissue type per voxel)
 
 Synthetic data is generated in Brain Imaging Data Structure format, comprising of a NIFTI image file
 and accompanying json sidecar containing parameters.
 
 ASLDRO was developed to address the need to test ASL image processing pipelines with data that has
 a known ground truth. A strong emphasis has been placed on ensuring traceability of the developed
-code, in particular with respect to testing.  The DRO pipelines uses a ‘pipe and filter’ architecture
+code, in particular with respect to testing. The DRO pipelines uses a ‘pipe and filter’ architecture
 with ‘filters’ performing data processing, which provides a common interface between processing
 blocks.
+
+## How To Cite
+
+If you use ASLDRO in your work, please include the following citation
+
+## How To Contribute
+
+Got a great idea for something to implement in ASLDRO, or maybe you have just
+found a bug? Create an issue at
+[https://github.com/gold-standard-phantoms/asldro/issues](https://github.com/gold-standard-phantoms/asldro/issues) to get in touch with
+the development team and we’ll take it from there.
+
 # Installation
 
-ASLDRO can be installed as a module directly from the python package index.  Once installed it can
-simply be run as a command-line tool.  For more information how to use a python package in this
+ASLDRO can be installed as a module directly from the python package index. Once installed it can
+simply be run as a command-line tool. For more information how to use a python package in this
 way please see [https://docs.python.org/3/installing/index.html](https://docs.python.org/3/installing/index.html)
 
 ## Python Version
@@ -46,17 +52,13 @@ We recommend using the latest version of Python. ASL DRO supports Python
 
 These distributions will be installed automatically when installing ASL DRO.
 
+- [nibabel](https://nipy.org/nibabel/) provides read / write access to some common neuroimaging file formats
 
-* [nibabel](https://nipy.org/nibabel/) provides read / write access to some common neuroimaging file formats
+- [numpy](https://numpy.org/) provides efficient calculations with arrays and matrices
 
+- [jsonschema](https://python-jsonschema.readthedocs.io/en/stable/) provides an implementation of JSON Schema validation for Python
 
-* [numpy](https://numpy.org/) provides efficient calculations with arrays and matrices
-
-
-* [jsonschema](https://python-jsonschema.readthedocs.io/en/stable/) provides an implementation of JSON Schema validation for Python
-
-
-* [nilearn](https://nipy.org/packages/nilearn/index.html) provides image manipulation tools and statistical learning for neuroimaging data
+- [nilearn](https://nipy.org/packages/nilearn/index.html) provides image manipulation tools and statistical learning for neuroimaging data
 
 ## Virtual environments
 
@@ -119,12 +121,20 @@ $ pip install asldro
 
 ASL DRO is now installed. Check out the Quickstart or go to the
 Documentation Overview.
+
 # Quickstart
+
+ASLDRO has a Jupyter Notebook that runs in the cloud via mybinder.org.
+This is certainly the simplest way to try out the DRO, generate some data,
+and also provides an interactive way to generate customised input parameters.
+Check it out at [https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb](https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb)
 
 ## Getting started
 
 Eager to get started? This page gives a good introduction to ASL DRO.
 Follow Installation to set up a project and install ASL DRO first.
+
+### Running with defaults
 
 After installation the command line tool `asldro` will be made available. You can run:
 
@@ -135,11 +145,15 @@ asldro generate path/to/output_file.zip
 to run the DRO generation as-per the ASL White Paper specification. The output file may
 be either .zip or .tar.gz.
 
+### Specifying a parameter file
+
 Is it also possible to specify a parameter file, which will override any of the default values:
 
 ```
 asldro generate --params path/to/input_params.json path/to/output_file.zip
 ```
+
+### Output default parameters
 
 It is possible to create an example parameters file containing the model defaults by running:
 
@@ -150,7 +164,11 @@ asldro output params /path/to/input_params.json
 which will create the `/path/to/input_params.json` file. The parameters may be adjusted as
 necessary and used with the ‘generate’ command.
 
-For details on input parameters see Parameters
+For details on input parameters see Parameters.
+
+For details on the output DRO data see DRO Output Data.
+
+### Output built-in ground truths
 
 It is also possible to output the high-resolution ground-truth (HRGT) files.
 To get a list of the available data, type:
@@ -166,6 +184,19 @@ asldro output hrgt HRGT OUTPUT_DIR
 ```
 
 where HRGT is the code of the files to download, and OUTPUT_DIR is the directory to output to.
+
+### Perform ASL quantification
+
+ASLDRO has a built in ASL quantification module, for testing and verification
+of the DRO outputs:
+
+```
+asldro asl-quantify --params QUANT_PARAMS_PATH ASL_NIFTI_PATH OUTPUT_DIR
+```
+
+See ASL Quantification for more details.
+
+### Generate your own ground truths
 
 There are also two ancillary command line features that assist with the creation of
 HRGT’s. To create a valid HRGT:
@@ -197,70 +228,50 @@ For more information about how to use these features see Making an input ground 
 
 There are three pipelines available in ASLDRO
 
+- The full ASL pipeline.
 
-* The full ASL pipeline.
+- A structural MRI pipeline (generates gradient echo, spin echo or inversion recovery signal).
 
-
-* A structural MRI pipeline (generates gradient echo, spin echo or inversion recovery signal).
-
-
-* A ground truth pipeline that simply resamples the input ground truth to the specified resolution.
+- A ground truth pipeline that simply resamples the input ground truth to the specified resolution.
 
 In a single instance of ASLDRO, the input parameter file can configure any number and configurations
 of these pipelines to be run, much in the way that this can be done on an MRI scanner.
 
 The full ASL pipeline comprises of:
 
-
 1. Loading in the ground truth volumes.
-
 
 2. Producing $\Delta M$ using the General Kinetic Model for the specified ASL parameters.
 
-
 3. Generating synthetic M0, Control and Label volumes.
-
 
 4. Applying motion
 
-
 5. Sampling at the acquisition resolution
-
 
 6. Adding instrument and physiological pseudorandom noise.
 
 The structural pipeline excludes the General Kinetic Model, and just generates volumes with synthetic
-MR contrast.  The ground truth pipeline only has the motion model and sampling.
-
-Each volume described in `asl_context` has the motion, resampling and noise processes applied
-independently. The rotation and translation arrays in the input parameters describe this motion, and
-the the random number generator is initialised with the same seed each time the DRO is run, so each
-volume will have noise that is unique, but statistically the same.
-
-If `desired_snr` is set to `0`, the resultant images will not have any noise applied.
+MR contrast. The ground truth pipeline only has the motion model and sampling.
 
 Each pipeline outputs files in BIDS ([https://bids.neuroimaging.io/](https://bids.neuroimaging.io/)) format, consisting of a NIFTI
 image file and accompanying json sidecar. In the case of an ASL image an
-additional ‘\*_aslcontext.tsv’ file is also generated which describes the ASL volumes
+additional ‘\*\_aslcontext.tsv’ file is also generated which describes the ASL volumes
 present in the timeseries.
 
 The DRO pipeline is summarised in this schematic (click to view full-size):
 
+![image](docs/images/asldro.png)
 
-
-[![image](docs/images/asldro.png)](docs/images/asldro.png)
 # Development
 
 Development of this software project must comply with a few code styling/quality rules and processes:
 
+- Pylint must be used as the linter for all source code. A linting configuration can be found in `.pylintrc`. There should be no linting errors when checking in code.
 
-* Pylint must be used as the linter for all source code. A linting configuration can be found in `.pylintrc`. There should be no linting errors when checking in code.
+- Before committing any files, [black](https://black.readthedocs.io/en/stable/) must be run with the default settings in order perform autoformatting on the python
+  files, and [prettier](https://prettier.io/) must be run (.prettierrc in project root) to autoformat JSON files.
 
+- Before pushing any code, make sure the CHANGELOG.md is updated as per the instructions in the CHANGELOG.md file.
 
-* Before committing any files, [black](https://black.readthedocs.io/en/stable/) must be run with the default settings in order perform autoformatting on the project.
-
-
-* Before pushing any code, make sure the CHANGELOG.md is updated as per the instructions in the CHANGELOG.md file.
-
-
-* The project’s software development processes must be used ([found here](https://confluence.goldstandardphantoms.com/display/AD/Software+development+processes)).
+- The project’s software development processes must be used ([found here](https://confluence.goldstandardphantoms.com/display/AD/Software+development+processes)).

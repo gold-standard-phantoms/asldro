@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter that simulates background suppression
 - Filter for loading in ASL BIDS files
 - Filter for performing ASL quantification
+- "Whitepaper" mode for generating the perfusion signal.
 
 ### Fixed
 

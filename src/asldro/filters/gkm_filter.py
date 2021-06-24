@@ -17,11 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class GkmFilter(BaseFilter):
-    """
+    r"""
     A filter that generates the ASL signal using the General Kinetic Model.
-    From: Buxton et. al, 'A general kinetic model for quantitative perfusion imaging with arterial
-    spin labeling', Magnetic Resonance in Medicine, vol. 40, no. 3, pp. 383-396, 1998.
-    https://doi.org/10.1002/mrm.1910400308
 
     **Inputs**
 
@@ -59,13 +56,9 @@ class GkmFilter(BaseFilter):
     :type 't1_tissue': BaseImageContainer
     :param 'model': The model to use to generate the perfusion signal:
 
-      * "full" for the full General Kinetic Model.
+      * "full" for the full "Buxton" General Kinetic Model :cite:p:`Buxton1998`
       * "whitepaper" for the simplified model, derived from the quantification
-        equations in Alsop et al. Recommended implementation of arterial spin-labeled
-        perfusion MRI for clinical applications: A consensus of the ISMRM
-        perfusion study group and the European consortium for ASL in
-        dementia. Magnetic Resonance in Medicine 2014;73:102–116
-        https://doi.org/10.1002/mrm.25197.
+        equations the ASL Whitepaper consensus paper :cite:p:`Alsop2014`.
 
       Defaults to "full".
 
@@ -82,7 +75,8 @@ class GkmFilter(BaseFilter):
 
     **Metadata**
 
-    The following parameters are added to :class:`GkmFilter.outputs["delta_m"].metadata`:
+    The following parameters are added to 
+    :class:`GkmFilter.outputs["delta_m"].metadata`:
 
     * ``label_type``
     * ``label_duration`` (pcasl/casl only)
@@ -97,8 +91,136 @@ class GkmFilter(BaseFilter):
 
     ``post_label_delay`` is calculated as ``signal_time - label_duration``
 
-    ``bolus_cut_off_delay_time`` takes the value of the input ``label_duration``, this field is used
-    for pasl in line with the BIDS specification.
+    ``bolus_cut_off_delay_time`` takes the value of the input
+    ``label_duration``, this field is used for pasl in line with
+    the BIDS specification.
+
+
+    **Equations**
+
+    The general kinetic model :cite:p:`Buxton1998` is the standard signal model 
+    for ASL perfusion measurements. It considers the difference between the
+    control and label conditions to be a deliverable tracer, referred to
+    as :math:`\Delta M(t)`.
+
+    The amount of :math:`\Delta M(t)` within a voxel at time :math:`t`
+    depends on the history of:
+
+    * delivery of magnetisation by arterial flow
+    * clearance by venous flow
+    * longitudinal relaxation
+
+    These processes can be described by defining three functions of time:
+
+    1. The delivery function :math:`c(t)` - the normalised arterial
+       concentration of magnetisation arriving at the voxel
+       at time :math:`t`.
+    2. The residue function :math:`r(t,t')` - the fraction of tagged water
+       molecules that arrive at time :math:`t'` and
+       are still in the voxel at time :math:`t`.
+    3. The magnetisation relaxation function :math:`m(t,t')` is the fraction
+       of the original longitudinal magnetisation tag carried by the water
+       molecules that arrived at time :math:`t'` that remains at time :math:`t`.
+
+    Using these definitions :math:`\Delta M(t)` can be constructed as the sum
+    over history of delivery of magnetisation to the tissue weighted with the
+    fraction of that magnetisation that remains in the voxel:
+
+    .. math::
+
+        &\Delta M(t)=2\cdot M_{0,b}\cdot f\cdot\left\{ c(t)\ast\left[r(t)\cdot m(t)\right]\right\}\\
+        &\text{where}\\
+        &\ast=\text{convolution operator} \\
+        &r(t)=\text{residue function}=e^{-\frac{ft}{\lambda}}\\
+        &m(t)=e^{-\frac{t}{T_{1}}}\\
+        &c(t)=\text{delivery function, defined as plug flow} = \begin{cases}
+        0  &  0<t<\Delta t\\
+        \alpha e^{-\frac{t}{T_{1,b}}}\,\text{(PASL)}  &  \Delta t<t<\Delta t+\tau\\
+        \alpha e^{-\frac{\Delta t}{T_{1,b}}}\,\text{(CASL/pCASL)}\\
+        0  &  t>\Delta t+\tau
+        \end{cases}\\
+        &\alpha=\text{labelling efficiency} \\
+        &\tau=\text{label duration} \\
+        &\Delta t=\text{initial transit delay, ATT} \\
+        &M_{0,b} = \text{equilibrium magnetisation of arterial blood} = \frac{M_{0,\text{tissue}}}{\lambda} \\
+        & f = \text{the perfusion rate, CBF}\\
+        &\lambda = \text{blood brain partition coefficient}\\
+        &T_{1,b} = \text{longitudinal relaxation time of arterial blood}\\
+        &T_{1} = \text{longitudinal relaxation time of tissue}\\
+        
+    Note that all units are in SI, with :math:`f` having units :math:`s^{-1}`.
+    Multiplying by 6000 gives units of :math:`ml/100g/min`.
+
+    *Full Model*
+    
+    The full solutions to the GKM :cite:p:`Buxton1998` are used to calculate
+    :math:`\Delta M(t)` when ``model=="full"``:
+
+    *   (p)CASL:
+
+        .. math::
+
+            &\Delta M(t)=\begin{cases}
+            0 & 0<t\leq\Delta t\\
+            2M_{0,b}fT'_{1}\alpha e^{-\frac{\Delta t}{T_{1,b}}}q_{ss}(t) &
+            \Delta t<t<\Delta t+\tau\\
+            2M_{0,b}fT'_{1}\alpha e^{-\frac{\Delta t}{T_{1,b}}}
+            e^{-\frac{t-\tau-\Delta t}{T'_{1}}}q_{ss}(t) & t\geq\Delta t+\tau
+            \end{cases}\\
+            &\text{where}\\
+            &q_{ss}(t)=\begin{cases}
+            1-e^{-\frac{t-\Delta t}{T'_{1}}} & \Delta t<t <\Delta t+\tau\\
+            1-e^{-\frac{\tau}{T'_{1}}} & t\geq\Delta t+\tau
+            \end{cases}\\
+            &\frac{1}{T'_{1}}=\frac{1}{T_1} + \frac{f}{\lambda}\\
+
+    *   PASL:
+
+        .. math::
+
+            &\Delta M(t)=\begin{cases}
+            0 & 0<t\leq\Delta t\\
+            2M_{0,b}f(t-\Delta t) \alpha e^{-\frac{t}{T_{1,b}}}q_{p}(t)
+            & \Delta t < t < t\Delta t+\tau\\
+            2M_{0,b}f\alpha \tau e^{-\frac{t}{T_{1,b}}}q_{p}(t)
+            & t\geq\Delta t+\tau
+            \end{cases}\\
+            &\text{where}\\
+            &q_{p}(t)=\begin{cases}
+            \frac{e^{kt}(e^{-k \Delta t}-e^{-kt})}{k(t-\Delta t)}
+            & \Delta t<t<\Delta t+\tau\\
+            \frac{e^{kt}(e^{-k\Delta t}-e^{k(\tau + \Delta t)}}{k\tau}
+            & t\geq\Delta t+\tau
+            \end{cases}\\
+            &\frac{1}{T'_{1}}=\frac{1}{T_1} + \frac{f}{\lambda}\\
+            &k=\frac{1}{T_{1,b}}-\frac{1}{T'_1}
+
+    *Simplified Model"
+
+    The simplified model, derived from the single subtraction quantification
+    equations (see :class:`.AslQuantificationFilter`) are used when
+    ``model=="whitepaper"``:
+
+    *   (p)CASL:
+
+        .. math::
+
+            &\Delta M(t) = \begin{cases}
+            0 & 0<t\leq\Delta t + \tau\\
+            {2  M_{0,b}  f  T_{1,b} \alpha 
+            (1-e^{-\frac{\tau}{T_{1,b}}}) e^{-\frac{t-\tau}{T_{1,b}}}}
+            & t > \Delta t + \tau\\
+            \end{cases}\\
+
+    *   PASL
+
+        .. math::
+
+            &\Delta M(t) = \begin{cases}
+            0 & 0<t\leq\Delta t + \tau\\
+            {2  M_{0,b}  f  \tau  \alpha  
+            e^{-\frac{t}{T_{1,b}}}} & t > \Delta t + \tau\\
+            \end{cases}
 
     """
 

@@ -219,21 +219,22 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 gkm_filter.add_parent_filter(
                     parent=ground_truth_filter,
                     io_map={
-                        "perfusion_rate": gkm_filter.KEY_PERFUSION_RATE,
-                        "transit_time": gkm_filter.KEY_TRANSIT_TIME,
-                        "m0": gkm_filter.KEY_M0,
-                        "t1": gkm_filter.KEY_T1_TISSUE,
-                        "lambda_blood_brain": gkm_filter.KEY_LAMBDA_BLOOD_BRAIN,
-                        "t1_arterial_blood": gkm_filter.KEY_T1_ARTERIAL_BLOOD,
+                        "perfusion_rate": GkmFilter.KEY_PERFUSION_RATE,
+                        "transit_time": GkmFilter.KEY_TRANSIT_TIME,
+                        "m0": GkmFilter.KEY_M0,
+                        "t1": GkmFilter.KEY_T1_TISSUE,
+                        "lambda_blood_brain": GkmFilter.KEY_LAMBDA_BLOOD_BRAIN,
+                        "t1_arterial_blood": GkmFilter.KEY_T1_ARTERIAL_BLOOD,
                     },
                 )
                 # Add parameters from the input_params: label_type, signal_time, label_duration and
                 # label_efficiency all have the same keys
                 gkm_filter.add_inputs(asl_params)
+                gkm_filter.add_input(GkmFilter.KEY_MODEL, asl_params["gkm_model"])
                 # reverse the polarity of delta_m.image for encoding it into the label signal
                 invert_delta_m_filter = InvertImageFilter()
                 invert_delta_m_filter.add_parent_filter(
-                    parent=gkm_filter, io_map={gkm_filter.KEY_DELTA_M: "image"}
+                    parent=gkm_filter, io_map={GkmFilter.KEY_DELTA_M: "image"}
                 )
 
                 # ASL Context Loop: loop over ASL context, run the AcquireMriImageFilter and put the
@@ -431,7 +432,8 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
             # map inputs from struct_params. acq_contrast, excitation_flip_angle, desired_snr,
             # inversion_time, inversion_flip_angle (last 2 are optional)
             acquire_mri_image_filter.add_inputs(
-                struct_params, io_map_optional=True,
+                struct_params,
+                io_map_optional=True,
             )
 
             append_metadata_filter = AppendMetadataFilter()

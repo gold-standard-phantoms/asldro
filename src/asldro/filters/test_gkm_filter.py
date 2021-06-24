@@ -6,6 +6,7 @@ import pytest
 import numpy as np
 import numpy.testing
 from asldro.containers.image import BaseImageContainer, NumpyImageContainer
+from asldro.filters.asl_quantification_filter import AslQuantificationFilter
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.utils.filter_validation import validate_filter_inputs
@@ -659,6 +660,25 @@ def test_gkm_filter_wp_casl(casl_input):
         delta_m, gkm_filter.outputs["delta_m"].image
     )
 
+    assert gkm_filter.outputs["delta_m"].metadata["gkm_model"] == "whitepaper"
+
+    # check that quantification is correct
+    quantified_f = AslQuantificationFilter.asl_quant_wp_casl(
+        control=casl_input["m0"].image,
+        label=casl_input["m0"].image - gkm_filter.outputs["delta_m"].image,
+        m0=casl_input["m0"].image,
+        lambda_blood_brain=casl_input["lambda_blood_brain"],
+        label_duration=casl_input["label_duration"],
+        label_efficiency=casl_input["label_efficiency"],
+        post_label_delay=casl_input["signal_time"] - casl_input["label_duration"],
+        t1_arterial_blood=casl_input["t1_arterial_blood"],
+    )
+
+    # should be equal to 12 d.p.
+    np.testing.assert_array_almost_equal(
+        casl_input["perfusion_rate"].image, quantified_f, 12
+    )
+
     # Set 'signal_time' to be less than the transit time so that the bolus
     # has not arrived yet
     casl_input["signal_time"] = 0.5
@@ -682,6 +702,25 @@ def test_gkm_filter_wp_pasl(pasl_input):
     delta_m = wp_pasl_function(pasl_input)
     numpy.testing.assert_array_almost_equal(
         delta_m, gkm_filter.outputs["delta_m"].image
+    )
+
+    assert gkm_filter.outputs["delta_m"].metadata["gkm_model"] == "whitepaper"
+
+    # check that quantification is correct
+    quantified_f = AslQuantificationFilter.asl_quant_wp_pasl(
+        control=pasl_input["m0"].image,
+        label=pasl_input["m0"].image - gkm_filter.outputs["delta_m"].image,
+        m0=pasl_input["m0"].image,
+        lambda_blood_brain=pasl_input["lambda_blood_brain"],
+        bolus_duration=pasl_input["label_duration"],
+        label_efficiency=pasl_input["label_efficiency"],
+        inversion_time=pasl_input["signal_time"],
+        t1_arterial_blood=pasl_input["t1_arterial_blood"],
+    )
+
+    # should be equal to 12 d.p.
+    np.testing.assert_array_almost_equal(
+        pasl_input["perfusion_rate"].image, quantified_f, 12
     )
 
     # Set 'signal_time' to be less than the transit time so that the bolus
