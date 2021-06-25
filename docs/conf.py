@@ -32,7 +32,12 @@ author = "Tom Hampshire, Aaron Oliver-Taylor"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.mathjax", "sphinx_rtd_theme"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.mathjax",
+    "sphinx_rtd_theme",
+    "sphinxcontrib.bibtex",
+]
 
 # This value contains a list of modules to be mocked up.
 # This is useful when some external dependencies are not met at build time
@@ -65,10 +70,14 @@ html_static_path = ["_static"]
 
 todo_include_todos = True
 
+# sphinxcontrib-bibtex config
+bibtex_bibfiles = ["refs.bib"]
+bibtex_default_style = "plain"
+
 
 def run_apidoc(_):
-    """ A hook to run on documentation building which will
-        first generate the API stubs for the Sphinx build """
+    """A hook to run on documentation building which will
+    first generate the API stubs for the Sphinx build"""
 
     sys.path.append(os.path.join(os.path.dirname(__file__)))
     current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -79,5 +88,5 @@ def run_apidoc(_):
 
 
 def setup(app):
-    """ Hook the apidoc generation on build """
+    """Hook the apidoc generation on build"""
     app.connect("builder-inited", run_apidoc)

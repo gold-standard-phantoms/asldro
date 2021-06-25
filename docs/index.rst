@@ -14,8 +14,10 @@ Welcome to ASL DRO's documentation
    usage/ground_truth
    usage/custom_ground_truth
    usage/asl_quantification
-   usage/development  
+   usage/development
+   usage/references
    api
+   
 
 
 Indices and tables

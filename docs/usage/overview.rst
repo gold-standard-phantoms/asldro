@@ -26,3 +26,22 @@ code, in particular with respect to testing.  The DRO pipelines uses a 'pipe and
 with 'filters' performing data processing, which provides a common interface between processing
 blocks.
 
+How To Cite
+~~~~~~~~~~~~
+
+If you use ASLDRO in your work, please include the following citation
+
+.. bibliography::
+    :filter: False
+    :style: unsrt
+
+    OliverTaylor2021
+
+
+How To Contribute
+~~~~~~~~~~~~~~~~~~
+
+Got a great idea for something to implement in ASLDRO, or maybe you have just
+found a bug? Create an issue at 
+https://github.com/gold-standard-phantoms/asldro/issues to get in touch with
+the development team and we'll take it from there.

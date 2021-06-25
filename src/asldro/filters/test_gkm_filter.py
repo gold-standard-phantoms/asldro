@@ -6,8 +6,10 @@ import pytest
 import numpy as np
 import numpy.testing
 from asldro.containers.image import BaseImageContainer, NumpyImageContainer
+from asldro.filters.asl_quantification_filter import AslQuantificationFilter
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.filters.gkm_filter import GkmFilter
+from asldro.utils.filter_validation import validate_filter_inputs
 
 TEST_VOLUME_DIMENSIONS = (32, 32, 32)
 TEST_IMAGE_ONES = NumpyImageContainer(image=np.ones(TEST_VOLUME_DIMENSIONS))
@@ -21,68 +23,98 @@ PASL = "PASL"
 
 # test data dictionary, [0] in each tuple passes, after that should fail validation
 TEST_DATA_DICT_PASL_M0_IM = {
-    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("pasl", "PSL", "str"),
-    "label_duration": (1.8, -0.1, 101.0),
-    "signal_time": (3.6, -0.1, 101.0),
-    "label_efficiency": (0.85, -0.1, 1.01),
-    "lambda_blood_brain": (0.9, -0.1, 1.01),
-    "t1_arterial_blood": (1.6, -0.1, 101.0),
+    "perfusion_rate": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "transit_time": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "m0": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "t1_tissue": [
+        False,
+        TEST_IMAGE_ONES,
+        TEST_IMAGE_NEG,
+        TEST_IMAGE_SMALL,
+        TEST_IMAGE_101,
+    ],
+    "label_type": [False, "pasl", "PSL", "str"],
+    "label_duration": [False, 1.8, -0.1, 101.0],
+    "signal_time": [False, 3.6, -0.1, 101.0],
+    "label_efficiency": [False, 0.85, -0.1, 1.01],
+    "lambda_blood_brain": [False, 0.9, -0.1, 1.01],
+    "t1_arterial_blood": [False, 1.6, -0.1, 101.0],
 }
 
 TEST_DATA_DICT_PASL_LBB_IM = {
-    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("pasl", "PSL", "str"),
-    "label_duration": (1.8, -0.1, 101.0),
-    "signal_time": (3.6, -0.1, 101.0),
-    "label_efficiency": (0.85, -0.1, 1.01),
-    "lambda_blood_brain": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "t1_arterial_blood": (1.6, -0.1, 101.0),
+    "perfusion_rate": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "transit_time": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "m0": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "t1_tissue": [
+        False,
+        TEST_IMAGE_ONES,
+        TEST_IMAGE_NEG,
+        TEST_IMAGE_SMALL,
+        TEST_IMAGE_101,
+    ],
+    "label_type": [False, "pasl", "PSL", "str"],
+    "label_duration": [False, 1.8, -0.1, 101.0],
+    "signal_time": [False, 3.6, -0.1, 101.0],
+    "label_efficiency": [False, 0.85, -0.1, 1.01],
+    "lambda_blood_brain": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "t1_arterial_blood": [False, 1.6, -0.1, 101.0],
 }
 
 TEST_DATA_DICT_PASL_M0_FLOAT = {
-    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "m0": (1.0, -1.0, int(1)),
-    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("pasl", "PSL", "str"),
-    "label_duration": (1.8, -0.1, 101.0),
-    "signal_time": (3.6, -0.1, 101.0),
-    "label_efficiency": (0.85, -0.1, 1.01),
-    "lambda_blood_brain": (0.9, -0.1, 1.01),
-    "t1_arterial_blood": (1.6, -0.1, 101.0),
+    "perfusion_rate": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "transit_time": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "m0": [False, 1.0, -1.0, int(1)],
+    "t1_tissue": [
+        False,
+        TEST_IMAGE_ONES,
+        TEST_IMAGE_NEG,
+        TEST_IMAGE_SMALL,
+        TEST_IMAGE_101,
+    ],
+    "label_type": [False, "pasl", "PSL", "str"],
+    "label_duration": [False, 1.8, -0.1, 101.0],
+    "signal_time": [False, 3.6, -0.1, 101.0],
+    "label_efficiency": [False, 0.85, -0.1, 1.01],
+    "lambda_blood_brain": [False, 0.9, -0.1, 1.01],
+    "t1_arterial_blood": [False, 1.6, -0.1, 101.0],
 }
 
 TEST_DATA_DICT_CASL_M0_IM = {
-    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "m0": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("casl", "CSL", "str"),
-    "label_duration": (1.8, -0.1, 101.0),
-    "signal_time": (3.6, -0.1, 101.0),
-    "label_efficiency": (0.85, -0.1, 1.01),
-    "lambda_blood_brain": (0.9, -0.1, 1.01),
-    "t1_arterial_blood": (1.6, -0.1, 101.0),
+    "perfusion_rate": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "transit_time": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "m0": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "t1_tissue": [
+        False,
+        TEST_IMAGE_ONES,
+        TEST_IMAGE_NEG,
+        TEST_IMAGE_SMALL,
+        TEST_IMAGE_101,
+    ],
+    "label_type": [False, "casl", "CSL", "str"],
+    "label_duration": [False, 1.8, -0.1, 101.0],
+    "signal_time": [False, 3.6, -0.1, 101.0],
+    "label_efficiency": [False, 0.85, -0.1, 1.01],
+    "lambda_blood_brain": [False, 0.9, -0.1, 1.01],
+    "t1_arterial_blood": [False, 1.6, -0.1, 101.0],
 }
 
 TEST_DATA_DICT_CASL_M0_FLOAT = {
-    "perfusion_rate": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "transit_time": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL),
-    "m0": (1.0, -1.0, int(1)),
-    "t1_tissue": (TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL, TEST_IMAGE_101),
-    "label_type": ("pcasl", "PCSL", "str"),
-    "label_duration": (1.8, -0.1, 101.0),
-    "signal_time": (3.6, -0.1, 101.0),
-    "label_efficiency": (0.85, -0.1, 1.01),
-    "lambda_blood_brain": (0.9, -0.1, 1.01),
-    "t1_arterial_blood": (1.6, -0.1, 101.0),
+    "perfusion_rate": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "transit_time": [False, TEST_IMAGE_ONES, TEST_IMAGE_NEG, TEST_IMAGE_SMALL],
+    "m0": [False, 1.0, -1.0, int(1)],
+    "t1_tissue": [
+        False,
+        TEST_IMAGE_ONES,
+        TEST_IMAGE_NEG,
+        TEST_IMAGE_SMALL,
+        TEST_IMAGE_101,
+    ],
+    "label_type": [False, "pcasl", "PCSL", "str"],
+    "label_duration": [False, 1.8, -0.1, 101.0],
+    "signal_time": [False, 3.6, -0.1, 101.0],
+    "label_efficiency": [False, 0.85, -0.1, 1.01],
+    "lambda_blood_brain": [False, 0.9, -0.1, 1.01],
+    "t1_arterial_blood": [False, 1.6, -0.1, 101.0],
 }
 
 # f, delta_t, t, label_type, tau, alpha, expected
@@ -336,39 +368,13 @@ def test_gkm_filter_validate_inputs(validation_data: dict):
     """Check a FilterInputValidationError is raised when the
     inputs to the GkmFilter are incorrect or missing
     """
-
-    for inputs_key in validation_data:
-        gkm_filter = GkmFilter()
-        test_data = deepcopy(validation_data)
-        # remove the corresponding key from test_data
-        test_data.pop(inputs_key)
-
-        for data_key in test_data:
-            gkm_filter.add_input(data_key, test_data[data_key][0])
-
-        # Key not defined
-
-        with pytest.raises(FilterInputValidationError):
-            gkm_filter.run()
-
-        # Key has wrong data type
-        gkm_filter.add_input(inputs_key, None)
-        with pytest.raises(FilterInputValidationError):
-            gkm_filter.run()
-
-        # Data not in the valid range
-        for test_value in validation_data[inputs_key][1:]:
-            # re-initialise filter
-            gkm_filter = GkmFilter()
-
-            # add valid inputs
-            for data_key in test_data:
-                gkm_filter.add_input(data_key, test_data[data_key][0])
-
-            # add invalid input and check a FilterInputValidationError is raised
-            gkm_filter.add_input(inputs_key, test_value)
-            with pytest.raises(FilterInputValidationError):
-                gkm_filter.run()
+    d = deepcopy(validation_data)
+    # try for full model
+    d["model"] = [True, "full", "fll", "str", 0]
+    validate_filter_inputs(GkmFilter, d)
+    # try for whitepaper model
+    d["model"] = [True, "whitepaper", "wp", "str", 0]
+    validate_filter_inputs(GkmFilter, d)
 
 
 def test_gkm_filter_pasl(pasl_input):
@@ -520,6 +526,7 @@ def test_gkm_filter_metadata_casl(casl_input):
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
         "m0": 1.0,
+        "gkm_model": "full",
     }
 
 
@@ -543,6 +550,7 @@ def test_gkm_filter_metadata_pasl(pasl_input):
         "t1_arterial_blood": pasl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
         "m0": 1.0,
+        "gkm_model": "full",
     }
 
 
@@ -566,6 +574,7 @@ def test_gkm_filter_m0_float(casl_input):
         "t1_arterial_blood": casl_input["t1_arterial_blood"],
         "image_flavour": "PERFUSION",
         "m0": 100.0,
+        "gkm_model": "full",
     }
 
 
@@ -603,3 +612,126 @@ def test_check_and_make_image_from_value():
     np.random.seed(12345)
     numpy.testing.assert_array_equal(out, np.random.normal(0, 1, shape))
 
+
+def wp_casl_function(input_data: dict) -> np.ndarray:
+    # pylint: disable=too-many-locals
+    """Function that calculates the white paper forward model for CASL/pCASL
+    Variable names match those in the GKM equations
+    """
+    f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
+    tau: float = input_data["label_duration"]
+    t: float = input_data["signal_time"]
+    alpha: float = input_data["label_efficiency"]
+    # _lambda avoids clash with lambda function
+    _lambda: float = input_data["lambda_blood_brain"]
+    t1b: float = input_data["t1_arterial_blood"]
+    m0: np.ndarray = input_data["m0"].image / _lambda
+
+    return (
+        2 * m0 * f * t1b * alpha * (1 - np.exp(-tau / t1b)) * np.exp(-(t - tau) / t1b)
+    )
+
+
+def wp_pasl_function(input_data: dict) -> np.ndarray:
+    # pylint: disable=too-many-locals
+    """Function that calculates the white paper forward model for CASL/pCASL
+    Variable names match those in the GKM equations
+    """
+    f: np.ndarray = input_data["perfusion_rate"].image / 6000.0
+    tau: float = input_data["label_duration"]
+    t: float = input_data["signal_time"]
+    alpha: float = input_data["label_efficiency"]
+    # _lambda avoids clash with lambda function
+    _lambda: float = input_data["lambda_blood_brain"]
+    t1b: float = input_data["t1_arterial_blood"]
+    m0: np.ndarray = input_data["m0"].image / _lambda
+
+    return 2 * m0 * f * tau * alpha * np.exp(-t / t1b)
+
+
+def test_gkm_filter_wp_casl(casl_input):
+    gkm_filter = GkmFilter()
+    gkm_filter.add_inputs(casl_input)
+    gkm_filter.add_input("model", "whitepaper")
+    gkm_filter.run()
+
+    delta_m = wp_casl_function(casl_input)
+    numpy.testing.assert_array_almost_equal(
+        delta_m, gkm_filter.outputs["delta_m"].image
+    )
+
+    assert gkm_filter.outputs["delta_m"].metadata["gkm_model"] == "whitepaper"
+
+    # check that quantification is correct
+    quantified_f = AslQuantificationFilter.asl_quant_wp_casl(
+        control=casl_input["m0"].image,
+        label=casl_input["m0"].image - gkm_filter.outputs["delta_m"].image,
+        m0=casl_input["m0"].image,
+        lambda_blood_brain=casl_input["lambda_blood_brain"],
+        label_duration=casl_input["label_duration"],
+        label_efficiency=casl_input["label_efficiency"],
+        post_label_delay=casl_input["signal_time"] - casl_input["label_duration"],
+        t1_arterial_blood=casl_input["t1_arterial_blood"],
+    )
+
+    # should be equal to 12 d.p.
+    np.testing.assert_array_almost_equal(
+        casl_input["perfusion_rate"].image, quantified_f, 12
+    )
+
+    # Set 'signal_time' to be less than the transit time so that the bolus
+    # has not arrived yet
+    casl_input["signal_time"] = 0.5
+    assert (casl_input["signal_time"] < casl_input["transit_time"].image).all()
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, casl_input)
+    gkm_filter.run()
+    # 'delta_m' should be all zero
+    numpy.testing.assert_array_equal(
+        gkm_filter.outputs["delta_m"].image,
+        np.zeros(gkm_filter.outputs["delta_m"].shape),
+    )
+
+
+def test_gkm_filter_wp_pasl(pasl_input):
+    gkm_filter = GkmFilter()
+    gkm_filter.add_inputs(pasl_input)
+    gkm_filter.add_input("model", "whitepaper")
+    gkm_filter.run()
+
+    delta_m = wp_pasl_function(pasl_input)
+    numpy.testing.assert_array_almost_equal(
+        delta_m, gkm_filter.outputs["delta_m"].image
+    )
+
+    assert gkm_filter.outputs["delta_m"].metadata["gkm_model"] == "whitepaper"
+
+    # check that quantification is correct
+    quantified_f = AslQuantificationFilter.asl_quant_wp_pasl(
+        control=pasl_input["m0"].image,
+        label=pasl_input["m0"].image - gkm_filter.outputs["delta_m"].image,
+        m0=pasl_input["m0"].image,
+        lambda_blood_brain=pasl_input["lambda_blood_brain"],
+        bolus_duration=pasl_input["label_duration"],
+        label_efficiency=pasl_input["label_efficiency"],
+        inversion_time=pasl_input["signal_time"],
+        t1_arterial_blood=pasl_input["t1_arterial_blood"],
+    )
+
+    # should be equal to 12 d.p.
+    np.testing.assert_array_almost_equal(
+        pasl_input["perfusion_rate"].image, quantified_f, 12
+    )
+
+    # Set 'signal_time' to be less than the transit time so that the bolus
+    # has not arrived yet
+    pasl_input["signal_time"] = 0.5
+    assert (pasl_input["signal_time"] < pasl_input["transit_time"].image).all()
+    gkm_filter = GkmFilter()
+    gkm_filter = add_multiple_inputs_to_filter(gkm_filter, pasl_input)
+    gkm_filter.run()
+    # 'delta_m' should be all zero
+    numpy.testing.assert_array_equal(
+        gkm_filter.outputs["delta_m"].image,
+        np.zeros(gkm_filter.outputs["delta_m"].shape),
+    )

@@ -215,7 +215,7 @@ class BidsOutputFilter(BaseFilter):
         GkmFilter.KEY_LABEL_TYPE: "ArterialSpinLabelingType",
         GkmFilter.KEY_LABEL_DURATION: "LabelingDuration",
         GkmFilter.KEY_LABEL_EFFICIENCY: "LabelingEfficiency",
-        GkmFilter.KEY_POST_LABEL_DELAY: "PostLabelingDelay",
+        GkmFilter.M_POST_LABEL_DELAY: "PostLabelingDelay",
         MriSignalFilter.KEY_ECHO_TIME: "EchoTime",
         MriSignalFilter.KEY_REPETITION_TIME: "RepetitionTimePreparation",
         MriSignalFilter.KEY_EXCITATION_FLIP_ANGLE: "FlipAngle",
@@ -229,8 +229,8 @@ class BidsOutputFilter(BaseFilter):
         GroundTruthLoaderFilter.KEY_MAG_STRENGTH: "MagneticFieldStrength",
         GroundTruthLoaderFilter.KEY_SEGMENTATION: "LabelMap",
         GroundTruthLoaderFilter.KEY_QUANTITY: "Quantity",
-        GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: "BolusCutOffFlag",
-        GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: "BolusCutOffDelayTime",
+        GkmFilter.M_BOLUS_CUT_OFF_FLAG: "BolusCutOffFlag",
+        GkmFilter.M_BOLUS_CUT_OFF_DELAY_TIME: "BolusCutOffDelayTime",
         BackgroundSuppressionFilter.M_BACKGROUND_SUPPRESSION: "BackgroundSuppression",
         BackgroundSuppressionFilter.M_BSUP_NUM_PULSES: "BackgroundSuppressionNumberPulses",
         BackgroundSuppressionFilter.M_BSUP_SAT_PULSE_TIMING: "BackgroundSuppressionSatPulseTime",
@@ -651,16 +651,16 @@ class BidsOutputFilter(BaseFilter):
                 GkmFilter.KEY_LABEL_DURATION: Parameter(
                     validators=isinstance_validator(float), optional=True
                 ),
-                GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME: Parameter(
+                GkmFilter.M_BOLUS_CUT_OFF_DELAY_TIME: Parameter(
                     validators=or_validator(
                         [isinstance_validator(float), non_empty_list_validator()]
                     ),
                     optional=True,
                 ),
-                GkmFilter.KEY_BOLUS_CUT_OFF_FLAG: Parameter(
+                GkmFilter.M_BOLUS_CUT_OFF_FLAG: Parameter(
                     validators=isinstance_validator(bool), optional=True
                 ),
-                GkmFilter.KEY_POST_LABEL_DELAY: Parameter(
+                GkmFilter.M_POST_LABEL_DELAY: Parameter(
                     validators=or_validator(
                         [isinstance_validator(float), non_empty_list_validator()]
                     ),
@@ -763,7 +763,7 @@ class BidsOutputFilter(BaseFilter):
                         "metadata field 'label_type' is required for 'series_type'"
                         + " and 'modality' is 'asl'"
                     )
-                if metadata.get(GkmFilter.KEY_POST_LABEL_DELAY) is None:
+                if metadata.get(GkmFilter.M_POST_LABEL_DELAY) is None:
                     raise FilterInputValidationError(
                         "metadata field 'post_label_delay' is required for 'series_type'"
                         + " and 'modality' is 'asl'"
@@ -815,15 +815,15 @@ class BidsOutputFilter(BaseFilter):
                     )
 
                 # validation specific for multiphase ASL
-                if isinstance(metadata.get(GkmFilter.KEY_POST_LABEL_DELAY), list):
-                    if len(metadata.get(GkmFilter.KEY_POST_LABEL_DELAY)) > 1:
+                if isinstance(metadata.get(GkmFilter.M_POST_LABEL_DELAY), list):
+                    if len(metadata.get(GkmFilter.M_POST_LABEL_DELAY)) > 1:
                         if metadata.get("multiphase_index") is None:
                             raise FilterInputValidationError(
                                 "metadata field 'multiphase_index' is required for 'series_type'"
                                 + "and 'modality' is 'asl', and 'post_label_delay' has length > 1"
                             )
                         if not len(metadata.get("multiphase_index")) == len(
-                            metadata.get(GkmFilter.KEY_POST_LABEL_DELAY)
+                            metadata.get(GkmFilter.M_POST_LABEL_DELAY)
                         ):
                             raise FilterInputValidationError(
                                 "For 'series_type' and 'modality' 'asl', and if 'post_label_delay' has length > 1"
@@ -862,14 +862,14 @@ class BidsOutputFilter(BaseFilter):
                         )
                 elif metadata.get(GkmFilter.KEY_LABEL_TYPE) == GkmFilter.PASL:
                     # validation specific to pasl
-                    if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_FLAG) is None:
+                    if metadata.get(GkmFilter.M_BOLUS_CUT_OFF_FLAG) is None:
                         raise FilterInputValidationError(
                             "metadata field 'bolus_cut_off_flag' is required for"
                             + " 'series_type and 'modality' is 'asl', "
                             + "and 'label_type' is 'pasl'"
                         )
-                    if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_FLAG):
-                        if metadata.get(GkmFilter.KEY_BOLUS_CUT_OFF_DELAY_TIME) is None:
+                    if metadata.get(GkmFilter.M_BOLUS_CUT_OFF_FLAG):
+                        if metadata.get(GkmFilter.M_BOLUS_CUT_OFF_DELAY_TIME) is None:
                             raise FilterInputValidationError(
                                 "metadata field 'bolus_cut_off_delay_time' is required for"
                                 + " 'series_type and 'modality' is 'asl', "

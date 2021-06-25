@@ -62,16 +62,10 @@ class AslQuantificationFilter(BaseFilter):
 
     **Quantification Model**
 
-    The following equations are used to calculate the perfusion rate, depending on the
-    input ``model``:
+    The following equations are used to calculate the perfusion rate, depending
+    on the input ``model``:
 
-    :'whitepaper': equations used are those described in:
-
-        Alsop et al. Recommended implementation of arterial spin-labeled
-        perfusion MRI for clinical applications: A consensus of the ISMRM
-        perfusion study group and the European consortium for ASL in
-        dementia. Magnetic Resonance in Medicine 2014;73:102–116
-        https://doi.org/10.1002/mrm.25197.
+    :'whitepaper': simplified single subtraction equations :cite:p:`Alsop2014`.
 
       * for pCASL/CASL see :class:`AslQuantificationFilter.asl_quant_wp_casl`
       * for PASL see :class:`AslQuantificationFilter.asl_quant_wp_pasl`.
@@ -89,7 +83,7 @@ class AslQuantificationFilter(BaseFilter):
     KEY_LABEL_EFFICIENCY = GkmFilter.KEY_LABEL_EFFICIENCY
     KEY_LAMBDA_BLOOD_BRAIN = GkmFilter.KEY_LAMBDA_BLOOD_BRAIN
     KEY_T1_ARTERIAL_BLOOD = GkmFilter.KEY_T1_ARTERIAL_BLOOD
-    KEY_POST_LABEL_DELAY = GkmFilter.KEY_POST_LABEL_DELAY
+    KEY_POST_LABEL_DELAY = GkmFilter.M_POST_LABEL_DELAY
 
     WHITEPAPER = "whitepaper"
     M0_TOL = 1e-6
@@ -275,17 +269,10 @@ class AslQuantificationFilter(BaseFilter):
     ) -> np.ndarray:
         r"""
         Performs ASL quantification using the White Paper equation for
-        (pseudo)continuous ASL, as given in
-
-            Alsop et al. Recommended implementation of arterial spin-labeled
-            perfusion MRI for clinical applications: A consensus of the ISMRM
-            perfusion study group and the European consortium for ASL in
-            dementia. Magnetic Resonance in Medicine 2014;73:102–116
-            https://doi.org/10.1002/mrm.25197.
-
+        (pseudo)continuous ASL :cite:p:`Alsop2014`.
 
         .. math::
-            &f = \frac{6000 \cdot\ (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
+            &f = \frac{6000 \cdot\ \lambda \cdot (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
             e^{\frac{\text{PLD}}{T_{1,b}}}}{2 \cdot \alpha \cdot T_{1,b} \cdot \text{SI}_{\text{M0}}
             \cdot (1-e^{-\frac{\tau}{T_{1,b}}})}\\
             \text{where,}\\
@@ -350,17 +337,11 @@ class AslQuantificationFilter(BaseFilter):
     ) -> np.ndarray:
         r"""
         Performs ASL quantification using the White Paper equation for
-        pulsed ASL, as given in
-
-            Alsop et al. Recommended implementation of arterial spin-labeled
-            perfusion MRI for clinical applications: A consensus of the ISMRM
-            perfusion study group and the European consortium for ASL in
-            dementia. Magnetic Resonance in Medicine 2014;73:102–116
-            https://doi.org/10.1002/mrm.25197.
-
+        pulsed ASL :cite:p:`Alsop2014`.
 
         .. math::
-            &f = \frac{6000 \cdot\ (\text{SI}_{\text{control}} - \text{SI}_{\text{label}}) \cdot
+            &f = \frac{6000 \cdot\ \lambda \cdot (\text{SI}_{\text{control}}
+            - \text{SI}_{\text{label}}) \cdot
             e^{\frac{\text{TI}}{T_{1,b}}}}{2 \cdot \alpha \cdot \text{TI}_1
             \cdot \text{SI}_{\text{M0}}}\\
             \text{where,}\\

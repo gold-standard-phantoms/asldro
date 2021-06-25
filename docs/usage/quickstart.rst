@@ -1,6 +1,12 @@
 Quickstart
 ==========
 
+ASLDRO has a Jupyter Notebook that runs in the cloud via mybinder.org.
+This is certainly the simplest way to try out the DRO, generate some data,
+and also provides an interactive way to generate customised input parameters.
+Check it out at https://notebooks.gesis.org/binder/v2/gh/gold-standard-phantoms/asldro/develop?filepath=asldro_example.ipynb
+
+
 Getting started
 ---------------
 
