@@ -127,3 +127,34 @@ def test_json_loader_input_validation_correct_functionality():
             3,
         ]
         assert json_loader_filter.outputs["string"] == "foobar"
+
+
+def test_json_loader_filter_root_object():
+    """ "Tests the json loader filter where the outputs are placed into
+    a root object"""
+
+    with TemporaryDirectory() as temp_dir:
+        # JSON file (quantities mispelt)
+        input_dict = {
+            "numbers": [1, 2, 3],
+            "string": "foobar",
+        }
+        temp_file = os.path.join(temp_dir, "file.json")
+        with open(temp_file, "w") as file:
+            json.dump(input_dict, file)
+        json_loader_filter = JsonLoaderFilter()
+        json_loader_filter.add_input("filename", temp_file)
+        json_loader_filter.add_input("root_object_name", 1)
+
+        with pytest.raises(FilterInputValidationError):
+            json_loader_filter.run()  # JSON not valid against schema
+
+        json_loader_filter = JsonLoaderFilter()
+        json_loader_filter.add_input("filename", temp_file)
+        json_loader_filter.add_input("root_object_name", "metadata")
+        json_loader_filter.run()
+
+        assert json_loader_filter.outputs["metadata"] == {
+            "numbers": [1, 2, 3],
+            "string": "foobar",
+        }
