@@ -197,7 +197,7 @@ def list_of_type_validator(a_type: Union[type, Tuple[type, ...]]) -> Validator:
 
 
 def non_empty_list_validator() -> Validator:
-    """ Validates that a value is a list and is non-empty """
+    """Validates that a value is a list and is non-empty"""
     return Validator(
         lambda value: isinstance(value, list) and len(value) > 0,
         "Value must be a non-empty list",
@@ -319,9 +319,29 @@ def or_validator(validators: List[Validator]) -> Validator:
     )
 
 
+def and_validator(validators: List[Validator]) -> Validator:
+    """Boolean AND between supplied validators.
+    If all of the supplied validators evaluate as True, this validator
+    evaluates as True.
+
+    :param validators: A list (or tuple) of validators
+    :type validators: Union[List[Validator], Tuple[Validator, ...]]
+    """
+    if not isinstance(validators, (list, tuple)):
+        raise TypeError("The argument to `and_validator` must be a list or tuple")
+    for validator in validators:
+        if not isinstance(validator, Validator):
+            raise TypeError("Each element of input must be of type Validator")
+
+    return Validator(
+        func=lambda value: all([validator(value) for validator in validators]),
+        criteria_message=" AND ".join([str(validator) for validator in validators]),
+    )
+
+
 class Parameter:
     # pylint: disable=too-few-public-methods
-    """ A description of a parameter which is to be validated against """
+    """A description of a parameter which is to be validated against"""
 
     def __init__(
         self,

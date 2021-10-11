@@ -1,7 +1,7 @@
 """ The main ASLDRO pipeline """
-import pdb
 import pprint
 import logging
+import os
 import shutil
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -552,6 +552,10 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
             )
             # run the filter to write the BIDS files to disk
             bids_output_filter.run()
+        # save the DRO parameters at the root of the directory
+        bids_output_filter.save_json(
+            input_params, os.path.join(temp_dir, "asldro_parameters.json")
+        )
 
         if output_filename is not None:
             filename, file_extension = splitext(output_filename)
@@ -561,7 +565,11 @@ def run_full_pipeline(input_params: dict = None, output_filename: str = None) ->
                 filename, EXTENSION_MAPPING[file_extension], root_dir=temp_dir
             )
 
-    return {"hrgt": ground_truth_filter.outputs, "asldro_output": output_image_list}
+    return {
+        "hrgt": ground_truth_filter.outputs,
+        "asldro_output": output_image_list,
+        "params": input_params,
+    }
 
 
 if __name__ == "__main__":

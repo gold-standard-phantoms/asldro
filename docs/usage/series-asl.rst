@@ -157,10 +157,10 @@ below.
     Can take the values:
 
     * "realistic" Pulse efficiencies are calculated according to a model based
-    on their T1.
+      on their T1.
     * "ideal" Inversion pulses are 100% efficient.
     * A numeric value between -1.0 and 0.0, inclusive, explicitly defining
-    the inversion efficiency. -1.0 is full inversion, and 0.0 is no inversion.
+      the inversion efficiency. -1.0 is full inversion, and 0.0 is no inversion.
     
     The default value is "ideal".
 
@@ -188,21 +188,117 @@ defined in ``asl_context``.
 
 :asl_context: (string, optional): A list of the ASL volumes to simulate, any combination of
     "m0scan", "control" and "label", separated by a space. Defaults to ``"m0scan control label".``
-:echo_time: (array of floats, optional): The time in seconds after the excitation pulse that the
-    MRI signal is acquired. This parameter generally affects the T2 or T2* contrast. Defaults
-    to ``[0.01, 0.01, 0.01]``.
-:repetition_time: (array of floats, optional): The time in seconds between successive excitation pulses.
-    This parameter affects the T1 contrast. Defaults to ``[10.0, 5.0, 5.0]``.
-:rot_z: (array of floats, optional): Rotation of the ground truth model in world space about the
+:echo_time: (array of floats or object, optional): The time in seconds after the excitation pulse that the
+    MRI signal is acquired. This parameter generally affects the T2 or T2* contrast. Default values are
+    given for the value of ``asl_context``:
+
+    :"m0scan": 0.01
+    :"control": 0.01
+    :"label": 0.01
+    
+:repetition_time: (array of floats or object, optional): The time in seconds between successive excitation pulses.
+    This parameter affects the T1 contrast. Default values are
+    given for the value of ``asl_context``:
+    
+    :"m0scan": 10.0
+    :"control": 5.0
+    :"label": 5.0
+
+:rot_z: (array of floats or object, optional): Rotation of the ground truth model in world space about the
     z-axis in degrees. See :class:`.TransformResampleImageFilter` for implementation details.
-    Defaults to ``[0.0, 0.0, 0.0]``.
-:rot_y: (array of floats, optional): Rotation of the ground truth model in world space about the
-    y-axis in degrees. Defaults to ``[0.0, 0.0, 0.0]``.
-:rot_x: (array of floats, optional): Rotation of the ground truth model in world space about the
-   x-axis in degrees. Defaults to ``[0.0, 0.0, 0.0]``.
-:transl_x: (array of floats, optional): Translation of the ground truth model in world space along the
-    x-axis in mm. Defaults to ``[0.0, 0.0, 0.0]``.
-:transl_y: (array of floats, optional): Translation of the ground truth model in world space along the
-    y-axis in mm. Defaults to ``[0.0, 0.0, 0.0]``.
-:transl_z: (array of floats, optional): Translation of the ground truth model in world space along the
-    z-axis in mm. Defaults to ``[0.0, 0.0, 0.0]``.
+    Defaults to ``0.0`` for every entry in ``asl_context``.
+:rot_y: (array of floats or object, optional): Rotation of the ground truth model in world space about the
+    y-axis in degrees. Defaults to ``0.0`` for every entry in ``asl_context``.
+:rot_x: (array of floats or object, optional): Rotation of the ground truth model in world space about the
+   x-axis in degrees. Defaults to ``0.0`` for every entry in ``asl_context``.
+:transl_x: (array of floats or object, optional): Translation of the ground truth model in world space along the
+    x-axis in mm. Defaults to ``0.0`` for every entry in ``asl_context``.
+:transl_y: (array of floats or object, optional): Translation of the ground truth model in world space along the
+    y-axis in mm. Defaults to ``0.0`` for every entry in ``asl_context``.
+:transl_z: (array of floats or object, optional): Translation of the ground truth model in world space along the
+    z-axis in mm. Defaults to ``0.0`` for every entry in ``asl_context``.
+
+
+Array parameters can also be specified dynamically and generated automatically based on the
+entries in ``asl_context``. This is handled in two different ways:
+
+* ``echo_time`` and ``repetition_time`` have values that are defined for the types of entries
+  in ``asl_context``, and arrays of these values are constructed accordingly.
+
+  
+* The rotation and translation (``rot_*`` and ``transl_*``) values are drawn from probability
+  distributions:
+    
+  :gaussian: Values are drawn from a normal/gaussian distribution with defined
+    mean and standard deviation.
+  :uniform: Values are drawn from a uniform distribution with defined minimum
+    and maximum values.
+
+  These are defined by an object with the following entries:
+
+  :distribution: (string, defaults to ``gaussian``): The probability distribution.
+    ``gaussian`` for normal distribution and ``uniform`` for a uniform distribution.
+  :mean: (float, defaults to 0.0, required if ``distribution=='gaussian'``).
+    The mean value of the gaussian distribution.
+  :sd: (float, defaults to 0.0, required if ``distribution=='gaussian'``).
+    The standard deviation of the gaussian distribution.
+  :min: (float, required if ``distribution=='uniform'``).
+    The minimum value of the uniform distribution.
+  :max: (float, required if ``distribution=='uniform'``).
+    The maximum value of the uniform distribution.
+  :seed: (int, defaults to 0): The seed for the random number generator. Note
+    this is independent of the ``random_seed``. Each parameter will have its own
+    random number generator assigned, which means they will have identical values
+    if the same seed is assigned.
+
+  Generated values are rounded to four decimal places so that if the parameter file is
+  saved as a JSON file the results can be reproduced. 
+
+For example:
+
+.. code-block:: json
+
+    {
+        "asl_context": "m0scan m0scan control label control label control label",
+        "echo_time": {
+            "m0scan": 0.012,
+            "control": 0.012,
+            "label": 0.012
+        },
+        "repetition_time": {
+            "m0scan": 10.0,
+            "control": 4.5,
+            "label": 4.5
+        },
+        "rot_x": {
+            "distribution": "gaussian",
+            "mean": 1.0,
+            "sd": 0.1,
+            "seed": 12345
+        },
+        "transl_y": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 0.1,
+            "seed": 12345
+        }
+    }
+
+Dynamically generates the following array parameters:
+
+.. code-block:: json
+
+    {
+        "asl_context": "m0scan m0scan control label control label control label",
+        "echo_time": [0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
+        "repetition_time": [10.0, 10.0, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5],
+        "rot_x": [0.8576, 1.1264, 0.9129, 0.9741, 0.9925, 0.9259, 0.8632, 1.0649],
+        "rot_y": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "rot_z": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "transl_x": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "transl_y": [0.7954, 0.7149, 0.2824, 0.3914, 0.648, 0.7005, 0.4615, 0.8319],
+        "transl_z": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    }
+
+
+
