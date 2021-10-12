@@ -5,7 +5,10 @@ import numpy as np
 import numpy.testing
 from asldro.examples import run_full_pipeline
 from asldro.filters.load_asl_bids_filter import LoadAslBidsFilter
-from asldro.validators.user_parameter_input import get_example_input_params
+from asldro.validators.user_parameter_input import (
+    get_example_input_params,
+    ARRAY_PARAMS,
+)
 from asldro.containers.image import NiftiImageContainer
 from asldro.filters.asl_quantification_filter import AslQuantificationFilter
 
@@ -38,15 +41,8 @@ def test_run_extended_pipeline():
     asl_params = input_params["image_series"][0]["series_parameters"]
 
     asl_params["asl_context"] = "m0scan control label control label control label"
-    timeseries_length = len(asl_params["asl_context"].split())
-    asl_params["echo_time"] = [0.01] * timeseries_length
-    asl_params["repetition_time"] = [10.0] + [5.0] * (timeseries_length - 1)
-    asl_params["rot_x"] = [0.0] * timeseries_length
-    asl_params["rot_y"] = [0.0] * timeseries_length
-    asl_params["rot_z"] = [0.0] * timeseries_length
-    asl_params["transl_x"] = [0.0] * timeseries_length
-    asl_params["transl_y"] = [0.0] * timeseries_length
-    asl_params["transl_z"] = [0.0] * timeseries_length
+    # remove the array parameters so they are autogenerates
+    [asl_params.pop(param) for param in ARRAY_PARAMS]
 
     # remove the ground truth and structural image series
     input_params["image_series"] = [
@@ -94,13 +90,12 @@ def test_run_asl_pipeline_qasper_hrgt():
 def test_run_asl_pipeline_whitepaper():
     """Runs the ASL pipeline with gkm_model set to "whitepaper"
     Checks the results using the AslQuantificationFilter"""
-    import pdb
 
     input_params = get_example_input_params()
 
     input_params["image_series"][0]["series_parameters"]["gkm_model"] = "whitepaper"
     input_params["image_series"][0]["series_parameters"]["desired_snr"] = 0.0
-    #set the TR of the M0 to very long so there's no real effect (important for
+    # set the TR of the M0 to very long so there's no real effect (important for
     # comparing values)
     input_params["image_series"][0]["series_parameters"]["repetition_time"] = [
         1.0e6,
@@ -167,9 +162,9 @@ def test_run_asl_pipeline_whitepaper():
 
     asl_quantification_filter.run()
 
-    #compare the quantified perfusion_rate with the ground truth to 12 d.p.
+    # compare the quantified perfusion_rate with the ground truth to 12 d.p.
     np.testing.assert_array_almost_equal(
         asl_quantification_filter.outputs["perfusion_rate"].image,
         out["hrgt"]["perfusion_rate"].image,
-        12
+        12,
     )

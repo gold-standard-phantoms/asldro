@@ -1,18 +1,24 @@
 """ Tests some user inputs to the model to make sure the validation is performed correctly """
 # pylint: disable=redefined-outer-name
 from copy import deepcopy
+import decimal
+import numpy
 import pytest
+from numpy.random import default_rng
 from asldro.data.filepaths import GROUND_TRUTH_DATA
 from asldro.validators.parameters import ValidationError
 from asldro.validators.user_parameter_input import (
+    DISTRIBUTION_VALIDATOR,
     IMAGE_TYPE_VALIDATOR,
     ASL,
     GROUND_TRUTH,
     STRUCTURAL,
+    generate_parameter_distribution,
     validate_input_params,
     get_example_input_params,
     DEFAULT_GROUND_TRUTH,
     DEFAULT_BS_PARAMS,
+    ASL_POST_VALIDATOR,
 )
 
 
@@ -57,14 +63,22 @@ def test_asl_user_input_defaults_created():
     correct_defaults = {
         "label_type": "pcasl",
         "asl_context": "m0scan control label",
-        "echo_time": [0.01, 0.01, 0.01],
-        "repetition_time": [10.0, 5.0, 5.0],
-        "rot_z": [0.0, 0.0, 0.0],
-        "rot_y": [0.0, 0.0, 0.0],
-        "rot_x": [0.0, 0.0, 0.0],
-        "transl_x": [0.0, 0.0, 0.0],
-        "transl_y": [0.0, 0.0, 0.0],
-        "transl_z": [0.0, 0.0, 0.0],
+        "echo_time": {
+            "m0scan": 0.01,
+            "control": 0.01,
+            "label": 0.01,
+        },
+        "repetition_time": {
+            "m0scan": 10.0,
+            "control": 5.0,
+            "label": 5.0,
+        },
+        "rot_z": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
+        "rot_y": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
+        "rot_x": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
+        "transl_x": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
+        "transl_y": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
+        "transl_z": {"distribution": "gaussian", "mean": 0.0, "sd": 0.0},
         "label_duration": 1.8,
         "signal_time": 3.6,
         "label_efficiency": 0.85,
@@ -166,7 +180,7 @@ def test_mismatch_asl_context_array_sizes():
         "transl_y": [0.0, 0.0, 0.0],
         "transl_z": [0.0, 0.0, 0.0],
     }
-    IMAGE_TYPE_VALIDATOR[ASL].validate(good_input)  # no exception
+    ASL_POST_VALIDATOR.validate(good_input)  # no exception
 
     for param in [
         "echo_time",
@@ -185,7 +199,236 @@ def test_mismatch_asl_context_array_sizes():
             ValidationError,
             match=f"{param} must be present and have the same number of entries as asl_context",
         ):
-            IMAGE_TYPE_VALIDATOR[ASL].validate(d)
+            ASL_POST_VALIDATOR.validate(d)
+
+
+def test_generate_parameter_distribution_list_input():
+    """Check that if param is not a dict then it is returned"""
+    assert generate_parameter_distribution([0, 1, 2, 3, 4, 5]) == [0, 1, 2, 3, 4, 5]
+
+
+def test_generate_parameter_distribution_gaussian():
+    """Check that a ValidationError is raised if the parameters for the
+    distribution validator are incorrect"""
+    # good input
+    input = {
+        "distribution": "gaussian",
+        "mean": 4.5,
+        "sd": 2.5,
+        "seed": 12345,
+    }
+    out = generate_parameter_distribution(input, 8)
+    assert len(out) == 8
+    assert isinstance(out, list)
+
+    # remove 'distribution'
+    d = deepcopy(input)
+    d.pop("distribution")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'mean'
+    d = deepcopy(input)
+    d.pop("mean")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'sd'
+    d = deepcopy(input)
+    d.pop("sd")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'seed', there shouldn't be an error
+    d = deepcopy(input)
+    d.pop("seed")
+    generate_parameter_distribution(d, 8)
+
+
+def test_generate_parameter_distribution_uniform():
+    """Check that a ValidationError is raised if the parameters for the
+    distribution validator are incorrect"""
+    # good input
+    input = {
+        "distribution": "uniform",
+        "min": 2.5,
+        "max": 4.5,
+        "seed": 12345,
+    }
+    out = generate_parameter_distribution(input, 8)
+    assert len(out) == 8
+    assert isinstance(out, list)
+
+    # remove 'distribution'
+    d = deepcopy(input)
+    d.pop("distribution")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'min'
+    d = deepcopy(input)
+    d.pop("min")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'max'
+    d = deepcopy(input)
+    d.pop("max")
+    with pytest.raises(ValidationError):
+        generate_parameter_distribution(d, 8)
+
+    # remove 'seed', there shouldn't be an error
+    d = deepcopy(input)
+    d.pop("seed")
+    generate_parameter_distribution(d, 8)
+
+
+def test_autogenerate_array_params():
+    """Check that if the array parameters are correctly generated"""
+    good_input = get_example_input_params()
+    good_input["image_series"][0]["series_parameters"][
+        "asl_context"
+    ] = "m0scan m0scan control label control label control label"
+    number_volumes = 8
+    good_input["image_series"][0]["series_parameters"]["echo_time"] = [0.01] * 8
+    good_input["image_series"][0]["series_parameters"]["repetition_time"] = [5] * 8
+
+    for param in [
+        "rot_x",
+        "rot_y",
+        "rot_z",
+        "transl_z",
+        "transl_y",
+        "transl_x",
+    ]:
+        good_input["image_series"][0]["series_parameters"][param] = [0.0] * 8
+    for n, param in enumerate(
+        [
+            "rot_x",
+            "rot_y",
+            "rot_z",
+            "transl_z",
+            "transl_y",
+            "transl_x",
+        ]
+    ):
+        # test gaussian distribution
+        d = deepcopy(good_input)
+        series_params = d["image_series"][0]["series_parameters"]
+
+        series_params[param] = {
+            "distribution": "gaussian",
+            "mean": 4.5,
+            "sd": 2.5,
+            "seed": n,
+        }
+        rng = default_rng(n)
+
+        d = validate_input_params(d)
+        numpy.testing.assert_array_equal(
+            d["image_series"][0]["series_parameters"][param],
+            rng.normal(4.5, 2.5, 8).round(decimals=4),
+        )
+
+        # test uniform distribution
+        d = deepcopy(good_input)
+        series_params = d["image_series"][0]["series_parameters"]
+        series_params[param] = {
+            "distribution": "uniform",
+            "min": 2.5,
+            "max": 4.5,
+            "seed": n,
+        }
+        rng = default_rng(n)
+        d = validate_input_params(d)
+        numpy.testing.assert_array_equal(
+            d["image_series"][0]["series_parameters"][param],
+            rng.uniform(2.5, 4.5, 8).round(decimals=4),
+        )
+
+    good_input["image_series"][0]["series_parameters"][
+        "asl_context"
+    ] = "m0scan control label"
+    # remove and check defaults
+    d = deepcopy(good_input)
+    # remove translation parameters so defaults are generated
+    _ = [
+        d["image_series"][0]["series_parameters"].pop(param)
+        for param in [
+            "rot_x",
+            "rot_y",
+            "rot_z",
+            "transl_z",
+            "transl_y",
+            "transl_x",
+        ]
+    ]
+    d["image_series"][0]["series_parameters"].pop("echo_time")
+    d["image_series"][0]["series_parameters"].pop("repetition_time")
+    d = validate_input_params(d)
+    assert d["image_series"][0]["series_parameters"]["echo_time"] == [
+        0.01,
+        0.01,
+        0.01,
+    ]
+    assert d["image_series"][0]["series_parameters"]["repetition_time"] == [
+        10.0,
+        5.0,
+        5.0,
+    ]
+
+    d["image_series"][0]["series_parameters"]["repetition_time"] = {
+        "m0scan": 6.479,
+        "control": 0.78,
+        "label": 3.24,
+    }
+    d["image_series"][0]["series_parameters"]["echo_time"] = {
+        "m0scan": 0.01,
+        "control": 0.02,
+        "label": 0.5,
+    }
+    d = validate_input_params(d)
+    assert d["image_series"][0]["series_parameters"]["echo_time"] == [
+        0.01,
+        0.02,
+        0.5,
+    ]
+    assert d["image_series"][0]["series_parameters"]["repetition_time"] == [
+        6.479,
+        0.78,
+        3.24,
+    ]
+
+    # check with the example in the series-asl.rst documentation
+    new_params = {
+        "asl_context": "m0scan m0scan control label control label control label",
+        "echo_time": {
+            "m0scan": 0.012,
+            "control": 0.012,
+            "label": 0.012,
+        },
+        "repetition_time": {
+            "m0scan": 10.0,
+            "control": 4.5,
+            "label": 4.5,
+        },
+        "rot_x": {
+            "distribution": "gaussian",
+            "mean": 1.0,
+            "sd": 0.1,
+            "seed": 12345,
+        },
+        "transl_y": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 0.1,
+            "seed": 12345,
+        },
+    }
+    d = deepcopy(good_input)
+    series_params = d["image_series"][0]["series_parameters"]
+    d["image_series"][0]["series_parameters"] = {**series_params, **new_params}
+    d = validate_input_params(d)
 
 
 @pytest.fixture

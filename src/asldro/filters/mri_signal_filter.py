@@ -1,7 +1,6 @@
 """ MRI Signal Filter """
 
 import numpy as np
-import pdb
 from asldro.containers.image import BaseImageContainer, COMPLEX_IMAGE_TYPE
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.validators.parameters import (
@@ -311,7 +310,7 @@ class MriSignalFilter(BaseFilter):
         # pdb.set_trace()
 
     def _validate_inputs(self):
-        """ Checks that the inputs meet their validation critera
+        """Checks that the inputs meet their validation critera
         't1' must be derived from BaseImageContainer, >=0, and non-complex
         't2' must be derived from BaseImageContainer, >=0, and non-complex
         't2_star' must be derived from BaseImageContainer, >=0, and non-complex
@@ -331,7 +330,9 @@ class MriSignalFilter(BaseFilter):
         input_validator = ParameterValidator(
             parameters={
                 self.KEY_M0: Parameter(
-                    validators=[isinstance_validator(BaseImageContainer),]
+                    validators=[
+                        isinstance_validator(BaseImageContainer),
+                    ]
                 ),
                 self.KEY_T1: Parameter(
                     validators=[
@@ -377,10 +378,16 @@ class MriSignalFilter(BaseFilter):
                     ]
                 ),
                 self.KEY_EXCITATION_FLIP_ANGLE: Parameter(
-                    validators=[isinstance_validator(float),], optional=True,
+                    validators=[
+                        isinstance_validator(float),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_INVERSION_FLIP_ANGLE: Parameter(
-                    validators=[isinstance_validator(float),], optional=True,
+                    validators=[
+                        isinstance_validator(float),
+                    ],
+                    optional=True,
                 ),
                 self.KEY_INVERSION_TIME: Parameter(
                     validators=[
@@ -390,7 +397,10 @@ class MriSignalFilter(BaseFilter):
                     optional=True,
                 ),
                 self.KEY_IMAGE_FLAVOUR: Parameter(
-                    validators=[isinstance_validator(str),], optional=True
+                    validators=[
+                        isinstance_validator(str),
+                    ],
+                    optional=True,
                 ),
             }
         )
