@@ -20,7 +20,6 @@ from asldro.validators.parameters import (
     ValidationError,
     Parameter,
     and_validator,
-    has_attribute_value_validator,
     isinstance_validator,
     range_inclusive_validator,
     greater_than_equal_to_validator,
@@ -705,10 +704,7 @@ def generate_parameter_distribution(param: dict, length=1) -> list:
     """
     # check if the parameter value is a dictionary
     if isinstance(param, dict):
-        if param.get("distribution") not in (
-            "gaussian",
-            "uniform",
-        ):
+        if param.get("distribution") not in ("gaussian", "uniform",):
             raise ValidationError(
                 f"Parameter {param} must have key 'distribution' with value"
                 f"'gaussian' or 'uniform'. Value is {param.get('distribution')}"
@@ -720,11 +716,7 @@ def generate_parameter_distribution(param: dict, length=1) -> list:
             )
             # generate the values
             return (
-                generate_random_numbers(
-                    param,
-                    (length,),
-                    param["seed"],
-                )
+                generate_random_numbers(param, (length,), param["seed"],)
                 .round(decimals=4)
                 .tolist()
             )

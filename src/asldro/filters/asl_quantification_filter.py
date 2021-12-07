@@ -1,17 +1,24 @@
 """ASL quantification filter class"""
 
 
+from logging import Filter
 import numpy as np
+from numpy.core.fromnumeric import shape
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.containers.image import BaseImageContainer
 from asldro.validators.parameters import (
     Parameter,
     ParameterValidator,
+    for_each_validator,
     isinstance_validator,
     greater_than_equal_to_validator,
     from_list_validator,
     range_inclusive_validator,
+    or_validator,
+    and_validator,
+    for_each_validator,
+    shape_validator,
 )
 
 
@@ -84,8 +91,11 @@ class AslQuantificationFilter(BaseFilter):
     KEY_LAMBDA_BLOOD_BRAIN = GkmFilter.KEY_LAMBDA_BLOOD_BRAIN
     KEY_T1_ARTERIAL_BLOOD = GkmFilter.KEY_T1_ARTERIAL_BLOOD
     KEY_POST_LABEL_DELAY = GkmFilter.M_POST_LABEL_DELAY
+    KEY_MULTIPHASE_INDEX = "multiphase_index"
+    KEY_T1_TISSUE = GkmFilter.KEY_T1_TISSUE
 
-    WHITEPAPER = "whitepaper"
+    WHITEPAPER = GkmFilter.MODEL_WP
+    FULL = GkmFilter.MODEL_FULL
     M0_TOL = 1e-6
 
     def __init__(self):
@@ -168,93 +178,128 @@ class AslQuantificationFilter(BaseFilter):
         'label_efficiency' must be a float between 0 and 1 inclusive
         'lambda_blood_brain' must be a float between 0 and 1 inclusive
         't1_arterial_blood' must be a float and >=0
+
+        'control' and 'label' must have the same shape
+        The shape of 'm0' must match the first 3 dimensions of 'label'
+
         """
 
-        input_validator = ParameterValidator(
-            parameters={
-                self.KEY_M0: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
-                ),
-                self.KEY_CONTROL: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
-                ),
-                self.KEY_LABEL: Parameter(
-                    validators=[
-                        isinstance_validator(BaseImageContainer),
-                    ]
-                ),
-                self.KEY_LABEL_TYPE: Parameter(
-                    validators=from_list_validator(
-                        [GkmFilter.CASL, GkmFilter.PCASL, GkmFilter.PASL],
-                        case_insensitive=True,
-                    )
-                ),
-                self.KEY_LABEL_DURATION: Parameter(
-                    validators=[
-                        greater_than_equal_to_validator(0),
-                        isinstance_validator(float),
-                    ]
-                ),
-                self.KEY_POST_LABEL_DELAY: Parameter(
-                    validators=[
-                        greater_than_equal_to_validator(0),
-                        isinstance_validator(float),
-                    ]
-                ),
-                self.KEY_LABEL_EFFICIENCY: Parameter(
-                    validators=[
-                        range_inclusive_validator(0, 1),
-                        isinstance_validator(float),
-                    ]
-                ),
-                self.KEY_LAMBDA_BLOOD_BRAIN: Parameter(
-                    validators=[
-                        range_inclusive_validator(0, 1),
-                        isinstance_validator(float),
-                    ]
-                ),
-                self.KEY_T1_ARTERIAL_BLOOD: Parameter(
-                    validators=[
-                        greater_than_equal_to_validator(0),
-                        isinstance_validator(float),
-                    ]
-                ),
-                self.KEY_MODEL: Parameter(
-                    validators=from_list_validator(
-                        [self.WHITEPAPER],
-                        case_insensitive=True,
-                    )
-                ),
-            }
+        input_validator = {
+            "common": ParameterValidator(
+                parameters={
+                    self.KEY_M0: Parameter(
+                        validators=[isinstance_validator(BaseImageContainer),]
+                    ),
+                    self.KEY_CONTROL: Parameter(
+                        validators=[isinstance_validator(BaseImageContainer),]
+                    ),
+                    self.KEY_LABEL: Parameter(
+                        validators=[isinstance_validator(BaseImageContainer),]
+                    ),
+                    self.KEY_LABEL_TYPE: Parameter(
+                        validators=from_list_validator(
+                            [GkmFilter.CASL, GkmFilter.PCASL, GkmFilter.PASL],
+                            case_insensitive=True,
+                        )
+                    ),
+                    self.KEY_LABEL_DURATION: Parameter(
+                        validators=[
+                            greater_than_equal_to_validator(0),
+                            isinstance_validator(float),
+                        ]
+                    ),
+                    self.KEY_LABEL_EFFICIENCY: Parameter(
+                        validators=[
+                            range_inclusive_validator(0, 1),
+                            isinstance_validator(float),
+                        ]
+                    ),
+                    self.KEY_LAMBDA_BLOOD_BRAIN: Parameter(
+                        validators=[
+                            range_inclusive_validator(0, 1),
+                            isinstance_validator(float),
+                        ]
+                    ),
+                    self.KEY_T1_ARTERIAL_BLOOD: Parameter(
+                        validators=[
+                            greater_than_equal_to_validator(0),
+                            isinstance_validator(float),
+                        ]
+                    ),
+                    self.KEY_MODEL: Parameter(
+                        validators=from_list_validator(
+                            [self.WHITEPAPER, self.FULL], case_insensitive=True,
+                        )
+                    ),
+                },
+                post_validators=[
+                    shape_validator([self.KEY_CONTROL, self.KEY_LABEL, self.KEY_M0], 3)
+                ],
+            ),
+            "full": ParameterValidator(
+                parameters={
+                    self.KEY_POST_LABEL_DELAY: Parameter(
+                        validators=[
+                            for_each_validator(
+                                and_validator(
+                                    [
+                                        greater_than_equal_to_validator(0),
+                                        isinstance_validator(float),
+                                    ]
+                                )
+                            )
+                        ]
+                    ),
+                    self.KEY_MULTIPHASE_INDEX: Parameter(
+                        validators=[for_each_validator(isinstance_validator(int))]
+                    ),
+                    self.KEY_T1_TISSUE: Parameter(
+                        validators=[
+                            isinstance_validator((float, BaseImageContainer)),
+                            range_inclusive_validator(0, 100),
+                        ]
+                    ),
+                },
+                post_validators=[shape_validator([self.KEY_CONTROL, self.KEY_LABEL])],
+            ),
+            "whitepaper": ParameterValidator(
+                parameters={
+                    self.KEY_POST_LABEL_DELAY: Parameter(
+                        validators=[
+                            greater_than_equal_to_validator(0),
+                            isinstance_validator(float),
+                        ]
+                    ),
+                }
+            ),
+        }
+        # validate the common parameters
+        input_validator["common"].validate(
+            self.inputs, error_type=FilterInputValidationError
+        )
+        # validate the model specific parameters
+        input_validator[self.inputs[self.KEY_MODEL]].validate(
+            self.inputs, error_type=FilterInputValidationError
         )
 
-        input_validator.validate(self.inputs, error_type=FilterInputValidationError)
+        # extra validation for the full GKM
+        if self.inputs[self.KEY_MODEL] == self.FULL:
+            label_shape = self.inputs[self.KEY_LABEL].shape
+            # length of 'multiphase_index' should match the length of the label image
+            # in the 4th dimension
+            if not len(self.inputs[self.KEY_MULTIPHASE_INDEX]) == label_shape[3]:
+                raise FilterInputValidationError(
+                    "The length of 'multiphase_index' must be equal to the length"
+                    "of the 'label' image in the 4th dimension "
+                )
 
-        # Check that all the input images have the same first 3 dimensions (can differ in the 4th)
-        input_keys = self.inputs.keys()
-        keys_of_images = [
-            key
-            for key in input_keys
-            if isinstance(self.inputs[key], BaseImageContainer)
-        ]
-
-        list_of_image_shapes = [self.inputs[key].shape[:3] for key in keys_of_images]
-        if list_of_image_shapes.count(list_of_image_shapes[0]) != len(
-            list_of_image_shapes
-        ):
-            raise FilterInputValidationError(
-                [
-                    "Input image shapes do not match.",
-                    [
-                        f"{keys_of_images[i]}: {list_of_image_shapes[i]}, "
-                        for i in range(len(list_of_image_shapes))
-                    ],
-                ]
-            )
+            if not len(self.inputs[self.KEY_POST_LABEL_DELAY]) == len(
+                set(self.inputs[self.KEY_MULTIPHASE_INDEX])
+            ):
+                raise FilterInputValidationError(
+                    "The length of 'post_label_delay' should be the same as the"
+                    "number of unique entries in 'multiphase_index'"
+                )
 
     @staticmethod
     def asl_quant_wp_casl(
