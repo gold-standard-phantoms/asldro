@@ -339,6 +339,57 @@ def and_validator(validators: List[Validator]) -> Validator:
     )
 
 
+def shape_validator(keys: List[BaseImageContainer], maxdim: int = None) -> Validator:
+    """Checks that all of the keys have the same shape
+    If all the supplied inputs have matching shapes, this validator
+    evaluates as True.
+
+    Note this is intended to be used as a post validator as the argument
+    for the validator is a dictionary.
+
+    :param images: A list (or tuple) of strings
+    :type images: Union[List[str], Tuple[str]]
+    """
+
+    if not isinstance(keys, (list, tuple)):
+        raise TypeError(
+            "The argument 'keys' to 'shape_validator' must be a list or tuple"
+        )
+    for key in keys:
+        if not isinstance(key, str):
+            raise TypeError("Each element of input must be of type str")
+    if maxdim is not None:
+        if not isinstance(maxdim, int):
+            raise TypeError("The argument 'maxdim' to 'shape_validator' must be a int")
+
+    def validate(d: dict) -> bool:
+        # check the keys exist in d
+        keys_exist = all([key in d for key in keys])
+        # check all values have the attribute `shape`
+        if keys_exist:
+            have_shape = all([hasattr(d[key], "shape") for key in keys])
+        else:
+            have_shape = False
+        # check the shapes match with the shape of the first key
+        if have_shape:
+            if maxdim is not None:
+                shapes_match = [d[key].shape[:maxdim] for key in keys].count(
+                    d[keys[0]].shape[:maxdim]
+                ) == len(keys)
+            else:
+                shapes_match = [d[key].shape for key in keys].count(
+                    d[keys[0]].shape
+                ) == len(keys)
+
+        else:
+            shapes_match = False
+        return keys_exist and have_shape and shapes_match
+
+    return Validator(
+        validate, criteria_message=f"{keys} must all have the same shapes",
+    )
+
+
 class Parameter:
     # pylint: disable=too-few-public-methods
     """A description of a parameter which is to be validated against"""

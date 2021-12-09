@@ -7,6 +7,7 @@ from asldro.validators.parameters import (
     ParameterValidator,
     ValidationError,
     and_validator,
+    shape_validator,
     or_validator,
     range_exclusive_validator,
     range_inclusive_validator,
@@ -23,7 +24,10 @@ from asldro.validators.parameters import (
     has_attribute_value_validator,
     and_validator,
 )
-from asldro.containers.image import NumpyImageContainer, BaseImageContainer
+from asldro.containers.image import (
+    NumpyImageContainer,
+    BaseImageContainer,
+)
 
 
 def test_range_inclusive_validator_creator():
@@ -497,10 +501,7 @@ def test_or_validator_creator():
 def test_or_validator():
     """Test the or_validator"""
     validator = or_validator(
-        [
-            range_inclusive_validator(0, 1),
-            range_exclusive_validator(100, 200),
-        ]
+        [range_inclusive_validator(0, 1), range_exclusive_validator(100, 200),]
     )
     assert (
         str(validator) == "Value(s) must be between 0 and 1 (inclusive) OR "
@@ -539,10 +540,7 @@ def test_and_validator_creator():
 def test_and_validator():
     """Test the and_validator"""
     validator = and_validator(
-        [
-            range_inclusive_validator(0, 10),
-            range_exclusive_validator(5, 15),
-        ]
+        [range_inclusive_validator(0, 10), range_exclusive_validator(5, 15),]
     )
 
     assert (
@@ -559,6 +557,68 @@ def test_and_validator():
     assert not validator(10.1)
     assert not validator(15)
     assert not validator(15.1)
+
+
+def test_shape_validator_creator():
+    """Tests the image_shape_validator creator"""
+    test_image = NumpyImageContainer(np.ones((8, 8, 8)))
+
+    with pytest.raises(TypeError):
+        shape_validator(images="not a list")
+
+    with pytest.raises(TypeError):
+        shape_validator(images=[np.zeros(5), "str", test_image])
+
+    with pytest.raises(TypeError):
+        shape_validator(["image_1", "image_2", "image_3"], 4.5)
+
+    shape_validator(["image_1", "image_2", "image_3"])
+    shape_validator(("image_1", "image_2", "image_3"))
+    shape_validator(["image_1", "image_2", "image_3"], 2)
+
+
+def test_shape_validator():
+    """Tests the image_shape_validator"""
+
+    image_1 = NumpyImageContainer(np.ones((5, 3, 8)))
+    image_2 = NumpyImageContainer(np.ones((5, 3, 8)))
+    image_3 = NumpyImageContainer(np.ones((2, 7, 9, 11)))
+    image_4 = NumpyImageContainer(np.ones((2, 7, 9, 11)))
+    image_5 = NumpyImageContainer(np.ones((5, 3, 8, 10)))
+    array_1 = np.ones((5, 3, 8))
+    array_2 = np.ones((2, 7, 9, 11))
+    float_1 = 17.5
+    d = {
+        "image_1": image_1,
+        "image_2": image_2,
+        "image_3": image_3,
+        "image_4": image_4,
+        "array_1": array_1,
+        "array_2": array_2,
+        "float_1": float_1,
+        "image_5": image_5,
+    }
+    # matching shapes
+    validator = shape_validator(["image_1", "image_2", "array_1"])
+    assert validator(d)
+    validator = shape_validator(["image_3", "image_4", "array_2"])
+    assert validator(d)
+    validator = shape_validator(["image_1"])
+    assert validator(d)
+
+    # non-matching shapes
+    validator = shape_validator(["image_1", "image_3", "array_1"])
+    assert not validator(d)
+
+    # no shape attribute
+    validator = shape_validator(["float_1"])
+    assert not validator(d)
+
+    # with maxdim
+    validator = shape_validator(["image_1", "image_2", "array_1", "image_5"])
+    assert not validator(d)
+    validator = shape_validator(["image_1", "image_2", "array_1", "image_5"], 3)
+    assert validator(d)
 
 
 def test_parameter_validator_valid():

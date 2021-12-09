@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - QASPER ground truth
 - Filter that simulates background suppression
 - Filter for loading in ASL BIDS files
-- Filter for performing ASL quantification
+- Filter for performing ASL quantification using both the single subtraction
+  model as well as least squares fit to the full GKM.
 - "Whitepaper" mode for generating the perfusion signal.
 
 ### Fixed
