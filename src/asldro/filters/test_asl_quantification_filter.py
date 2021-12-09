@@ -4,18 +4,18 @@ from copy import deepcopy
 import pytest
 
 import numpy as np
+from numpy.random import default_rng
 import numpy.testing
 import nibabel as nib
 
-from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.containers.image import NiftiImageContainer
 from asldro.utils.filter_validation import validate_filter_inputs
 
 from asldro.filters.asl_quantification_filter import AslQuantificationFilter
 from asldro.filters.gkm_filter import GkmFilter
 
-TEST_DIM_3D = (32, 32, 32)
-TEST_DIM_4D = (32, 32, 32, 8)
+TEST_DIM_3D = (2, 2, 2)
+TEST_DIM_4D = (2, 2, 2, 10)
 TEST_NIFTI_ONES = nib.Nifti2Image(
     np.ones(TEST_DIM_3D),
     affine=np.array(((1, 0, 0, -16), (0, 1, 0, -16), (0, 0, 1, -16), (0, 0, 0, 1),)),
@@ -39,7 +39,7 @@ TEST_METADATA = {
 
 
 @pytest.fixture(name="test_data_wp")
-def test_data_wp_fixture() -> NiftiImageContainer:
+def test_data_wp_fixture() -> dict:
     label_3d = NiftiImageContainer(
         nib.Nifti2Image(0.99 * np.ones(TEST_DIM_3D), affine=np.eye(4)),
         metadata=TEST_METADATA,
@@ -70,44 +70,104 @@ def test_data_wp_fixture() -> NiftiImageContainer:
     }
 
 
-@pytest.fixture(name="test_data_full")
-def test_data_full_fixture() -> NiftiImageContainer:
-
-    t = np.linspace(1.8, 1.8 + 3.0, num=10)
+@pytest.fixture(name="multiphase_data")
+def test_fixture_multiphase() -> dict:
+    """Generates test data using the general kinetic model with ground truths
+    for perfusion rate and transit time"""
+    n_vols = 10
+    rng = default_rng(1234)
     label_duration = 1.8
-    post_label_delay = (t - label_duration).tolist()
-    dim_4d_2 = (32, 32, 32, 9)
+    signal_times = rng.uniform(label_duration, label_duration + 3, n_vols)
+    post_label_delay = signal_times - label_duration
+    perfusion_rate = np.linspace(10, 80, num=8).reshape(TEST_DIM_3D)
+    transit_time = np.linspace(0.5, 1.5, num=8).reshape(TEST_DIM_3D)
+    label_efficiency = 0.85
+    t1_arterial_blood = 1.65
+    t1_tissue = 1.3 * np.ones(TEST_DIM_3D)
+    m0_tissue = 73.7 * np.ones(TEST_DIM_3D)
+    lambda_blood_brain = 0.9 * np.ones(TEST_DIM_3D)
+
+    delta_m = {
+        label_type: np.stack(
+            [
+                GkmFilter.calculate_delta_m_gkm(
+                    perfusion_rate,
+                    transit_time,
+                    m0_tissue,
+                    label_duration,
+                    signal_time,
+                    label_efficiency,
+                    lambda_blood_brain,
+                    t1_arterial_blood,
+                    t1_tissue,
+                    label_type,
+                )
+                for signal_time in signal_times
+            ],
+            axis=3,
+        )
+        for label_type in ["pasl", "casl"]
+    }
+    return {
+        "lambda_blood_brain": lambda_blood_brain,
+        "label_duration": label_duration,
+        "post_label_delay": post_label_delay.tolist(),
+        "label_efficiency": label_efficiency,
+        "multiphase_index": list(range(0, signal_times.size)),
+        "t1_arterial_blood": t1_arterial_blood,
+        "perfusion_rate": perfusion_rate,
+        "transit_time": transit_time,
+        "t1_tissue": t1_tissue,
+        "m0_tissue": m0_tissue,
+        "control": {
+            label_type: np.stack([m0_tissue] * n_vols, 3)
+            for label_type in ["pasl", "casl"]
+        },
+        "label": {
+            label_type: np.stack([m0_tissue] * n_vols, 3) - delta_m[label_type]
+            for label_type in ["pasl", "casl"]
+        },
+    }
+
+
+@pytest.fixture(name="test_data_full")
+def test_data_full_fixture(multiphase_data) -> dict:
+    dim_4d_2 = (2, 2, 2, 9)
+    metadata = deepcopy(TEST_METADATA)
+    metadata["PostLabelingDelay"] = multiphase_data["post_label_delay"]
+    metadata["MultiphaseIndex"] = multiphase_data["multiphase_index"]
 
     label = NiftiImageContainer(
-        nib.Nifti2Image(0.99 * np.ones(TEST_DIM_4D), affine=np.eye(4))
+        nib.Nifti2Image(multiphase_data["label"]["casl"], affine=np.eye(4)),
+        metadata=metadata,
     )
     control = NiftiImageContainer(
-        nib.Nifti2Image(np.ones(TEST_DIM_4D), affine=np.eye(4))
+        nib.Nifti2Image(multiphase_data["control"]["casl"], affine=np.eye(4)),
+        metadata=metadata,
     )
     label_2 = NiftiImageContainer(
-        nib.Nifti2Image(0.99 * np.ones(dim_4d_2), affine=np.eye(4))
+        nib.Nifti2Image(0.99 * np.ones(dim_4d_2), affine=np.eye(4)), metadata=metadata,
     )
     control_2 = NiftiImageContainer(
-        nib.Nifti2Image(np.ones(dim_4d_2), affine=np.eye(4))
+        nib.Nifti2Image(np.ones(dim_4d_2), affine=np.eye(4)), metadata=metadata
     )
-    m0 = NiftiImageContainer(nib.Nifti2Image(np.ones(TEST_DIM_3D), affine=np.eye(4)))
-    t1_tissue = NiftiImageContainer(
-        nib.Nifti2Image(1.3 * np.ones(TEST_DIM_3D), affine=np.eye(4))
+    m0 = NiftiImageContainer(
+        nib.Nifti2Image(multiphase_data["m0_tissue"], affine=np.eye(4))
     )
     return {
-        "control": control,
-        "label": label,
-        "control_2": control_2,
-        "label_2": label_2,
-        "m0": m0,
-        "lambda_blood_brain": 0.9,
-        "label_duration": 1.8,
-        "post_label_delay": post_label_delay,
-        "label_efficiency": 0.85,
-        "model": "full",
-        "multiphase_index": list(range(0, 10)),
-        "t1_arterial_blood": 1.65,
-        "t1_tissue": t1_tissue,
+        **multiphase_data,
+        **{
+            "control": control,
+            "label": label,
+            "control_2": control_2,
+            "label_2": label_2,
+            "m0": m0,
+            "t1_tissue": multiphase_data["t1_tissue"][0, 0, 0],
+            "lambda_blood_brain": multiphase_data["lambda_blood_brain"][
+                0, 0, 0
+            ],  # only float required
+            "label_type": "casl",
+        },
     }
 
 
@@ -147,7 +207,8 @@ def input_validation_dict_fixture(test_data_wp, test_data_full):
                 1.0,
                 "str",
             ],
-            "m0": [False, TEST_NIFTI_CON_ONES, TEST_NIFTI_ONES, 1.0, "str"],
+            "m0": [False, test_data_full["m0"], TEST_NIFTI_ONES, 1.0, "str"],
+            "t1_tissue": [False, test_data_full["t1_tissue"], TEST_NIFTI_ONES, "str"],
             "label_type": [False, "casl", "CSL", 1.0, TEST_NIFTI_CON_ONES],
             "model": [False, "full", "fll", 1.0, TEST_NIFTI_CON_ONES],
             "label_duration": [False, 1.8, -1.8, "str"],
@@ -159,7 +220,12 @@ def input_validation_dict_fixture(test_data_wp, test_data_full):
                 "str",
             ],
             "label_efficiency": [False, 0.85, 1.85, "str"],
-            "lambda_blood_brain": [False, 0.9, 1.9, "str"],
+            "lambda_blood_brain": [
+                False,
+                test_data_full["lambda_blood_brain"],
+                1.9,
+                "str",
+            ],
             "t1_arterial_blood": [False, 1.65, -1.65, "str"],
             "multiphase_index": [
                 False,
@@ -215,6 +281,7 @@ def test_asl_quantification_filter_validate_inputs(validation_data):
     """Check a FilterInputValidationError is raised when the inputs to the
     AslQuantificationFilter are incorrect or missing"""
     validate_filter_inputs(AslQuantificationFilter, validation_data["whitepaper"])
+    validate_filter_inputs(AslQuantificationFilter, validation_data["full"])
 
 
 @pytest.mark.parametrize(
@@ -337,22 +404,25 @@ def test_asl_quantification_filter_with_mock_data_casl(test_data_wp):
         "LabelingEfficiency": 0.85,
         "asl_context": "cbf",
         "Units": "ml/100g/min",
+        "EstimationAlgorithm": """Calculated using the single subtraction simplified model for
+CBF quantification from the ASL White Paper:
+
+Alsop et. al., Recommended implementation of arterial
+spin-labeled perfusion MRI for clinical applications:
+a consensus of the ISMRM perfusion study group and the
+european consortium for ASL in dementia. Magnetic Resonance
+in Medicine, 73(1):102–116, apr 2014. doi:10.1002/mrm.25197
+""",
     }
 
 
-def test_asl_quantification_filter_with_mock_timeseries():
+def test_asl_quantification_filter_with_mock_timeseries(test_data_wp):
     """Tests the AslQuantificationFilter with some mock timeseries data"""
-    label_image_container = NiftiImageContainer(
-        nib.Nifti2Image(0.99 * np.ones((32, 32, 32, 4)), affine=np.eye(4))
-    )
-    control_image_container = NiftiImageContainer(
-        nib.Nifti2Image(np.ones((32, 32, 32, 4)), affine=np.eye(4))
-    )
 
     input_params = {
-        "control": control_image_container,
-        "label": label_image_container,
-        "m0": TEST_NIFTI_CON_ONES,
+        "control": test_data_wp["control_4d"],
+        "label": test_data_wp["label_4d"],
+        "m0": test_data_wp["m0"],
         "label_type": "casl",
         "model": "whitepaper",
         "lambda_blood_brain": 0.9,
@@ -369,9 +439,9 @@ def test_asl_quantification_filter_with_mock_timeseries():
     numpy.testing.assert_array_equal(
         asl_quantification_filter.outputs["perfusion_rate"].image,
         AslQuantificationFilter.asl_quant_wp_casl(
-            control_image_container.image[:, :, :, 0],
-            label_image_container.image[:, :, :, 0],
-            TEST_NIFTI_CON_ONES.image,
+            test_data_wp["control_4d"].image[:, :, :, 0],
+            test_data_wp["label_4d"].image[:, :, :, 0],
+            test_data_wp["m0"].image,
             input_params["lambda_blood_brain"],
             input_params["label_duration"],
             input_params["post_label_delay"],
@@ -461,4 +531,71 @@ def test_asl_quantification_filter_with_mock_data_pasl(test_data_wp):
         "LabelingEfficiency": 0.85,
         "asl_context": "cbf",
         "Units": "ml/100g/min",
+        "EstimationAlgorithm": """Calculated using the single subtraction simplified model for
+CBF quantification from the ASL White Paper:
+
+Alsop et. al., Recommended implementation of arterial
+spin-labeled perfusion MRI for clinical applications:
+a consensus of the ISMRM perfusion study group and the
+european consortium for ASL in dementia. Magnetic Resonance
+in Medicine, 73(1):102–116, apr 2014. doi:10.1002/mrm.25197
+""",
     }
+
+
+## Tests for when the AslQuantificationFilter uses the 'full' model.
+
+
+def test_asl_quantification_filter_asl_quant_lsq_gkm(multiphase_data):
+    """Numerically tests the least squares fitting to the general kinetic model
+    for both the casl and pasl signal models."""
+    for label_type in ["pasl", "casl"]:
+
+        results = AslQuantificationFilter.asl_quant_lsq_gkm(
+            multiphase_data["control"][label_type],
+            multiphase_data["label"][label_type],
+            multiphase_data["m0_tissue"],
+            multiphase_data["lambda_blood_brain"],
+            multiphase_data["label_duration"],
+            multiphase_data["post_label_delay"],
+            multiphase_data["label_efficiency"],
+            multiphase_data["t1_arterial_blood"],
+            multiphase_data["t1_tissue"],
+            label_type,
+        )
+        numpy.testing.assert_array_almost_equal(
+            results["perfusion_rate"], multiphase_data["perfusion_rate"]
+        )
+        numpy.testing.assert_array_almost_equal(
+            results["transit_time"], multiphase_data["transit_time"]
+        )
+
+
+def test_asl_quantification_filter_full_mock_data(test_data_full):
+    """Tests the AslQuantificationFilter when using the full GKM for
+    quantification with some mock data"""
+    for label_type in ["casl"]:
+        asl_quantification_filter = AslQuantificationFilter()
+        asl_quantification_filter.add_inputs(test_data_full)
+        asl_quantification_filter.add_input("model", "full")
+        asl_quantification_filter.run()
+
+        # check the image metadata
+        assert asl_quantification_filter.outputs["perfusion_rate"].metadata == {
+            "ComplexImageComponent": "REAL",
+            "ImageType": ["DERIVED", "PRIMARY", "PERFUSION", "RCBF",],
+            "BackgroundSuppression": False,
+            "VascularCrushing": False,
+            "LabelingDuration": test_data_full["label_duration"],
+            "PostLabelingDelay": test_data_full["post_label_delay"],
+            "LabelingEfficiency": test_data_full["label_efficiency"],
+            "asl_context": "cbf",
+            "Units": "ml/100g/min",
+            "EstimationAlgorithm": """Least Squares fit to the General Kinetic Model for
+Arterial Spin Labelling:
+
+Buxton et. al., A general
+kinetic model for quantitative perfusion imaging with arterial
+spin labeling. Magnetic Resonance in Medicine, 40(3):383–396,
+sep 1998. doi:10.1002/mrm.1910400308.""",
+        }

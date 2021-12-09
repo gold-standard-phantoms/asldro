@@ -1,6 +1,5 @@
 """ parameters.py tests """
 from types import SimpleNamespace
-from nibabel import test
 import pytest
 import numpy as np
 from asldro.validators.parameters import (
@@ -26,7 +25,6 @@ from asldro.validators.parameters import (
     and_validator,
 )
 from asldro.containers.image import (
-    NiftiImageContainer,
     NumpyImageContainer,
     BaseImageContainer,
 )
@@ -616,7 +614,7 @@ def test_shape_validator():
     validator = shape_validator(["float_1"])
     assert not validator(d)
 
-    #with maxdim
+    # with maxdim
     validator = shape_validator(["image_1", "image_2", "array_1", "image_5"])
     assert not validator(d)
     validator = shape_validator(["image_1", "image_2", "array_1", "image_5"], 3)

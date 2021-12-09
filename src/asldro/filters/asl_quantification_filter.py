@@ -1,9 +1,7 @@
 """ASL quantification filter class"""
-
-
-from logging import Filter
+from typing import List
 import numpy as np
-from numpy.core.fromnumeric import shape
+from scipy.optimize import curve_fit
 from asldro.filters.basefilter import BaseFilter, FilterInputValidationError
 from asldro.filters.gkm_filter import GkmFilter
 from asldro.containers.image import BaseImageContainer
@@ -13,9 +11,9 @@ from asldro.validators.parameters import (
     for_each_validator,
     isinstance_validator,
     greater_than_equal_to_validator,
+    greater_than_validator,
     from_list_validator,
     range_inclusive_validator,
-    or_validator,
     and_validator,
     for_each_validator,
     shape_validator,
@@ -40,32 +38,55 @@ class AslQuantificationFilter(BaseFilter):
     :type 'm0': BaseImageContainer
     :param 'label_type': the type of labelling used: "pasl" for pulsed ASL
       "pcasl" or "casl" for for continuous ASL.
-    :type 'label_type': "str"
+    :type 'label_type': str
     :param 'lambda_blood_brain': The blood-brain-partition-coefficient (0 to 1 inclusive)
     :type 'lambda_blood_brain': float
     :param 'label_duration': The temporal duration of the labelled bolus, seconds
-      (0 to 100 inclusive). For PASL this is equivalent to :math:`\text{TI}_1`
+      (0 or greater). For PASL this is equivalent to :math:`\text{TI}_1`
     :type 'label_duration': float
     :param 'post_label_delay': The duration between the end of the labelling
-        pulse and the imaging excitation pulse, seconds (0 to 100 inclusive).
-        For PASL this is equivalent to :math:`\text{TI}`
-    :type 'post_label_delay': float
+        pulse and the imaging excitation pulse, seconds (0 or greater).
+        For PASL this is equivalent to :math:`\text{TI}`.
+        If ``'model'=='full'`` then this must be a list and the length of this
+        must match the number of unique entries in ``'multiphase_index'``.
+    :type 'post_label_delay': float or List[float]
     :param 'label_efficiency': The degree of inversion of the labelling
       (0 to 1 inclusive)
     :type 'label_efficiency': float
     :param 't1_arterial_blood': Longitudinal relaxation time of arterial blood,
-        seconds (0 exclusive to 100 inclusive)
+        seconds (greater than 0)
     :type 't1_arterial_blood': float
+    :param 't1_tissue': Longitudinal relaxation time of the tissue, seconds
+        (greater than 0). Required if ``'model'=='full'``
+    :type 't1_tissue': float or BaseImageContainer
     :param 'model': defines which model to use
 
         * 'whitepaper' uses the single-subtraction white paper equation
+        * 'full' least square fitting to the full GKM.
 
     :type 'model': str
+    :param 'multiphase_index': A list the same length as the fourth dimension
+        of the label image that defines which phase each image belongs to,
+        and is also the corresponding index in the ``'post_label_delay'`` list.
+        Required if ``'model'=='full'``.
 
     **Outputs**
 
     :param 'perfusion_rate': map of the calculated perfusion rate
     :type 'perfusion_rate': BaseImageContainer
+
+    If ``'model'=='full'`` the following are also output:
+
+    :param 'transit_time': The estimated transit time in seconds.
+    :type 'transit_time': BaseImageContainer
+    :param 'fit_error': The standard error of the estimate of the fit.
+    :type 'fit_error': BaseImageContainer
+    :param 'perfusion_rate_err': One standard deviation error in the fitted
+    perfusion rate.
+    :type 'perfusion_rate_err': BaseImageContainer
+    :param 'transit_time_err': One standard deviation error in the fitted
+      transit time.
+    :type 'transit_time_err': BaseImageContainer
 
     **Quantification Model**
 
@@ -77,6 +98,8 @@ class AslQuantificationFilter(BaseFilter):
       * for pCASL/CASL see :class:`AslQuantificationFilter.asl_quant_wp_casl`
       * for PASL see :class:`AslQuantificationFilter.asl_quant_wp_pasl`.
 
+    :'full': Lease squares fitting to the full General Kinetic Model :cite:p:`Buxton1998`.
+      See :class:`AslQuantificationFilter.asl_quant_lsq_gkm`.
 
     """
 
@@ -93,32 +116,83 @@ class AslQuantificationFilter(BaseFilter):
     KEY_POST_LABEL_DELAY = GkmFilter.M_POST_LABEL_DELAY
     KEY_MULTIPHASE_INDEX = "multiphase_index"
     KEY_T1_TISSUE = GkmFilter.KEY_T1_TISSUE
+    KEY_TRANSIT_TIME = GkmFilter.KEY_TRANSIT_TIME
+    KEY_PERFUSION_RATE_ERR = "perfusion_rate_err"
+    KEY_TRANSIT_TIME_ERR = "transit_time_err"
+    KEY_STD_ERROR = "std_error"
 
     WHITEPAPER = GkmFilter.MODEL_WP
     FULL = GkmFilter.MODEL_FULL
     M0_TOL = 1e-6
+
+    FIT_IMAGE_NAME = {
+        KEY_STD_ERROR: "FITErr",
+        KEY_PERFUSION_RATE_ERR: "RCBFErr",
+        KEY_TRANSIT_TIME: "ATT",
+        KEY_TRANSIT_TIME_ERR: "ATTErr",
+    }
+    FIT_IMAGE_UNITS = {
+        KEY_STD_ERROR: "a.u.",
+        KEY_PERFUSION_RATE_ERR: "ml/100g/min",
+        KEY_TRANSIT_TIME: "s",
+        KEY_TRANSIT_TIME_ERR: "s",
+    }
+    ESTIMATION_ALGORITHM = {
+        WHITEPAPER: """Calculated using the single subtraction simplified model for
+CBF quantification from the ASL White Paper:
+
+Alsop et. al., Recommended implementation of arterial
+spin-labeled perfusion MRI for clinical applications:
+a consensus of the ISMRM perfusion study group and the
+european consortium for ASL in dementia. Magnetic Resonance
+in Medicine, 73(1):102–116, apr 2014. doi:10.1002/mrm.25197
+""",
+        FULL: """Least Squares fit to the General Kinetic Model for
+Arterial Spin Labelling:
+
+Buxton et. al., A general
+kinetic model for quantitative perfusion imaging with arterial
+spin labeling. Magnetic Resonance in Medicine, 40(3):383–396,
+sep 1998. doi:10.1002/mrm.1910400308.""",
+    }
 
     def __init__(self):
         super().__init__(name="ASL Quantification")
 
     def _run(self):
         """Calculates the perfusion rate based on the inputs"""
-        # if any of the images are 4D, take the average along the 4th dimension.
-        images = {}
-        for key in [self.KEY_M0, self.KEY_CONTROL, self.KEY_LABEL]:
-            if len(self.inputs[key].shape) == 4:
-                # take the average along the 4th (time) dimension
-                images[key] = np.average(self.inputs[key].image, axis=3)
-            else:
-                images[key] = self.inputs[key].image
 
-        # create output image and set to zero
+        # create output image
         self.outputs[self.KEY_PERFUSION_RATE] = self.inputs[self.KEY_CONTROL].clone()
-        self.outputs[self.KEY_PERFUSION_RATE].image = np.zeros_like(
-            images[self.KEY_CONTROL]
+        # amend the metadata
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("RepetitionTime", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop(
+            "RepetitionTimePreparation", None
         )
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("EchoTime", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("M0Type", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("FlipAngle", None)
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["asl_context"] = "cbf"
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["Units"] = "ml/100g/min"
+        self.outputs[self.KEY_PERFUSION_RATE].metadata["ImageType"] = [
+            "DERIVED",
+            "PRIMARY",
+            "PERFUSION",
+            "RCBF",
+        ]
 
         if self.inputs[self.KEY_MODEL] == self.WHITEPAPER:
+            # single subtraction quantification
+
+            # if any of the images are 4D, take the average along the 4th dimension.
+            images = {}
+            for key in [self.KEY_M0, self.KEY_CONTROL, self.KEY_LABEL]:
+                if len(self.inputs[key].shape) == 4:
+                    # take the average along the 4th (time) dimension
+                    images[key] = np.average(self.inputs[key].image, axis=3)
+                else:
+                    images[key] = self.inputs[key].image
+
             if self.inputs[self.KEY_LABEL_TYPE].lower() in [
                 GkmFilter.CASL,
                 GkmFilter.PCASL,
@@ -149,22 +223,78 @@ class AslQuantificationFilter(BaseFilter):
                     label_efficiency=self.inputs[self.KEY_LABEL_EFFICIENCY],
                     t1_arterial_blood=self.inputs[self.KEY_T1_ARTERIAL_BLOOD],
                 )
-        # amend the metadata
-        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("RepetitionTime", None)
-        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop(
-            "RepetitionTimePreparation", None
-        )
-        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("EchoTime", None)
-        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("M0Type", None)
-        self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("FlipAngle", None)
-        self.outputs[self.KEY_PERFUSION_RATE].metadata["asl_context"] = "cbf"
-        self.outputs[self.KEY_PERFUSION_RATE].metadata["Units"] = "ml/100g/min"
-        self.outputs[self.KEY_PERFUSION_RATE].metadata["ImageType"] = [
-            "DERIVED",
-            "PRIMARY",
-            "PERFUSION",
-            "RCBF",
-        ]
+            self.outputs[self.KEY_PERFUSION_RATE].metadata[
+                "EstimationAlgorithm"
+            ] = self.ESTIMATION_ALGORITHM[self.WHITEPAPER]
+        elif self.inputs[self.KEY_MODEL] == self.FULL:
+            # fit multi PLD data to the General Kinetic Model
+            # AslQuantificationFilter.asl_quant_lsq_gkm requires `t1_tissue` and
+            # `lambda_blood_brain` to be np.ndarrays (same dimensions as m0), so
+            # first create arrays of these if they are not
+            shape = self.inputs[self.KEY_M0].shape
+            t1_tissue = GkmFilter.check_and_make_image_from_value(
+                self.inputs[self.KEY_T1_TISSUE], shape, {}, None
+            )
+            lambda_blood_brain = GkmFilter.check_and_make_image_from_value(
+                self.inputs[self.KEY_LAMBDA_BLOOD_BRAIN], shape, {}, None
+            )
+            # The input `post_label_delay` is values of PLD's corresponding to
+            # each multiphase index. The actual PLD array needs to be built
+            # using this information.
+            post_label_delays = [
+                self.inputs[self.KEY_POST_LABEL_DELAY][i]
+                for i in self.inputs[self.KEY_MULTIPHASE_INDEX]
+            ]
+
+            # compute `perfusion_rate` and `transit_time`
+            results = AslQuantificationFilter.asl_quant_lsq_gkm(
+                control=self.inputs[self.KEY_CONTROL].image,
+                label=self.inputs[self.KEY_LABEL].image,
+                m0_tissue=self.inputs[self.KEY_M0].image,
+                lambda_blood_brain=lambda_blood_brain,
+                label_duration=self.inputs[self.KEY_LABEL_DURATION],
+                post_label_delay=post_label_delays,
+                label_efficiency=self.inputs[self.KEY_LABEL_EFFICIENCY],
+                t1_arterial_blood=self.inputs[self.KEY_T1_ARTERIAL_BLOOD],
+                t1_tissue=t1_tissue,
+                label_type=self.inputs[self.KEY_LABEL_TYPE].lower(),
+            )
+            self.outputs[self.KEY_PERFUSION_RATE].image = results[
+                self.KEY_PERFUSION_RATE
+            ]
+
+            self.outputs[self.KEY_PERFUSION_RATE].metadata[
+                "EstimationAlgorithm"
+            ] = self.ESTIMATION_ALGORITHM[self.FULL]
+            self.outputs[self.KEY_PERFUSION_RATE].metadata.pop("MultiphaseIndex", None)
+            # when using the full model there are additional outputs
+            for key in [
+                self.KEY_PERFUSION_RATE_ERR,
+                self.KEY_TRANSIT_TIME,
+                self.KEY_TRANSIT_TIME_ERR,
+                self.KEY_STD_ERROR,
+            ]:
+                self.outputs[key] = self.outputs[self.KEY_PERFUSION_RATE].clone()
+                self.outputs[key].metadata["asl_context"] = self.FIT_IMAGE_NAME[
+                    key
+                ].lower()
+                self.outputs[key].metadata["Units"] = self.FIT_IMAGE_UNITS[key]
+                self.outputs[key].metadata["ImageType"] = [
+                    "DERIVED",
+                    "PRIMARY",
+                    "PERFUSION",
+                    self.FIT_IMAGE_NAME[key].upper(),
+                ]
+
+            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
+                self.KEY_PERFUSION_RATE
+            ].clone()
+            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
+                self.KEY_PERFUSION_RATE
+            ].clone()
+            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
+                self.KEY_PERFUSION_RATE
+            ].clone()
 
     def _validate_inputs(self):
         """Checks the inputs meet their validation criteria
@@ -177,8 +307,13 @@ class AslQuantificationFilter(BaseFilter):
         'post_label_delay' must be a float and >= 0
         'label_efficiency' must be a float between 0 and 1 inclusive
         'lambda_blood_brain' must be a float between 0 and 1 inclusive
-        't1_arterial_blood' must be a float and >=0
+        't1_arterial_blood' must be a float and >0
+        't1_tissue' must be a float or BaseImageContainer and >0
+        'multiphase_index' must be a list of integers
 
+        'multiphase_index' should match the length of the 4th dimension of
+        the 'label' image.
+        'multiphase_index' and 't1_tissue' are required if 'model' is 'full'.
         'control' and 'label' must have the same shape
         The shape of 'm0' must match the first 3 dimensions of 'label'
 
@@ -222,7 +357,7 @@ class AslQuantificationFilter(BaseFilter):
                     ),
                     self.KEY_T1_ARTERIAL_BLOOD: Parameter(
                         validators=[
-                            greater_than_equal_to_validator(0),
+                            greater_than_validator(0),
                             isinstance_validator(float),
                         ]
                     ),
@@ -256,7 +391,7 @@ class AslQuantificationFilter(BaseFilter):
                     self.KEY_T1_TISSUE: Parameter(
                         validators=[
                             isinstance_validator((float, BaseImageContainer)),
-                            range_inclusive_validator(0, 100),
+                            greater_than_validator(0),
                         ]
                     ),
                 },
@@ -437,3 +572,129 @@ class AslQuantificationFilter(BaseFilter):
             out=np.zeros_like(m0),
             where=np.abs(m0) >= AslQuantificationFilter.M0_TOL,
         )
+
+    @staticmethod
+    def asl_quant_lsq_gkm(
+        control: np.ndarray,
+        label: np.ndarray,
+        m0_tissue: np.ndarray,
+        lambda_blood_brain: np.ndarray,
+        label_duration: float,
+        post_label_delay: np.ndarray or List[float],
+        label_efficiency: float,
+        t1_arterial_blood: float,
+        t1_tissue: np.ndarray,
+        label_type: str,
+    ) -> dict:
+        """Calculates the perfusion and transit time by least-squares
+        fitting to the ASL General Kinetic Model :cite:p:`Buxton1998`.
+
+        Fitting is performed using :class:`scipy.optimize.curve_fit`.
+
+        See :class:`.GkmFilter` and :class:`.GkmFilter.calculate_delta_m_gkm` for
+        implementation details of the GKM function.
+
+        :param control: control signal, must be 4D with signal for each
+            post labelling delay on the 4th axis. Must have same dimensions as ``label``.
+        :type control: np.ndarray
+        :param label: label signal, must be 4D with signal for each post
+            labelling delay on the 4th axis. Must have same dimensions as ``control``.
+        :type label: np.ndarray
+        :param m0_tissue: equilibrium magnetisation of the tissue.
+        :type m0_tissue: np.ndarray
+        :param lambda_blood_brain: tissue partition coefficient in g/ml.
+        :type lambda_blood_brain: np.ndarray
+        :param label_duration: duration of the labelling pulse in seconds.
+        :type label_duration: float
+        :param post_label_delay: array of post label delays, must be equal in
+            length to the number of 3D volumes in ``control`` and ``label``.
+        :type post_label_delay: np.ndarray
+        :param label_efficiency: The degree of inversion of the labelling pulse.
+        :type label_efficiency: float
+        :param t1_arterial_blood: Longitudinal relaxation time of the arterial
+            blood in seconds.
+        :type t1_arterial_blood: float
+        :param t1_tissue: Longitudinal relaxation time of the tissue in seconds.
+        :type t1_tissue: np.ndarray
+        :param label_type: The type of labelling: pulsed ('pasl') or continuous
+            ('casl' or 'pcasl').
+        :type label_type: str
+        :return: A dictionary containing the following np.ndarrays:
+
+            :'perfusion_rate': The estimated perfusion rate in ml/100g/min.
+            :'transit_time': The estimated transit time in seconds.
+            :'fit_error': The standard error of the estimate of the fit.
+            :'perfusion_rate_err': One standard deviation error in the fitted
+              perfusion rate.
+            :'transit_time_err': One standard deviation error in the fitted
+              transit time.
+
+        :rtype: dict
+
+        ``control``, ``label``, ``m0_tissue``, ``t1_tissue`` and 
+        ``lambda_blood_brain`` must all have
+        the same dimensions for the first 3 dimensions.
+
+
+        """
+        np.broadcast(m0_tissue, t1_tissue, lambda_blood_brain)
+        np.broadcast(control, label)
+
+        post_label_delay = np.asarray(post_label_delay)
+
+        # subtract to get delta_m
+        delta_m = control - label
+        I, J, K = delta_m.shape[:3]
+        perfusion_rate = np.zeros((I, J, K))
+        transit_time = np.zeros((I, J, K))
+        fit_error = np.zeros((I, J, K))
+        perfusion_rate_err = np.zeros((I, J, K))
+        transit_time_err = np.zeros((I, J, K))
+        for i in range(I):
+            for j in range(J):
+                for k in range(K):
+                    # create an anonymous version of the function to solve
+                    func = lambda plds, perf, att: np.array(
+                        [
+                            GkmFilter.calculate_delta_m_gkm(
+                                perf,
+                                att,
+                                m0_tissue[i, j, k]
+                                if isinstance(m0_tissue, np.ndarray)
+                                else m0_tissue,
+                                label_duration,
+                                label_duration + pld,
+                                label_efficiency,
+                                lambda_blood_brain[i, j, k]
+                                if isinstance(lambda_blood_brain, np.ndarray)
+                                else lambda_blood_brain,
+                                t1_arterial_blood,
+                                t1_tissue[i, j, k]
+                                if isinstance(t1_tissue, np.ndarray)
+                                else t1_tissue,
+                                label_type,
+                            )
+                            for pld in plds
+                        ]
+                    )
+                    # fit for the perfusion rate and transit time
+                    obs = delta_m[i, j, k, :]
+                    popt, pcov = curve_fit(func, post_label_delay, obs)
+                    perfusion_rate[i, j, k] = popt[0]
+                    transit_time[i, j, k] = popt[1]
+                    fit_error[i, j, k] = np.sqrt(
+                        np.sum((obs - func(post_label_delay, *popt)) ** 2)
+                        / post_label_delay.size
+                    )
+                    # compute one standard deviation errors of the parameters
+                    perr = np.sqrt(np.diag(pcov))
+                    perfusion_rate_err = perr[0]
+                    transit_time_err = perr[1]
+
+        return {
+            "perfusion_rate": perfusion_rate,
+            "transit_time": transit_time,
+            "perfusion_rate_err": perfusion_rate_err,
+            "transit_time_err": transit_time_err,
+            "fit_error": fit_error,
+        }

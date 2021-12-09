@@ -256,7 +256,7 @@ class GkmFilter(BaseFilter):
     def _run(self):
         """Generates the delta_m signal based on the inputs"""
 
-        perfusion_rate: np.ndarray = self.inputs[self.KEY_PERFUSION_RATE].image / 6000.0
+        perfusion_rate: np.ndarray = self.inputs[self.KEY_PERFUSION_RATE].image
         transit_time: np.ndarray = self.inputs[self.KEY_TRANSIT_TIME].image
         t1_tissue: np.ndarray = self.inputs[self.KEY_T1_TISSUE].image
 
@@ -282,6 +282,11 @@ class GkmFilter(BaseFilter):
         # REFACTOR FROM HERE
         if model == self.MODEL_FULL:
             # gkm function
+            # logger.info(
+            #     "Full General Kinetic Model for Continuous/pseudo-Continuous ASL"
+            #     if label_type in [self.PCASL, self.CASL]
+            #     else "Full General Kinetic Model for Pulsed ASL"
+            # )
             delta_m = GkmFilter.calculate_delta_m_gkm(
                 perfusion_rate,
                 transit_time,
@@ -297,6 +302,11 @@ class GkmFilter(BaseFilter):
 
         elif model == self.MODEL_WP:
             # whitepaper function
+            # logger.info(
+            #     "Simplified Kinetic Model for Continuous/pseudo-Continuous ASL"
+            #     if label_type in [self.PCASL, self.CASL]
+            #     else "Simplified Kinetic Model for Pulsed ASL"
+            # )
             delta_m = GkmFilter.calculate_delta_m_whitepaper(
                 perfusion_rate,
                 transit_time,
@@ -572,6 +582,8 @@ class GkmFilter(BaseFilter):
         :rtype: np.ndarray
 
         """
+        # divide perfusion_rate by 6000 to put into SI units
+        perfusion_rate = np.asarray(perfusion_rate) / 6000
 
         # calculate M0b, handling runtime divide-by-zeros
         m0_arterial_blood = np.divide(
@@ -600,7 +612,6 @@ class GkmFilter(BaseFilter):
         delta_m = np.zeros(perfusion_rate.shape)  # pre-allocate delta_m
         if label_type.lower() == GkmFilter.PASL:
             # do GKM for PASL
-            logger.info("General Kinetic Model for Pulsed ASL")
             k: np.ndarray = (
                 1 / t1_arterial_blood if t1_arterial_blood != 0 else 0
             ) - np.divide(1, t1_prime, out=np.zeros_like(t1_prime), where=t1_prime != 0)
@@ -654,7 +665,6 @@ class GkmFilter(BaseFilter):
             )
         elif label_type.lower() in [GkmFilter.CASL, GkmFilter.PCASL]:
             # do GKM for CASL/pCASL
-            logger.info("General Kinetic Model for Continuous/pseudo-Continuous ASL")
             q_ss_arriving = 1 - np.exp(
                 -np.divide(
                     (signal_time - transit_time),
@@ -757,6 +767,8 @@ class GkmFilter(BaseFilter):
         :rtype: np.ndarray
 
         """
+        # divide perfusion_rate by 6000 to put into SI units
+        perfusion_rate = np.asarray(perfusion_rate) / 6000
 
         # calculate M0b, handling runtime divide-by-zeros
         m0_arterial_blood = np.divide(
