@@ -571,7 +571,7 @@ def test_asl_quantification_filter_asl_quant_lsq_gkm(multiphase_data):
         )
 
 
-def test_asl_quantification_filter_full_mock_data(test_data_full):
+def test_asl_quantification_filter_full_mock_data(test_data_full, multiphase_data):
     """Tests the AslQuantificationFilter when using the full GKM for
     quantification with some mock data"""
     for label_type in ["casl"]:
@@ -579,6 +579,16 @@ def test_asl_quantification_filter_full_mock_data(test_data_full):
         asl_quantification_filter.add_inputs(test_data_full)
         asl_quantification_filter.add_input("model", "full")
         asl_quantification_filter.run()
+
+        # compare the image with the ground truth
+        numpy.testing.assert_array_almost_equal(
+            asl_quantification_filter.outputs["perfusion_rate"].image,
+            multiphase_data["perfusion_rate"],
+        )
+        numpy.testing.assert_array_almost_equal(
+            asl_quantification_filter.outputs["transit_time"].image,
+            multiphase_data["transit_time"],
+        )
 
         # check the image metadata
         assert asl_quantification_filter.outputs["perfusion_rate"].metadata == {

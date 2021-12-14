@@ -79,8 +79,8 @@ class AslQuantificationFilter(BaseFilter):
 
     :param 'transit_time': The estimated transit time in seconds.
     :type 'transit_time': BaseImageContainer
-    :param 'fit_error': The standard error of the estimate of the fit.
-    :type 'fit_error': BaseImageContainer
+    :param 'std_error': The standard error of the estimate of the fit.
+    :type 'std_error': BaseImageContainer
     :param 'perfusion_rate_err': One standard deviation error in the fitted
     perfusion rate.
     :type 'perfusion_rate_err': BaseImageContainer
@@ -275,6 +275,7 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
                 self.KEY_STD_ERROR,
             ]:
                 self.outputs[key] = self.outputs[self.KEY_PERFUSION_RATE].clone()
+                self.outputs[key].image = results[key]
                 self.outputs[key].metadata["asl_context"] = self.FIT_IMAGE_NAME[
                     key
                 ].lower()
@@ -285,16 +286,6 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
                     "PERFUSION",
                     self.FIT_IMAGE_NAME[key].upper(),
                 ]
-
-            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
-                self.KEY_PERFUSION_RATE
-            ].clone()
-            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
-                self.KEY_PERFUSION_RATE
-            ].clone()
-            self.outputs[self.KEY_TRANSIT_TIME] = self.outputs[
-                self.KEY_PERFUSION_RATE
-            ].clone()
 
     def _validate_inputs(self):
         """Checks the inputs meet their validation criteria
@@ -623,7 +614,7 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
 
             :'perfusion_rate': The estimated perfusion rate in ml/100g/min.
             :'transit_time': The estimated transit time in seconds.
-            :'fit_error': The standard error of the estimate of the fit.
+            :'std_error': The standard error of the estimate of the fit.
             :'perfusion_rate_err': One standard deviation error in the fitted
               perfusion rate.
             :'transit_time_err': One standard deviation error in the fitted
@@ -647,7 +638,7 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
         I, J, K = delta_m.shape[:3]
         perfusion_rate = np.zeros((I, J, K))
         transit_time = np.zeros((I, J, K))
-        fit_error = np.zeros((I, J, K))
+        std_error = np.zeros((I, J, K))
         perfusion_rate_err = np.zeros((I, J, K))
         transit_time_err = np.zeros((I, J, K))
         for i in range(I):
@@ -682,7 +673,7 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
                     popt, pcov = curve_fit(func, post_label_delay, obs)
                     perfusion_rate[i, j, k] = popt[0]
                     transit_time[i, j, k] = popt[1]
-                    fit_error[i, j, k] = np.sqrt(
+                    std_error[i, j, k] = np.sqrt(
                         np.sum((obs - func(post_label_delay, *popt)) ** 2)
                         / post_label_delay.size
                     )
@@ -696,5 +687,5 @@ sep 1998. doi:10.1002/mrm.1910400308.""",
             "transit_time": transit_time,
             "perfusion_rate_err": perfusion_rate_err,
             "transit_time_err": transit_time_err,
-            "fit_error": fit_error,
+            "std_error": std_error,
         }
